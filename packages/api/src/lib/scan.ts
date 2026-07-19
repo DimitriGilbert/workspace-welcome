@@ -130,7 +130,12 @@ function overridesFor(
   overrides: Record<string, ProjectOverrides>,
 ): ProjectOverrides {
   return (
-    overrides[path] ?? { pinned: false, note: "", lastOpenedAt: null }
+    overrides[path] ?? {
+      pinned: false,
+      note: "",
+      lastOpenedAt: null,
+      hidden: false,
+    }
   );
 }
 
@@ -256,6 +261,7 @@ async function scanRoot(
           pinned: ov.pinned,
           note: ov.note,
           lastOpenedAt: ov.lastOpenedAt,
+          hidden: ov.hidden,
         };
       } catch {
         // Skip unreadable subdirectories rather than failing the whole root.
@@ -291,7 +297,8 @@ export async function scanAll(config: ScanConfig): Promise<ScanResult> {
     }),
   );
 
-  const projects = settled.flat();
+  // Drop hidden projects — they're excluded from every list.
+  const projects = settled.flat().filter((p) => !p.hidden);
 
   // Sort: pinned first, then most recently updated.
   projects.sort((a, b) => {

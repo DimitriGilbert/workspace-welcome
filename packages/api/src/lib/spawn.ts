@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { spawn } from "node:child_process";
 
 import type { Settings } from "./types";
@@ -23,7 +24,7 @@ function launch(args: string[]): OpenResult {
     const child = spawn(args[0] ?? "", args.slice(1), {
       detached: true,
       stdio: "ignore",
-      cwd: process.env.HOME,
+      env: { ...process.env },
     });
     child.on("error", () => undefined);
     child.unref();
@@ -36,30 +37,92 @@ function launch(args: string[]): OpenResult {
   }
 }
 
-const isLinux = process.platform === "linux";
-const isMac = process.platform === "darwin";
+// --- Terminals -------------------------------------------------------------
+
+/**
+ * Per-terminal working-directory invocation. Each entry maps a binary name to
+ * the flag(s) it uses to set its starting directory. This matters because
+ * terminals disagree (konsole: --workdir, gnome-terminal: --working-directory,
+ * xterm has no such flag and needs a shell wrapper, etc.).
+ */
+const TERMINAL_SPECS: { bin: string; argsFor: (cwd: string) => string[] }[] = [
+  { bin: "konsole", argsFor: (cwd) => ["--workdir", cwd] },
+  { bin: "gnome-terminal", argsFor: (cwd) => [`--working-directory=${cwd}`] },
+  { bin: "xfce4-terminal", argsFor: (cwd) => [`--working-directory=${cwd}`] },
+  { bin: "mate-terminal", argsFor: (cwd) => [`--working-directory=${cwd}`] },
+  { bin: "kitty", argsFor: (cwd) => ["--single-instance", "--directory", cwd] },
+  { bin: "alacritty", argsFor: (cwd) => ["--working-directory", cwd] },
+  { bin: "wezterm", argsFor: (cwd) => ["start", "--cwd", cwd] },
+  { bin: "foot", argsFor: (cwd) => ["--working-directory", cwd] },
+  { bin: "tilix", argsFor: (cwd) => [`--working-directory=${cwd}`] },
+  { bin: "xterm", argsFor: (cwd) => ["-e", `cd ${shellQuote(cwd)} && exec $SHELL`] },
+];
+
+function shellQuote(s: string): string {
+  return `'${s.replace(/'/g, `'"'"'`)}'`;
+}
+
+/** True if the binary is on PATH. */
+function isOnPath(bin: string): boolean {
+  try {
+    execFileSync("command", ["-v", bin], { stdio: "ignore", shell: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Best-effort: find the first installed terminal on this machine. */
+function detectDefaultTerminal(): string | null {
+  for (const spec of TERMINAL_SPECS) {
+    if (isOnPath(spec.bin)) return spec.bin;
+  }
+  return null;
+}
+
+/** Resolve a configured terminal command, falling back to auto-detection. */
+function resolveTerminalCommand(configured: string | null): string | null {
+  if (configured && configured.trim()) {
+    const bin = configured.trim();
+    if (isOnPath(bin)) return bin;
+    // Configured but missing — surface this to the user rather than silently
+    // swapping in something they didn't ask for.
+    return null;
+  }
+  return detectDefaultTerminal();
+}
+
+/** Open `path` in a terminal. */
+export function openTerminal(path: string, settings: Settings): OpenResult {
+  const bin = resolveTerminalCommand(settings.terminalCommand);
+  if (!bin) {
+    const hint = settings.terminalCommand
+      ? `'${settings.terminalCommand}' not found on PATH`
+      : "No terminal configured and none auto-detected";
+    return {
+      ok: false,
+      message: `${hint}. Set one in Settings (e.g. konsole, gnome-terminal, kitty).`,
+    };
+  }
+  const spec = TERMINAL_SPECS.find((s) => s.bin === bin);
+  if (!spec) {
+    // Unknown binary: best-effort with the common flag.
+    return launch([bin, "--working-directory", path]);
+  }
+  return launch([bin, ...spec.argsFor(path)]);
+}
+
+// --- Editor & folder -------------------------------------------------------
 
 /** Open `path` with the configured editor command. */
 export function openEditor(path: string, settings: Settings): OpenResult {
   return launch([settings.editorCommand, path]);
 }
 
-/** Open `path` in a terminal (requires a configured terminalCommand). */
-export function openTerminal(path: string, settings: Settings): OpenResult {
-  if (!settings.terminalCommand) {
-    return {
-      ok: false,
-      message: "No terminal command configured",
-    };
-  }
-  return launch([settings.terminalCommand, "--working-directory", path]);
-}
-
 /** Open the project folder in the OS file manager. */
 export function openFolder(path: string): OpenResult {
-  if (isMac) return launch(["open", path]);
-  if (isLinux) return launch(["xdg-open", path]);
-  // Windows / other — best effort.
+  if (process.platform === "darwin") return launch(["open", path]);
+  if (process.platform === "linux") return launch(["xdg-open", path]);
   return launch(["explorer", path]);
 }
 

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Copy,
   ExternalLink,
+  EyeOff,
   Folder,
   MoreHorizontal,
   Pin,
@@ -31,7 +32,7 @@ import type { Project } from "@workspace-welcome/api/lib/types";
 import { useTRPC } from "@/utils/trpc";
 import { absoluteDate, dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
-import { AlertBadge, GitBadges } from "@/components/git-badges";
+import { AlertIcons, GitBadges } from "@/components/git-badges";
 
 interface ProjectCardProps {
   project: Project;
@@ -51,12 +52,25 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
       onError: (e) => toast.error(e.message),
     }),
   );
+  const hideMutation = useMutation(
+    trpc.projects.setHidden.mutationOptions({
+      onSuccess: () => {
+        invalidateScan();
+        toast.success("Project hidden", {
+          action: {
+            label: "Undo",
+            onClick: () =>
+              hideMutation.mutate({ path: project.path, hidden: false }),
+          },
+        });
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
 
   const openMutation = useMutation(
     trpc.projects.open.mutationOptions({
-      onSuccess: (data) => {
-        toast.success(data.message);
-      },
+      onSuccess: (data) => toast.success(data.message),
       onError: (e) => toast.error(e.message),
     }),
   );
@@ -93,7 +107,10 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
   return (
     <Card
       size="sm"
-      className={cn("cursor-pointer transition-colors hover:bg-muted/40", accentRing)}
+      className={cn(
+        "cursor-pointer transition-colors hover:bg-muted/40",
+        accentRing,
+      )}
       onClick={(e) => {
         // Ignore clicks bubbling from interactive controls inside the card.
         const target = e.target as HTMLElement;
@@ -165,6 +182,14 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
                 <DropdownMenuItem onClick={copyPath}>
                   <Copy className="size-3.5" /> Copy path
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    hideMutation.mutate({ path: project.path, hidden: true })
+                  }
+                  className="text-destructive"
+                >
+                  <EyeOff className="size-3.5" /> Hide from list
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -172,15 +197,10 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-2">
-        <GitBadges git={project.git} />
-
-        {project.alerts.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {project.alerts.slice(0, 3).map((a) => (
-              <AlertBadge key={a.code} severity={a.severity} message={a.message} />
-            ))}
-          </div>
-        ) : null}
+        <div className="flex items-center justify-between gap-2">
+          <GitBadges git={project.git} />
+          <AlertIcons alerts={project.alerts} />
+        </div>
 
         {project.note ? (
           <p className="line-clamp-2 text-xs italic text-muted-foreground">

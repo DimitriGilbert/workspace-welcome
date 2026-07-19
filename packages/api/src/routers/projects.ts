@@ -16,6 +16,15 @@ export const projectsRouter = router({
     });
   }),
 
+  /** List hidden projects (path + name only) so they can be un-hidden. */
+  hidden: publicProcedure.query(async () => {
+    const store = await readStore();
+    return Object.entries(store.projects)
+      .filter(([, ov]) => ov.hidden)
+      .map(([path]) => ({ path, name: path.split("/").pop() ?? path }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }),
+
   setPinned: publicProcedure
     .input(z.object({ path: z.string(), pinned: z.boolean() }))
     .mutation(async ({ input }) => {
@@ -39,6 +48,15 @@ export const projectsRouter = router({
     .mutation(async ({ input }) => {
       await mutateTouch(input.path, (ov) => {
         ov.lastOpenedAt = new Date().toISOString();
+      });
+      return { ok: true };
+    }),
+
+  setHidden: publicProcedure
+    .input(z.object({ path: z.string(), hidden: z.boolean() }))
+    .mutation(async ({ input }) => {
+      await mutateTouch(input.path, (ov) => {
+        ov.hidden = input.hidden;
       });
       return { ok: true };
     }),
@@ -74,6 +92,7 @@ async function mutateTouch(
     pinned: boolean;
     note: string;
     lastOpenedAt: string | null;
+    hidden: boolean;
   }) => void,
 ): Promise<void> {
   await mutateStore((draft) => {
@@ -81,6 +100,7 @@ async function mutateTouch(
       pinned: false,
       note: "",
       lastOpenedAt: null,
+      hidden: false,
     };
     fn(existing);
     draft.projects[path] = existing;

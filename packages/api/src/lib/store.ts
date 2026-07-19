@@ -37,7 +37,15 @@ function migrate(raw: unknown): StoreShape {
   if (obj.projects && typeof obj.projects === "object") {
     base.projects = {};
     for (const [key, value] of Object.entries(obj.projects)) {
-      if (isOverrides(value)) base.projects[key] = value;
+      if (isOverrides(value)) {
+        base.projects[key] = {
+          pinned: value.pinned,
+          note: value.note,
+          lastOpenedAt: value.lastOpenedAt,
+          // Newer field; default for entries written before it existed.
+          hidden: value.hidden ?? false,
+        };
+      }
     }
   }
   if (obj.settings && typeof obj.settings === "object") {
@@ -76,7 +84,9 @@ function isOverrides(x: unknown): x is ProjectOverrides {
   return (
     typeof o.pinned === "boolean" &&
     typeof o.note === "string" &&
-    (o.lastOpenedAt === null || typeof o.lastOpenedAt === "string")
+    (o.lastOpenedAt === null || typeof o.lastOpenedAt === "string") &&
+    // `hidden` is optional on older entries — default to false downstream.
+    (o.hidden === undefined || typeof o.hidden === "boolean")
   );
 }
 

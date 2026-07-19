@@ -27,6 +27,7 @@ function SettingsComponent() {
   const queryClient = useQueryClient();
 
   const roots = useQuery(trpc.roots.list.queryOptions());
+  const hidden = useQuery(trpc.projects.hidden.queryOptions());
 
   const removeRoot = useMutation(
     trpc.roots.remove.mutationOptions({
@@ -38,6 +39,21 @@ function SettingsComponent() {
           queryKey: trpc.projects.scan.queryKey(),
         });
         toast.success("Directory removed");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+
+  const unhide = useMutation(
+    trpc.projects.setHidden.mutationOptions({
+      onSuccess: async () => {
+        await queryClient.invalidateQueries({
+          queryKey: trpc.projects.hidden.queryKey(),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: trpc.projects.scan.queryKey(),
+        });
+        toast.success("Project restored to list");
       },
       onError: (e) => toast.error(e.message),
     }),
@@ -101,6 +117,43 @@ function SettingsComponent() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Hidden projects */}
+      {(hidden.data?.length ?? 0) > 0 ? (
+        <Card size="sm" className="mb-3">
+          <CardHeader>
+            <CardTitle>Hidden projects</CardTitle>
+            <CardDescription>
+              Excluded from the dashboard. Restore them to bring them back.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {hidden.data?.map((p) => (
+              <div
+                key={p.path}
+                className="flex items-center justify-between gap-2 rounded-none border p-2"
+              >
+                <div className="flex min-w-0 flex-col">
+                  <span className="text-xs font-medium">{p.name}</span>
+                  <span className="truncate font-mono text-xs text-muted-foreground">
+                    {p.path}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={unhide.isPending}
+                  onClick={() =>
+                    unhide.mutate({ path: p.path, hidden: false })
+                  }
+                >
+                  Restore
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Commands */}
       <CommandsCard />

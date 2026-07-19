@@ -20,6 +20,8 @@ export interface ProjectOverrides {
   note: string;
   /** ISO timestamp of the last time the user opened the project from the UI. */
   lastOpenedAt: string | null;
+  /** When true, the project is excluded from all lists. */
+  hidden: boolean;
 }
 
 /** A parsed git remote, host-agnostic. */
@@ -106,6 +108,7 @@ export interface Project {
   pinned: boolean;
   note: string;
   lastOpenedAt: string | null;
+  hidden: boolean;
 }
 
 export interface ScanResult {
