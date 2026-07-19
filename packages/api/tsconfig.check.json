@@ -1,0 +1,10 @@
+{
+  "extends": "@workspace-welcome/config/tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false
+  }
+}

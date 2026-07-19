@@ -9,7 +9,9 @@
       "default": "./src/*.ts"
     }
   },
-  "scripts": {},
+  "scripts": {
+    "check-types": "tsc --noEmit -p tsconfig.check.json"
+  },
   "dependencies": {
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
