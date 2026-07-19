@@ -1,0 +1,26 @@
+{
+  "name": "workspace-welcome",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "check-types": "pnpm -r check-types",
+    "dev:web": "pnpm --filter web dev"
+  },
+  "dependencies": {
+    "@workspace-welcome/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@workspace-welcome/config": "workspace:*",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.33.4"
+}
