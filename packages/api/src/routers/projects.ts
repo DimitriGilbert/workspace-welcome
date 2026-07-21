@@ -1,20 +1,37 @@
 import { z } from "zod";
 
+import { getScan } from "../lib/scan-cache";
 import { mutateStore, readStore } from "../lib/store";
-import { scanAll } from "../lib/scan";
 import { openForTarget, type OpenTarget } from "../lib/spawn";
 import { publicProcedure, router } from "../index";
 
 /** Projects router: scan + per-project overrides + quick-open actions. */
 export const projectsRouter = router({
-  scan: publicProcedure.query(async () => {
-    const store = await readStore();
-    return scanAll({
-      roots: store.roots,
-      overrides: store.projects,
-      settings: store.settings,
-    });
-  }),
+  /**
+   * Scan all roots, backed by an in-memory cache keyed by a cheap per-project
+   * fingerprint (dir + `.git` sentinel mtimes + a `git status` hash for repos).
+   *
+   * - Warm loads and override-only mutations (pin/note/hide/touch) are fast:
+   *     the cache is reused and overrides are re-merged live.
+   * - The client Refresh button re-invokes this query with no input; every
+   *     call re-probes all fingerprints and re-scans any project that changed
+   *     since the last call, so Refresh does surface real changes.
+   * - Pass `force: true` to bypass the fingerprint check and force a full
+   *     rescan of every project (paranoid mode; ~6s on this workspace).
+   *
+   * The input is optional so existing callers that pass nothing keep working.
+   */
+  scan: publicProcedure
+    .input(z.object({ force: z.boolean().optional() }).optional())
+    .query(async ({ input }) => {
+      const store = await readStore();
+      return getScan({
+        roots: store.roots,
+        overrides: store.projects,
+        settings: store.settings,
+        force: input?.force,
+      });
+    }),
 
   /** List hidden projects (path + name only) so they can be un-hidden. */
   hidden: publicProcedure.query(async () => {

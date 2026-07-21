@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { invalidateScanCache } from "../lib/scan-cache";
 import { mutateStore, readSettings } from "../lib/store";
 import { publicProcedure, router } from "../index";
 
@@ -25,6 +26,9 @@ export const settingsRouter = router({
           excludeGlobs: input.excludeGlobs,
         };
       });
+      // excludeGlobs feeds the scan denylist, so a settings change can alter
+      // which files count toward updatedAt — drop the cache to be safe.
+      invalidateScanCache();
       // Re-read so we return the persisted (post-validation) shape.
       return readSettings();
     }),

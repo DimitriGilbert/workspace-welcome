@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { z } from "zod";
 
 import { newId } from "../lib/id";
+import { invalidateScanCache } from "../lib/scan-cache";
 import { mutateStore, readStore } from "../lib/store";
 import { publicProcedure, router } from "../index";
 
@@ -51,6 +52,8 @@ export const rootsRouter = router({
       await mutateStore((draft) => {
         draft.roots.push(root);
       });
+      // Roots changed → the cached project set is stale, drop it.
+      invalidateScanCache();
       return root;
     }),
 
@@ -69,6 +72,8 @@ export const rootsRouter = router({
           if (key.startsWith(prefix)) delete draft.projects[key];
         }
       });
+      // Roots changed → the cached project set is stale, drop it.
+      invalidateScanCache();
       return { ok: true };
     }),
 });

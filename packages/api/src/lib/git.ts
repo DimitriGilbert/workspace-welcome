@@ -41,6 +41,42 @@ function trim(s: string): string {
   return s.replace(/\s+$/g, "");
 }
 
+/** Tiny non-crypto string hash (djb2) — enough to fold porcelain output. */
+function hashString(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+/**
+ * Cheap working-tree fingerprint for a git repo: a stable hash of
+ * `git status --porcelain` output. Used by the scan cache to detect uncommitted
+ * edits to tracked files (which don't bump any directory mtime on Linux)
+ * without a full rescan.
+ *
+ * `--untracked-files=no` keeps the probe focused on tracked-file content
+ * changes — the only case stat sentinels miss. New/deleted files already
+ * surface via the project dir mtime, so skipping untracked here is safe and
+ * faster (~15% on this repo set).
+ *
+ * Returns null when the dir isn't a repo or git fails — callers should treat
+ * that as "no git signal available" and fall back to stat-based invalidation.
+ *
+ * NB: `--no-optional-locks` avoids contending on the index lock when a git
+ * process (or editor integration) is holding it, and avoids writing the index
+ * refresh cache (which would bump `.git/` mtimes and create fingerprint drift).
+ */
+export async function gitStatusHash(dir: string): Promise<string | null> {
+  const res = await git(
+    ["--no-optional-locks", "status", "--porcelain", "--untracked-files=no"],
+    dir,
+  );
+  if (!res) return null;
+  return hashString(res.stdout);
+}
+
 /**
  * Inspect a directory's git state in a handful of git calls.
  * Cheap enough to run across many projects in parallel.
@@ -56,7 +92,10 @@ export async function gitInspect(dir: string): Promise<GitInfo> {
       git(["symbolic-ref", "--short", "HEAD"], dir),
       git(["config", "--get", "remote.origin.url"], dir),
       git(["rev-list", "--left-right", "--count", "@{u}...HEAD"], dir),
-      git(["status", "--porcelain"], dir),
+      // --no-optional-locks: don't write the index lock/refresh cache, which
+      // would bump `.git/` mtimes and create spurious fingerprint drift between
+      // a cold scan and the next warm probe.
+      git(["--no-optional-locks", "status", "--porcelain"], dir),
       git(
         [
           "log",

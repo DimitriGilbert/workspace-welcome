@@ -2,7 +2,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import { detectStack } from "./detect";
-import { gitInspect } from "./git";
+import { gitInspect, gitStatusHash } from "./git";
 import type {
   HealthAlert,
   Project,
@@ -129,14 +129,76 @@ function overridesFor(
   path: string,
   overrides: Record<string, ProjectOverrides>,
 ): ProjectOverrides {
-  return (
-    overrides[path] ?? {
-      pinned: false,
-      note: "",
-      lastOpenedAt: null,
-      hidden: false,
+  return overrides[path] ?? defaultOverrides();
+}
+
+/**
+ * Cheap per-project invalidation fingerprint. Combines two signals:
+ *
+ *   1. stat() mtimes — the project dir itself plus, for git repos, `.git/HEAD`
+ *      (bumps on checkout/commit) and `.git/index` (bumps on add/commit). This
+ *      catches commits, branch switches, staged changes, and root-level file
+ *      add/remove — all without spawning any subprocess. NB: we deliberately
+ *      exclude the `.git` *directory* mtime: a plain `git status` (no
+ *      `--no-optional-locks`) writes temp files into `.git/` and bumps it, which
+ *      would make every warm call mismatch. HEAD/index mtimes are stable.
+ *
+ *   2. For git repos only: a hash of `git status --porcelain` output (run with
+ *      `--no-optional-locks` so it doesn't perturb the index). This is the one
+ *      subprocess we allow on the warm path, because uncommitted edits to
+ *      tracked files deep in the tree do NOT bump any directory mtime on Linux,
+ *      so stat alone would let `updatedAt` go stale. The porcelain output
+ *      changes whenever the working-tree dirty set changes.
+ *
+ * The git call runs only when a `.git` dir is present; non-repo projects fall
+ * back to stat-only, which is sufficient for them (no git state to track).
+ * Returns "missing" when the directory can't be stat'd — that forces a rescan
+ * and surfaces deletions.
+ */
+export async function projectFingerprint(dir: string): Promise<string> {
+  let mtimePart = 0;
+  let hasGit = false;
+  try {
+    const s = await stat(dir);
+    mtimePart = Math.max(s.mtimeMs, s.ctimeMs);
+  } catch {
+    // A *missing project dir* yields 0, which forces a rescan and surfaces
+    // the deletion downstream.
+    return "missing";
+  }
+  try {
+    // `.git` existence check — we DON'T include its mtime in the fingerprint
+    // because plain `git status` (run by gitInspect during a full scan) writes
+    // temp files into `.git/` and bumps its dir mtime, which would make every
+    // warm call mismatch. HEAD/index mtimes below are the stable, meaningful
+    // signals.
+    await stat(join(dir, ".git"));
+    hasGit = true;
+  } catch {
+    hasGit = false;
+  }
+  if (hasGit) {
+    for (const rel of [".git/HEAD", ".git/index"]) {
+      try {
+        const s = await stat(join(dir, rel));
+        const t = Math.max(s.mtimeMs, s.ctimeMs);
+        if (t > mtimePart) mtimePart = t;
+      } catch {
+        // Sentinel may not exist on partial repos; ignore.
+      }
     }
-  );
+  }
+
+  if (!hasGit) return `s:${mtimePart}`;
+
+  // One subprocess: hash the porcelain output so any working-tree change moves
+  // the fingerprint. Cheaper than a full scan (no rev-list/log/config calls).
+  const statusHash = await gitStatusHash(dir);
+  if (statusHash === null) {
+    // Not actually a repo (or git failed) → degrade to stat-only fingerprint.
+    return `s:${mtimePart}`;
+  }
+  return `g:${mtimePart}:${statusHash}`;
 }
 
 /** Compute health alerts for a project given its git state. */
@@ -214,62 +276,98 @@ export function computeAlerts(project: Pick<
   return alerts;
 }
 
+/**
+ * Scan a single child directory of a root into a Project (without applying
+ * overrides — those are merged later so the cache can re-merge cheaply when
+ * only overrides change). Returns null if the directory can't be read.
+ *
+ * Exported so the scan cache can selectively re-scan one project whose
+ * fingerprint changed, without re-walking every sibling.
+ */
+export async function scanProject(
+  root: Root,
+  entryName: string,
+  deny: Set<string>,
+): Promise<Project | null> {
+  const dir = join(root.path, entryName);
+  try {
+    const [created, stack, git] = await Promise.all([
+      birthtime(dir),
+      detectStack(dir),
+      gitInspect(dir),
+    ]);
+
+    // updatedAt: max(newest source mtime, last commit date).
+    const newest = await newestMtime(dir, deny, 0, { visited: 0 });
+    const commitMs = git.lastCommit?.date
+      ? new Date(git.lastCommit.date).getTime()
+      : 0;
+    const updated = Math.max(newest, commitMs, created);
+
+    const partial: Pick<Project, "git" | "updatedAt"> = {
+      git,
+      updatedAt: new Date(updated).toISOString(),
+    };
+    const alerts = computeAlerts(partial);
+
+    // Overrides are intentionally left as defaults here; the caller (or the
+    // scan cache) merges them in so a pin/note change doesn't require a rescan.
+    return {
+      path: dir,
+      name: entryName,
+      rootId: root.id,
+      createdAt: new Date(created).toISOString(),
+      updatedAt: partial.updatedAt,
+      stack,
+      git,
+      alerts,
+      pinned: false,
+      note: "",
+      lastOpenedAt: null,
+      hidden: false,
+    };
+  } catch {
+    // Skip unreadable subdirectories rather than failing the whole root.
+    return null;
+  }
+}
+
+/** List the visible child directories of a root (errors thrown to caller). */
+export async function listRootChildren(
+  rootPath: string,
+): Promise<import("node:fs").Dirent[]> {
+  const entries = await readdir(rootPath, { withFileTypes: true });
+  return entries.filter((e) => e.isDirectory() && !isHidden(e.name));
+}
+
+/** Merge a project's overrides onto a scanned Project (no rescan). */
+export function applyOverrides(
+  project: Project,
+  ov: ProjectOverrides,
+): Project {
+  return {
+    ...project,
+    pinned: ov.pinned,
+    note: ov.note,
+    lastOpenedAt: ov.lastOpenedAt,
+    hidden: ov.hidden,
+  };
+}
+
+/** Default overrides used when a project has never been touched. */
+export function defaultOverrides(): ProjectOverrides {
+  return { pinned: false, note: "", lastOpenedAt: null, hidden: false };
+}
+
 /** Scan a single root into a list of projects (errors thrown up to caller). */
 async function scanRoot(
   root: Root,
   deny: Set<string>,
-  overrides: Record<string, ProjectOverrides>,
 ): Promise<Project[]> {
-  const entries = await readdir(root.path, { withFileTypes: true });
-  const childDirs = entries.filter(
-    (e) => e.isDirectory() && !isHidden(e.name),
-  );
-
+  const childDirs = await listRootChildren(root.path);
   const projects = await Promise.all(
-    childDirs.map(async (entry): Promise<Project | null> => {
-      const dir = join(root.path, entry.name);
-      try {
-        const [created, stack, git] = await Promise.all([
-          birthtime(dir),
-          detectStack(dir),
-          gitInspect(dir),
-        ]);
-
-        // updatedAt: max(newest source mtime, last commit date).
-        const newest = await newestMtime(dir, deny, 0, { visited: 0 });
-        const commitMs = git.lastCommit?.date
-          ? new Date(git.lastCommit.date).getTime()
-          : 0;
-        const updated = Math.max(newest, commitMs, created);
-
-        const ov = overridesFor(dir, overrides);
-        const partial: Pick<Project, "git" | "updatedAt"> = {
-          git,
-          updatedAt: new Date(updated).toISOString(),
-        };
-        const alerts = computeAlerts(partial);
-
-        return {
-          path: dir,
-          name: entry.name,
-          rootId: root.id,
-          createdAt: new Date(created).toISOString(),
-          updatedAt: partial.updatedAt,
-          stack,
-          git,
-          alerts,
-          pinned: ov.pinned,
-          note: ov.note,
-          lastOpenedAt: ov.lastOpenedAt,
-          hidden: ov.hidden,
-        };
-      } catch {
-        // Skip unreadable subdirectories rather than failing the whole root.
-        return null;
-      }
-    }),
+    childDirs.map((entry) => scanProject(root, entry.name, deny)),
   );
-
   return projects.filter((p): p is Project => p !== null);
 }
 
@@ -285,7 +383,7 @@ export async function scanAll(config: ScanConfig): Promise<ScanResult> {
         if (!exists || !exists.isDirectory()) {
           throw new Error("Directory does not exist");
         }
-        return await scanRoot(root, deny, config.overrides);
+        return await scanRoot(root, deny);
       } catch (err) {
         rootErrors.push({
           rootId: root.id,
@@ -297,8 +395,13 @@ export async function scanAll(config: ScanConfig): Promise<ScanResult> {
     }),
   );
 
-  // Drop hidden projects — they're excluded from every list.
-  const projects = settled.flat().filter((p) => !p.hidden);
+  // Apply overrides (cheap; doesn't depend on the filesystem) and drop hidden.
+  const projects = settled
+    .flat()
+    .map((p) =>
+      applyOverrides(p, overridesFor(p.path, config.overrides)),
+    )
+    .filter((p) => !p.hidden);
 
   // Sort: pinned first, then most recently updated.
   projects.sort((a, b) => {
