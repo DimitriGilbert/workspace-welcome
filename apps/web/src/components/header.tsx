@@ -5,11 +5,24 @@ import { Button } from "@workspace-welcome/ui/components/button";
 
 export default function Header() {
   return (
-    <div>
-      <div className="flex flex-row items-center justify-between px-3 py-2">
+    <header className="border-b border-foreground/10">
+      <div className="mx-auto flex w-full max-w-[1480px] flex-row items-center justify-between px-5 py-2.5 sm:px-8 lg:px-10">
         <div className="flex items-center gap-2">
-          <Folder className="size-4 text-primary" />
-          <Link to="/" className="text-sm font-semibold tracking-tight">
+          <span
+            aria-hidden
+            className="flex size-5 items-center justify-center rounded-none"
+            style={{
+              color: "var(--recency-fresh)",
+              backgroundColor:
+                "color-mix(in oklch, var(--recency-fresh) 14%, transparent)",
+            }}
+          >
+            <Folder className="size-3.5" />
+          </span>
+          <Link
+            to="/"
+            className="text-sm font-semibold tracking-tight text-foreground"
+          >
             Workspace Welcome
           </Link>
         </div>
@@ -24,7 +37,6 @@ export default function Header() {
           </Button>
         </div>
       </div>
-      <hr />
-    </div>
+    </header>
   );
 }

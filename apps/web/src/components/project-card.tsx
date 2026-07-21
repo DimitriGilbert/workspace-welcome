@@ -30,16 +30,28 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { useTRPC } from "@/utils/trpc";
-import { absoluteDate, dateTooltip, relativeTime } from "@/lib/format";
+import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
+import { freshness, heatBorderColor, tierFromFreshness } from "@/lib/recency";
 
 interface ProjectCardProps {
   project: Project;
   onOpenDetail: (project: Project) => void;
+  /**
+   * "auto" picks the accent by priority: error > pinned > recency.
+   * "recency" forces the recency-heat border even on pinned cards (used in
+   * the main grid where pinned-ness is not the dominant signal).
+   * "pinned" forces the pinned amber (used inside the pinned section).
+   */
+  accentMode?: "auto" | "recency" | "pinned";
 }
 
-export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  onOpenDetail,
+  accentMode = "auto",
+}: ProjectCardProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -98,21 +110,46 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
   };
 
   const errorAlert = project.alerts.find((a) => a.severity === "error");
-  const accentRing = errorAlert
-    ? "ring-destructive/40"
-    : project.pinned
-      ? "ring-primary/40"
-      : "ring-foreground/10";
+  const f = freshness(project.updatedAt, project.lastOpenedAt);
+  const tier = tierFromFreshness(f);
+
+  // Accent priority: error always wins; otherwise the caller decides whether
+  // pinned-ness or recency drives the left border.
+  let accentColor: string;
+  if (errorAlert) {
+    accentColor = "var(--sev-error)";
+  } else if (accentMode === "pinned" || (accentMode === "auto" && project.pinned)) {
+    accentColor = "var(--pinned-accent)";
+  } else {
+    accentColor = heatBorderColor(f);
+  }
+  const edgeStyle: React.CSSProperties = {
+    // 3px left heat bar + neutral 1px ring via layered inset shadows.
+    boxShadow: `inset 3px 0 0 0 ${accentColor}`,
+  };
+  // Hot cards get a faint wash so freshness reads at a glance even before
+  // the border registers; cold cards dim slightly to recede — but never dim
+  // pinned cards (the user promoted them deliberately).
+  const tierSurface =
+    accentMode === "pinned" || (accentMode === "auto" && project.pinned)
+      ? tier === "fresh"
+        ? "bg-[var(--pinned-accent-wash)]"
+        : ""
+      : tier === "fresh"
+        ? "bg-[var(--recency-fresh-wash)]"
+        : tier === "cold"
+          ? "opacity-70 hover:opacity-100"
+          : "";
 
   return (
     <Card
       size="sm"
+      style={edgeStyle}
       className={cn(
-        "cursor-pointer transition-colors hover:bg-muted/40",
-        accentRing,
+        "cursor-pointer ring-1 ring-foreground/10 transition-all duration-200 hover:-translate-y-px hover:ring-foreground/20 hover:bg-muted/40",
+        tierSurface,
       )}
       onClick={(e) => {
-        // Ignore clicks bubbling from interactive controls inside the card.
         const target = e.target as HTMLElement;
         if (target.closest("[data-stop-propagation]")) return;
         onOpenDetail(project);
@@ -125,10 +162,13 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
     >
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <StackIcon className="size-4 text-muted-foreground" />
-          <span className="truncate">{project.name}</span>
+          <StackIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="truncate font-medium">{project.name}</span>
           {project.pinned ? (
-            <Pin className="size-3.5 shrink-0 text-primary" />
+            <Pin
+              className="size-3.5 shrink-0"
+              style={{ color: "var(--pinned-accent)" }}
+            />
           ) : null}
         </CardTitle>
         <CardAction>
@@ -197,24 +237,26 @@ export function ProjectCard({ project, onOpenDetail }: ProjectCardProps) {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           <GitBadges git={project.git} />
           <AlertIcons alerts={project.alerts} />
         </div>
 
         {project.note ? (
-          <p className="line-clamp-2 text-xs italic text-muted-foreground">
-            “{project.note}”
+          <p className="line-clamp-2 border-l-2 border-foreground/10 pl-2 text-xs italic text-muted-foreground">
+            {project.note}
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span title={dateTooltip(project.updatedAt)}>
+        <div className="flex items-center justify-between text-[0.7rem] text-muted-foreground">
+          <span title={dateTooltip(project.updatedAt)} className="tabular-nums">
             updated {relativeTime(project.updatedAt)}
           </span>
-          <span title={absoluteDate(project.createdAt)}>
-            created {relativeTime(project.createdAt)}
-          </span>
+          {project.lastOpenedAt ? (
+            <span className="tabular-nums opacity-60">
+              opened {relativeTime(project.lastOpenedAt)}
+            </span>
+          ) : null}
         </div>
       </CardContent>
     </Card>
