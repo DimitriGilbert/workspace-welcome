@@ -26,7 +26,6 @@ export function PinnedSection({ projects, onOpenDetail }: PinnedSectionProps) {
         eyebrow="Pinned"
         count={projects.length}
         accent="pinned"
-        title="Kept close"
       />
       <div
         className="grid grid-cols-1 gap-3 rounded-none border border-[color-mix(in_oklch,var(--pinned-accent)_25%,transparent)] p-3 sm:grid-cols-2"

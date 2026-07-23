@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 /**
- * Section anchor: a small uppercase eyebrow (with optional count) above a
- * larger heading. Gives the page rhythm without resorting to boxes everywhere.
+ * Section anchor: a small uppercase eyebrow (accent dot + label + optional
+ * count) that gives the page rhythm without resorting to boxes everywhere.
  *
  * The `accent` prop tints the eyebrow rule + label with a section-specific
  * hue so sections are visually distinct at a glance.
@@ -20,7 +20,6 @@ const ACCENT_VAR: Record<Accent, string> = {
 
 interface SectionHeaderProps {
   eyebrow: string;
-  title?: ReactNode;
   count?: number;
   accent?: Accent;
   description?: ReactNode;
@@ -31,7 +30,6 @@ interface SectionHeaderProps {
 
 export function SectionHeader({
   eyebrow,
-  title,
   count,
   accent = "neutral",
   description,
@@ -61,11 +59,6 @@ export function SectionHeader({
             ) : null}
           </span>
         </div>
-        {title ? (
-          <h2 className="text-xl font-semibold tracking-tight text-foreground">
-            {title}
-          </h2>
-        ) : null}
         {description ? (
           <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
         ) : null}

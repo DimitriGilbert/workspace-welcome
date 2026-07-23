@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { FolderPlus, RefreshCw, Search } from "lucide-react";
@@ -22,6 +22,7 @@ import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
+import { matchProject } from "@/lib/search";
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 export const Route = createFileRoute("/")({
@@ -39,20 +40,42 @@ function HomeComponent() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addRootOpen, setAddRootOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const projects = scan.data?.projects ?? [];
 
+  // Keyboard-first search: "/" focuses the field, Escape clears + blurs it.
+  // We ignore keystrokes that originate inside another editable element so we
+  // don't hijack typing in the detail sheet, add-root form, etc.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      const typing =
+        el instanceof HTMLInputElement ||
+        el instanceof HTMLTextAreaElement ||
+        (el instanceof HTMLElement && el.isContentEditable);
+
+      if (e.key === "/" && !typing) {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      } else if (e.key === "Escape" && el === searchRef.current) {
+        setQuery("");
+        searchRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Apply the filter once; downstream sections (pinned/recent/older and the
   // needs-attention panel) all see the same narrowed set so filtering feels
-  // coherent across the whole page.
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return projects;
-    return projects.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) || p.path.toLowerCase().includes(q),
-    );
-  }, [projects, query]);
+  // coherent across the whole page. Matching spans name, path, stack label,
+  // git branch, remote host and note — see @/lib/search.
+  const visible = useMemo(
+    () => projects.filter((p) => matchProject(p, query)),
+    [projects, query],
+  );
 
   // Stats reflect the filtered set too, so the summary strip and the grid
   // agree on what's being shown.
@@ -116,12 +139,25 @@ function HomeComponent() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
+              ref={searchRef}
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                // Escape is handled globally, but stop the native "clear" so
+                // our blur behaviour wins.
+                if (e.key === "Escape") e.preventDefault();
+              }}
               placeholder="Filter projects"
-              className="h-8 w-44 rounded-none border border-input bg-background pl-7 pr-2 text-xs outline-none transition-colors focus:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:w-56"
+              aria-label="Filter projects"
+              className="h-8 w-48 rounded-none border border-input bg-background pl-7 pr-12 text-xs outline-none transition-colors focus:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:w-64"
             />
+            <kbd
+              className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 select-none rounded-sm border border-border/60 bg-muted/60 px-1 font-mono text-[0.6rem] font-medium text-muted-foreground"
+              aria-hidden
+            >
+              /
+            </kbd>
           </div>
           <Button
             variant="outline"
@@ -183,7 +219,6 @@ function HomeComponent() {
                 eyebrow="Recent"
                 count={recent.length}
                 accent="recency"
-                title="Where you left off"
               />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {recent.map((p) => (
@@ -204,7 +239,6 @@ function HomeComponent() {
                 eyebrow="Older"
                 count={older.length}
                 accent="neutral"
-                title="The rest of the shelf"
               />
               <OlderList projects={older} onSelect={openDetail} />
             </section>
