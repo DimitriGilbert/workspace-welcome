@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderPlus, RefreshCw, Search } from "lucide-react";
+import { FolderPlus, RefreshCw, Search, Terminal as TerminalIcon } from "lucide-react";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
@@ -18,6 +18,7 @@ import {
 import { NeedsAttention } from "@/components/needs-attention";
 import { EmptyState } from "@/components/empty-state";
 import { AddRootSheet } from "@/components/add-root-sheet";
+import { CloneScriptSheet } from "@/components/clone-script-sheet";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
@@ -39,6 +40,7 @@ function HomeComponent() {
   const [selected, setSelected] = useState<Project | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [addRootOpen, setAddRootOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -170,6 +172,14 @@ function HomeComponent() {
             />
             Refresh
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCloneOpen(true)}
+            disabled={projects.length === 0}
+          >
+            <TerminalIcon className="size-3.5" /> Clone script
+          </Button>
           <Button size="sm" onClick={() => setAddRootOpen(true)}>
             <FolderPlus className="size-3.5" /> Add directory
           </Button>
@@ -270,6 +280,13 @@ function HomeComponent() {
         onOpenChange={setSheetOpen}
       />
       <AddRootSheet open={addRootOpen} onOpenChange={setAddRootOpen} />
+      <CloneScriptSheet
+        // The picker respects the active search filter, so you can narrow
+        // first then select-all-within-filter to grab just those repos.
+        projects={visible}
+        open={cloneOpen}
+        onOpenChange={setCloneOpen}
+      />
     </div>
   );
 }
