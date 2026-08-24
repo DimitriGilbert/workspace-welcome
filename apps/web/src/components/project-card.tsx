@@ -32,12 +32,12 @@ import type { Project } from "@workspace-welcome/api/lib/types";
 import { useTRPC } from "@/utils/trpc";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
+import { useOpenProject } from "@/lib/open-project";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { freshness, heatBorderColor, tierFromFreshness } from "@/lib/recency";
 
 interface ProjectCardProps {
   project: Project;
-  onOpenDetail: (project: Project) => void;
   /**
    * "auto" picks the accent by priority: error > pinned > recency.
    * "recency" forces the recency-heat border even on pinned cards (used in
@@ -49,11 +49,11 @@ interface ProjectCardProps {
 
 export function ProjectCard({
   project,
-  onOpenDetail,
   accentMode = "auto",
 }: ProjectCardProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const openProject = useOpenProject();
 
   const invalidateScan = () =>
     queryClient.invalidateQueries({ queryKey: trpc.projects.scan.queryKey() });
@@ -152,12 +152,12 @@ export function ProjectCard({
       onClick={(e) => {
         const target = e.target as HTMLElement;
         if (target.closest("[data-stop-propagation]")) return;
-        onOpenDetail(project);
+        openProject(project.path);
       }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter") onOpenDetail(project);
+        if (e.key === "Enter") openProject(project.path);
       }}
     >
       <CardHeader>

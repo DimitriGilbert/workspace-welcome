@@ -5,7 +5,6 @@ import { SectionHeader } from "@/components/section-header";
 
 interface PinnedSectionProps {
   projects: Project[];
-  onOpenDetail: (project: Project) => void;
 }
 
 /**
@@ -17,7 +16,7 @@ interface PinnedSectionProps {
  * Wider 2-column grid (vs 3-4 in the main grid) because pinned projects
  * deserve more room — they're the ones the user reaches for.
  */
-export function PinnedSection({ projects, onOpenDetail }: PinnedSectionProps) {
+export function PinnedSection({ projects }: PinnedSectionProps) {
   if (projects.length === 0) return null;
 
   return (
@@ -32,12 +31,7 @@ export function PinnedSection({ projects, onOpenDetail }: PinnedSectionProps) {
         style={{ backgroundColor: "var(--pinned-accent-wash)" }}
       >
         {projects.map((p) => (
-          <ProjectCard
-            key={p.path}
-            project={p}
-            onOpenDetail={onOpenDetail}
-            accentMode="pinned"
-          />
+          <ProjectCard key={p.path} project={p} accentMode="pinned" />
         ))}
       </div>
     </section>

@@ -131,6 +131,8 @@ export interface Settings {
   editorCommand: string;
   /** Command used to open a terminal at a project; null disables it. */
   terminalCommand: string | null;
+  /** Path to the gitsnitch CLI entry file, run as `node <path>`; null = auto-resolve (ADR-0001). */
+  snitchPath: string | null;
   /** Additional glob-style directory names to skip when computing updatedAt. */
   excludeGlobs: string[];
 }

@@ -6,10 +6,10 @@ import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { AlertBadge } from "@/components/git-badges";
 import { relativeTime } from "@/lib/format";
+import { useOpenProject } from "@/lib/open-project";
 
 interface NeedsAttentionProps {
   projects: Project[];
-  onSelect: (project: Project) => void;
 }
 
 /**
@@ -20,7 +20,8 @@ interface NeedsAttentionProps {
  * Styled as a self-contained panel with the warn accent so it stands apart
  * from the recency grid without competing with it.
  */
-export function NeedsAttention({ projects, onSelect }: NeedsAttentionProps) {
+export function NeedsAttention({ projects }: NeedsAttentionProps) {
+  const openProject = useOpenProject();
   const [collapsed, setCollapsed] = useState(false);
   // Cap the number of rows shown by default so a huge backlog doesn't
   // swallow the page. The rest reveal on demand.
@@ -90,7 +91,7 @@ export function NeedsAttention({ projects, onSelect }: NeedsAttentionProps) {
               <button
                 key={p.path}
                 type="button"
-                onClick={() => onSelect(p)}
+                onClick={() => openProject(p.path)}
                 className="group flex items-center justify-between gap-3 px-2 py-2 text-left transition-colors hover:bg-muted"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">

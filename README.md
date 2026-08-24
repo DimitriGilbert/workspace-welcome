@@ -42,10 +42,13 @@ The **Needs attention** panel rolls up everything at warn/error, sorted by last 
 - **Per-project notes.** Each project has a "where I left off" note. This is the feature I actually use — the whole point is answering *"what was I doing here?"*
 - **Hide.** Exclude something from the list without deleting it. Restorable from Settings.
 - **Quick-open.** One click to open in your editor, open a terminal at the project, or reveal it in the file manager. The editor command is configurable (`code`, `cursor`, `zed`, whatever).
+- **Reports.** A button on each project page runs git-snitch on that repo; Settings has one per tracked directory that scans everything under it. The HTML is cached and served by the app, opening in a new tab that swaps in the report once it's ready. The CLI path is configurable in Settings — local `~/workspace/gitsnitch` build by default, `npx` as fallback.
+- **File browser.** A lazy file tree on each project page — drag-drop upload (10 MB a file, overwrites ask first), rename, new folder, download, and delete to trash when `gio` is around, permanent otherwise. Every path is resolved server-side and rejected if it escapes the project root.
+- **Browser IDE.** "Open IDE" on a project page starts code-server — VS Code in a browser tab — deep-linked to that project's folder. One shared instance serves every project; it installs itself on first use, stops from Settings, and opens on whatever host you're browsing the dashboard from.
 
 ## Run it
 
-Needs Node 22+, pnpm, and `git` on your PATH.
+Needs Node 22+, pnpm, and `git` on your PATH. `gio` is optional — the file browser falls back to permanent delete without it. The first "Open IDE" downloads code-server (~100–200 MB, once).
 
 ```bash
 pnpm install
@@ -71,6 +74,8 @@ packages/ui     shadcn/ui components (base-ui primitives) + the design tokens
 ```
 
 No database. No auth. The only persisted state is your roots, per-project overrides (pin, note, hide, last-opened), and the open commands — all in a single JSON file at `$XDG_CONFIG_HOME/workspace-welcome/store.json` (so `~/.config/workspace-welcome/store.json` on most Linux). Written atomically. Never leaves your machine.
+
+Reports and the IDE add two more disk locations: generated report HTML under `$XDG_CACHE_HOME/workspace-welcome/reports/`, served by a server route at `/reports/<key>`, and the code-server install under `$XDG_DATA_HOME/workspace-welcome/ide/`. The file router resolves every path server-side and rejects anything outside the project root. The IDE runs as a managed child process — `--auth none`, bound to all interfaces so other machines on the LAN can reach it, killed with the app.
 
 ### The scan, and why it isn't slow
 

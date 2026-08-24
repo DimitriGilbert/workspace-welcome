@@ -173,3 +173,60 @@ function emptyGit(): GitInfo {
     lastCommit: null,
   };
 }
+
+// --- Mutating actions (fetch / pull) ----------------------------------------
+
+/**
+ * Network-bound git actions get a much longer leash than inspection calls —
+ * a fetch over a slow link can legitimately take tens of seconds.
+ */
+const NETWORK_TIMEOUT_MS = 60_000;
+
+export interface GitActionResult {
+  ok: boolean;
+  /**
+   * Trimmed stdout+stderr. git writes its human-facing summaries ("Fast-forward",
+   * "Already up to date.", conflict reasons) to stderr, so both are merged and
+   * surfaced to the client for toasts.
+   */
+  output: string;
+}
+
+async function gitAction(
+  args: string[],
+  cwd: string,
+): Promise<GitActionResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync("git", args, {
+      cwd,
+      timeout: NETWORK_TIMEOUT_MS,
+      maxBuffer: 1024 * 1024,
+    });
+    return {
+      ok: true,
+      output: [trim(stdout), trim(stderr)].filter(Boolean).join("\n"),
+    };
+  } catch (err) {
+    const e = err as { stdout?: string; stderr?: string; message?: string };
+    const output =
+      [e.stdout, e.stderr]
+        .map((s) => (s ? trim(s) : ""))
+        .filter(Boolean)
+        .join("\n") || e.message || "git failed";
+    return { ok: false, output };
+  }
+}
+
+/** Fetch all remotes, pruning deleted upstream branches. */
+export function gitFetch(dir: string): Promise<GitActionResult> {
+  return gitAction(["fetch", "--all", "--prune"], dir);
+}
+
+/**
+ * Fast-forward-only pull. Deliberately refuses to create merge commits or
+ * rebase — if the branches diverged, the user reconciles from a terminal, not
+ * through a web UI.
+ */
+export function gitPull(dir: string): Promise<GitActionResult> {
+  return gitAction(["pull", "--ff-only"], dir);
+}

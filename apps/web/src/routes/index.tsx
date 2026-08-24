@@ -8,7 +8,6 @@ import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { useTRPC } from "@/utils/trpc";
 import { ProjectCard } from "@/components/project-card";
-import { ProjectSheet } from "@/components/project-sheet";
 import { PinnedSection } from "@/components/pinned-section";
 import { SectionHeader } from "@/components/section-header";
 import {
@@ -22,6 +21,7 @@ import { CloneScriptSheet } from "@/components/clone-script-sheet";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
+import { useOpenProject } from "@/lib/open-project";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
 import { matchProject } from "@/lib/search";
 import type { Project } from "@workspace-welcome/api/lib/types";
@@ -37,8 +37,6 @@ function HomeComponent() {
   const scan = useQuery(trpc.projects.scan.queryOptions());
   const roots = useQuery(trpc.roots.list.queryOptions());
 
-  const [selected, setSelected] = useState<Project | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [addRootOpen, setAddRootOpen] = useState(false);
   const [cloneOpen, setCloneOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -110,11 +108,6 @@ function HomeComponent() {
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: trpc.projects.scan.queryKey() });
-  };
-
-  const openDetail = (p: Project) => {
-    setSelected(p);
-    setSheetOpen(true);
   };
 
   const hasRoots = (roots.data?.length ?? 0) > 0;
@@ -196,7 +189,7 @@ function HomeComponent() {
           <SummaryCards stats={visibleStats} />
 
           {/* Needs attention */}
-          <NeedsAttention projects={visible} onSelect={openDetail} />
+          <NeedsAttention projects={visible} />
 
           {/* Root errors (missing dirs etc.) */}
           {scan.data?.rootErrors.length ? (
@@ -218,9 +211,7 @@ function HomeComponent() {
           ) : null}
 
           {/* Pinned section — visually separated, amber accent */}
-          {pinned.length > 0 ? (
-            <PinnedSection projects={pinned} onOpenDetail={openDetail} />
-          ) : null}
+          {pinned.length > 0 ? <PinnedSection projects={pinned} /> : null}
 
           {/* Recent grid — hot projects, prominent cards */}
           {recent.length > 0 ? (
@@ -232,11 +223,7 @@ function HomeComponent() {
               />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {recent.map((p) => (
-                  <ProjectCard
-                    key={p.path}
-                    project={p}
-                    onOpenDetail={openDetail}
-                  />
+                  <ProjectCard key={p.path} project={p} />
                 ))}
               </div>
             </section>
@@ -250,7 +237,7 @@ function HomeComponent() {
                 count={older.length}
                 accent="neutral"
               />
-              <OlderList projects={older} onSelect={openDetail} />
+              <OlderList projects={older} />
             </section>
           ) : null}
 
@@ -274,11 +261,6 @@ function HomeComponent() {
         </div>
       )}
 
-      <ProjectSheet
-        project={selected}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-      />
       <AddRootSheet open={addRootOpen} onOpenChange={setAddRootOpen} />
       <CloneScriptSheet
         // The picker respects the active search filter, so you can narrow
@@ -297,13 +279,8 @@ function HomeComponent() {
  * eye scans a long archive quickly. Recency still shows as a left bar so the
  * heatmap extends across the whole page, not just the card grid.
  */
-function OlderList({
-  projects,
-  onSelect,
-}: {
-  projects: Project[];
-  onSelect: (p: Project) => void;
-}) {
+function OlderList({ projects }: { projects: Project[] }) {
+  const openProject = useOpenProject();
   return (
     <div className="overflow-hidden rounded-none border border-foreground/10">
       {projects.map((p, i) => {
@@ -320,7 +297,7 @@ function OlderList({
           <button
             key={p.path}
             type="button"
-            onClick={() => onSelect(p)}
+            onClick={() => openProject(p.path)}
             style={{ boxShadow: `inset 2px 0 0 0 ${accentColor}` }}
             className={[
               "group flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50",

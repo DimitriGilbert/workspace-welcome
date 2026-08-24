@@ -18,6 +18,7 @@ const STORE_PATH = join(STORE_DIR, "store.json");
 const DEFAULT_SETTINGS: Settings = {
   editorCommand: "code",
   terminalCommand: null,
+  snitchPath: null,
   excludeGlobs: [],
 };
 
@@ -58,6 +59,10 @@ function migrate(raw: unknown): StoreShape {
       terminalCommand:
         typeof obj.settings.terminalCommand === "string"
           ? obj.settings.terminalCommand
+          : null,
+      snitchPath:
+        typeof obj.settings.snitchPath === "string"
+          ? obj.settings.snitchPath
           : null,
       excludeGlobs: Array.isArray(obj.settings.excludeGlobs)
         ? obj.settings.excludeGlobs.filter((x) => typeof x === "string")

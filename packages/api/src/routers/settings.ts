@@ -15,6 +15,9 @@ export const settingsRouter = router({
       z.object({
         editorCommand: z.string().min(1),
         terminalCommand: z.string().nullable(),
+        // Defaults to null so callers written before this field existed (and
+        // until 1.2 updates them) stay valid — absent means auto-resolve.
+        snitchPath: z.string().nullable().default(null),
         excludeGlobs: z.array(z.string()),
       }),
     )
@@ -23,6 +26,7 @@ export const settingsRouter = router({
         draft.settings = {
           editorCommand: input.editorCommand.trim(),
           terminalCommand: input.terminalCommand?.trim() || null,
+          snitchPath: input.snitchPath?.trim() || null,
           excludeGlobs: input.excludeGlobs,
         };
       });

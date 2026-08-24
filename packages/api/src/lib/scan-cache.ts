@@ -209,3 +209,36 @@ export function getScan(req: ScanRequest): Promise<ScanResult> {
   })();
   return inFlight;
 }
+
+/**
+ * Re-scan a single cached project in place and update its fingerprint.
+ *
+ * Needed after `git fetch`: remote-tracking refs move, but none of the signals
+ * the fingerprint watches (`.git/HEAD`, `.git/index`, porcelain hash) change,
+ * so the warm path would keep serving the stale behind-count forever. `git
+ * pull` does move the fingerprint, but refreshing here also means the client
+ * sees fresh numbers on the very next query instead of paying a full rescan.
+ */
+export async function refreshCachedProject(
+  path: string,
+  settings: Settings,
+): Promise<void> {
+  if (!cache) return;
+  const idx = cache.projects.findIndex((p) => p.path === path);
+  if (idx === -1) return;
+  const prev = cache.projects[idx]!;
+
+  // scanProject only reads root.path/root.id — the parent dir of the project
+  // IS the root by scan construction, so rebuild the minimal root from that.
+  const root: Root = {
+    id: prev.rootId,
+    path: path.slice(0, path.lastIndexOf("/")),
+    label: "",
+    addedAt: "",
+  };
+  const fresh = await scanProject(root, prev.name, mergeDenylist(settings));
+  if (!fresh) return;
+
+  cache.projects[idx] = fresh;
+  cache.fingerprints.set(path, await projectFingerprint(path));
+}

@@ -1,6 +1,9 @@
+import { resolve } from "node:path";
+
 import { z } from "zod";
 
-import { getScan } from "../lib/scan-cache";
+import { getScan, refreshCachedProject } from "../lib/scan-cache";
+import { gitFetch, gitPull } from "../lib/git";
 import { mutateStore, readStore } from "../lib/store";
 import { openForTarget, type OpenTarget } from "../lib/spawn";
 import { publicProcedure, router } from "../index";
@@ -97,7 +100,59 @@ export const projectsRouter = router({
       }
       return result;
     }),
+
+  /**
+   * `git fetch --all --prune` — updates remote-tracking refs only. The UI's
+   * behind/ahead counts refresh right after.
+   */
+  fetchRemote: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .mutation(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      const { settings } = await readStore();
+      const res = await gitFetch(path);
+      // A fetch moves none of the fingerprint signals the scan cache watches,
+      // so poke the cached entry manually — otherwise the warm path would keep
+      // serving the pre-fetch behind-count indefinitely.
+      await refreshCachedProject(path, settings);
+      if (!res.ok) throw new Error(res.output || "git fetch failed");
+      return { ok: true, message: res.output || "Fetched." };
+    }),
+
+  /**
+   * `git pull --ff-only` — fast-forwards when possible, refuses (rather than
+   * merging or rebasing) when local and upstream diverged.
+   */
+  pull: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .mutation(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      const { settings } = await readStore();
+      const res = await gitPull(path);
+      await refreshCachedProject(path, settings);
+      if (!res.ok) throw new Error(res.output || "git pull failed");
+      return { ok: true, message: res.output || "Already up to date." };
+    }),
 });
+
+/**
+ * Resolve and validate a client-supplied project path: it must be an immediate
+ * child of a registered root, mirroring what the scanner indexes. fetch/pull
+ * mutate repository state, so unlike `open` we refuse to act on paths outside
+ * the tracked workspace.
+ */
+async function requireKnownProject(raw: string): Promise<string> {
+  const path = resolve(raw);
+  const { roots } = await readStore();
+  const parent = path.slice(0, path.lastIndexOf("/"));
+  const known = roots.some((r) => resolve(r.path) === parent);
+  if (!known) {
+    throw new Error(
+      "Not a known project — it must live directly under a tracked directory.",
+    );
+  }
+  return path;
+}
 
 /**
  * Apply a mutation to a single project's overrides, creating the entry lazily
