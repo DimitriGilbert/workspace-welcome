@@ -283,6 +283,14 @@ const LOG_TAIL_CHARS = 8 * 1024;
 const SINGLE_FLIGHT_MESSAGE =
   "A scaffold job is already running — wait for it to finish before starting another.";
 
+/** Thrown by startScaffoldJob while another scaffold job holds the single slot. */
+export class ScaffoldJobRunningError extends Error {
+  constructor() {
+    super(SINGLE_FLIGHT_MESSAGE);
+    this.name = "ScaffoldJobRunningError";
+  }
+}
+
 /** True while create() owns the process cwd (see runJob); no other scaffold may start then. */
 let createInFlight = false;
 
@@ -399,8 +407,10 @@ async function runJob(input: ScaffoldInput, rec: JobRecord): Promise<void> {
         directoryConflict: "error",
       });
     } finally {
-      process.chdir(prevCwd);
+      // Clear before the restore chdir so a throwing chdir cannot leave the
+      // single-flight flag stuck; both statements run in the same tick anyway.
       createInFlight = false;
+      process.chdir(prevCwd);
     }
 
     if (!result.isOk()) {
@@ -495,9 +505,9 @@ export function getScaffoldJob(jobId: string): ScaffoldJobSnapshot | null {
 
 export function startScaffoldJob(input: ScaffoldInput): { jobId: string } {
   const now = Date.now();
-  if (createInFlight) throw new Error(SINGLE_FLIGHT_MESSAGE);
+  if (createInFlight) throw new ScaffoldJobRunningError();
   for (const [id, rec] of jobs) {
-    if (rec.snap.status === "running") throw new Error(SINGLE_FLIGHT_MESSAGE);
+    if (rec.snap.status === "running") throw new ScaffoldJobRunningError();
     if (rec.settledAt !== null && now - rec.settledAt > GC_AFTER_MS) {
       jobs.delete(id);
     }

@@ -5,6 +5,7 @@ import { ideRouter } from "./ide";
 import { projectsRouter } from "./projects";
 import { reportsRouter } from "./reports";
 import { rootsRouter } from "./roots";
+import { scaffoldRouter } from "./scaffold";
 import { settingsRouter } from "./settings";
 
 export const appRouter = router({
@@ -18,6 +19,7 @@ export const appRouter = router({
   reports: reportsRouter,
   files: filesRouter,
   ide: ideRouter,
+  scaffold: scaffoldRouter,
 });
 
 export type AppRouter = typeof appRouter;
