@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderPlus, RefreshCw, Search, Terminal as TerminalIcon } from "lucide-react";
+import { FolderPlus, PackagePlus, RefreshCw, Search, Terminal as TerminalIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
@@ -18,13 +19,17 @@ import { NeedsAttention } from "@/components/needs-attention";
 import { EmptyState } from "@/components/empty-state";
 import { AddRootSheet } from "@/components/add-root-sheet";
 import { CloneScriptSheet } from "@/components/clone-script-sheet";
+import { CreateProjectSheet } from "@/components/create-project-sheet";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
 import { matchProject } from "@/lib/search";
+import type { ScaffoldJobSnapshot } from "@workspace-welcome/api/lib/scaffold";
 import type { Project } from "@workspace-welcome/api/lib/types";
+
+type ScaffoldResult = NonNullable<ScaffoldJobSnapshot["result"]>;
 
 export const Route = createFileRoute("/")({
   component: HomeComponent,
@@ -39,6 +44,7 @@ function HomeComponent() {
 
   const [addRootOpen, setAddRootOpen] = useState(false);
   const [cloneOpen, setCloneOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -110,6 +116,25 @@ function HomeComponent() {
     queryClient.invalidateQueries({ queryKey: trpc.projects.scan.queryKey() });
   };
 
+  const openProject = useOpenProject();
+
+  // The sheet closes itself on success; this side owns the toast, the scan
+  // refresh that makes the new project appear, and the optional jump to it.
+  const handleCreateSuccess = (result: ScaffoldResult) => {
+    const segments = result.projectDirectory.split("/").filter(Boolean);
+    toast.success(
+      `Created ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
+      {
+        description: result.reproducibleCommand,
+        action: {
+          label: "Open project",
+          onClick: () => openProject(result.projectDirectory),
+        },
+      },
+    );
+    refresh();
+  };
+
   const hasRoots = (roots.data?.length ?? 0) > 0;
   const loading = scan.isLoading;
 
@@ -172,6 +197,13 @@ function HomeComponent() {
             disabled={projects.length === 0}
           >
             <TerminalIcon className="size-3.5" /> Clone script
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCreateOpen(true)}
+          >
+            <PackagePlus className="size-3.5" /> Create project
           </Button>
           <Button size="sm" onClick={() => setAddRootOpen(true)}>
             <FolderPlus className="size-3.5" /> Add directory
@@ -269,6 +301,16 @@ function HomeComponent() {
         open={cloneOpen}
         onOpenChange={setCloneOpen}
       />
+      <CreateProjectSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onSuccess={handleCreateSuccess}
+        onError={(message) => toast.error(message)}
+        onRequestAddRoot={() => {
+          setCreateOpen(false);
+          setAddRootOpen(true);
+        }}
+      />
     </div>
   );
 }
@@ -356,4 +398,15 @@ function LoadingGrid() {
       </div>
     </div>
   );
+}
+
+// Same shape as the create-project sheet's progress clock, so the toast's
+// elapsed time matches what the user just watched tick up.
+function formatElapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return minutes > 0
+    ? `${minutes}m ${String(rest).padStart(2, "0")}s`
+    : `${rest}s`;
 }
