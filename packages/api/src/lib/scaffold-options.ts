@@ -70,6 +70,212 @@ type RuntimeValue = (typeof optionLists)["runtime"][number];
 type ServerDeployValue = (typeof optionLists)["serverDeploy"][number];
 type DatabaseValue = (typeof optionLists)["database"][number];
 type DbSetupValue = (typeof optionLists)["dbSetup"][number];
+type AddonValue = (typeof optionLists)["addons"][number];
+type WebFrontendValue = (typeof optionLists)["frontend"][number];
+
+/**
+ * Addon frontend allow-lists, mirroring upstream ADDON_COMPATIBILITY
+ * (create-better-t-stack@3.40.5 dist bundle: only pwa, tauri, and electrobun
+ * carry lists — tauri/electrobun share desktopWebFrontends; every other addon
+ * has none, which upstream treats as "no frontend requirement").
+ * react-router is offered by upstream but not by this wizard, so it is
+ * omitted from the lists (and from the printed reasons).
+ */
+const addonFrontends: Readonly<
+  Record<"pwa" | "tauri" | "electrobun", readonly WebFrontendValue[]>
+> = {
+  pwa: ["tanstack-router", "solid", "next"],
+  tauri: [
+    "tanstack-router",
+    "tanstack-start",
+    "next",
+    "nuxt",
+    "svelte",
+    "astro",
+  ],
+  electrobun: [
+    "tanstack-router",
+    "tanstack-start",
+    "next",
+    "nuxt",
+    "svelte",
+    "astro",
+  ],
+};
+
+/** Upstream TASK_RUNNER_ADDONS: at most one may be selected. */
+const taskRunnerAddons: readonly AddonValue[] = [
+  "turborepo",
+  "nx",
+  "vite-plus",
+];
+
+/** Upstream STATIC_DESKTOP_ADDONS: static-export desktop shells. */
+const staticDesktopAddons: readonly AddonValue[] = ["tauri", "electrobun"];
+
+/** Upstream EVLOG_SERVER_BACKENDS: backends evlog can attach to directly. */
+const evlogServerBackends: readonly BackendValue[] = [
+  "hono",
+  "express",
+  "fastify",
+  "elysia",
+];
+
+/**
+ * Upstream EVLOG_FULLSTACK_FRONTENDS: fullstack (self) frontends evlog
+ * supports. Upstream DESKTOP_STATIC_EXPORT_FRONTENDS additionally lists
+ * react-router, which this wizard does not offer.
+ */
+const evlogFullstackFrontends: readonly WebFrontendValue[] = [
+  "next",
+  "tanstack-start",
+  "nuxt",
+  "svelte",
+  "astro",
+];
+const desktopStaticExportFrontends: readonly WebFrontendValue[] = [
+  "next",
+  "svelte",
+  "astro",
+];
+
+/** The choices the addon compatibility rules depend on. */
+export interface AddonAvailabilityInput {
+  readonly frontend: WebFrontendValue;
+  readonly backend: BackendValue;
+  readonly webDeploy: (typeof optionLists)["webDeploy"][number];
+}
+
+/**
+ * The upstream incompatibility reason for `addon` under the given choices, or
+ * null when compatible. Mirrors validateAddonCompatibility plus the
+ * docker/prisma web-deploy desktop checks of create-better-t-stack@3.40.5;
+ * the clerk and convex branches are dropped because this wizard offers
+ * neither. Native frontends never appear in an upstream allow-list, so
+ * checking the web frontend alone matches upstream's whole-array check.
+ */
+export function addonIncompatibilityReason(
+  addon: AddonValue,
+  input: AddonAvailabilityInput,
+): string | null {
+  if (addon === "evlog") {
+    if (evlogServerBackends.includes(input.backend)) return null;
+    if (
+      input.backend === "self" &&
+      evlogFullstackFrontends.includes(input.frontend)
+    ) {
+      return null;
+    }
+    return "evlog supports the Hono, Express, Fastify, or Elysia backends, or a fullstack (self) backend with Next.js, TanStack Start, Nuxt, SvelteKit, or Astro.";
+  }
+  if (input.backend === "self" && staticDesktopAddons.includes(addon)) {
+    return `${addon} requires a separate backend or no backend because backend 'self' emits server routes that cannot be bundled as static desktop assets.`;
+  }
+  if (addon === "pwa" || addon === "tauri" || addon === "electrobun") {
+    const allowed = addonFrontends[addon];
+    if (!allowed.includes(input.frontend)) {
+      return `${addon} addon requires one of these frontends: ${allowed.join(", ")}`;
+    }
+  }
+  if (
+    staticDesktopAddons.includes(addon) &&
+    desktopStaticExportFrontends.includes(input.frontend)
+  ) {
+    if (input.webDeploy === "docker") {
+      return `'--web-deploy docker' is not compatible with the ${addon} addon on '${input.frontend}' because desktop addons switch the web build to a static export, which the docker image cannot serve. Remove the addon or use the static-serving tanstack-router frontend.`;
+    }
+    if (input.webDeploy === "prisma") {
+      return `'--web-deploy prisma' is not compatible with the ${addon} addon on '${input.frontend}' because desktop addons replace its executable server output with a static export, while Prisma Compute requires an executable server artifact.`;
+    }
+  }
+  return null;
+}
+
+/** Human labels and one-line descriptions for the addons multiSelect. */
+export const addonChoices: Readonly<
+  Record<AddonValue, { readonly label: string; readonly description: string }>
+> = {
+  pwa: {
+    label: "PWA",
+    description: "Progressive web app support — manifest, icons, offline.",
+  },
+  tauri: {
+    label: "Tauri",
+    description: "Desktop app shell built with Tauri.",
+  },
+  electrobun: {
+    label: "Electrobun",
+    description: "Desktop app shell built with Electrobun.",
+  },
+  starlight: {
+    label: "Starlight",
+    description: "Documentation site with Astro Starlight.",
+  },
+  biome: {
+    label: "Biome",
+    description: "Linting and formatting with Biome.",
+  },
+  lefthook: {
+    label: "Lefthook",
+    description: "Git hooks managed by Lefthook.",
+  },
+  husky: {
+    label: "Husky",
+    description: "Git hooks managed by Husky.",
+  },
+  mcp: {
+    label: "MCP",
+    description: "Model Context Protocol servers for AI coding agents.",
+  },
+  turborepo: {
+    label: "Turborepo",
+    description: "Turborepo task runner for the monorepo.",
+  },
+  nx: {
+    label: "Nx",
+    description: "Nx task runner for the monorepo.",
+  },
+  "vite-plus": {
+    label: "Vite Plus",
+    description: "Vite Plus dev-server and task runner setup.",
+  },
+  fumadocs: {
+    label: "Fumadocs",
+    description: "Documentation site with Fumadocs.",
+  },
+  ultracite: {
+    label: "Ultracite",
+    description: "Opinionated Biome setup curated by Ultracite.",
+  },
+  oxlint: {
+    label: "Oxlint",
+    description: "Fast linting with Oxlint.",
+  },
+  opentui: {
+    label: "OpenTUI",
+    description: "Terminal UI scaffolding with OpenTUI.",
+  },
+  wxt: {
+    label: "WXT",
+    description: "Browser extension development with WXT.",
+  },
+  skills: {
+    label: "Skills",
+    description: "Agent skills setup for AI coding tools.",
+  },
+  evlog: {
+    label: "Evlog",
+    description: "Structured event logging for the backend.",
+  },
+};
+
+/** Exported for the form, which disables other task runners once one is picked. */
+export const addonsExclusivity = {
+  taskRunners: taskRunnerAddons,
+  /** Upstream message for combining more than one task runner. */
+  taskRunnerMessage:
+    "Cannot combine 'turborepo', 'nx', and 'vite-plus' addons. Choose one task runner.",
+} as const;
 
 const dependentLists = {
   /** dbSetup values selectable per database (mirrors upstream compatibility rules). */
@@ -206,6 +412,28 @@ export const scaffoldInputSchema = z
         path: ["orm"],
         message: "The mongodb database requires the prisma orm",
       });
+    }
+    // Upstream validateAddonsAgainstFrontends rejects combining task runners
+    // verbatim, and validateAddonCompatibility covers each selected addon.
+    const taskRunners = input.addons.filter((addon) =>
+      taskRunnerAddons.includes(addon),
+    );
+    if (taskRunners.length > 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["addons"],
+        message: addonsExclusivity.taskRunnerMessage,
+      });
+    }
+    for (const addon of input.addons) {
+      const reason = addonIncompatibilityReason(addon, input);
+      if (reason !== null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["addons"],
+          message: `Incompatible addon '${addon}': ${reason}`,
+        });
+      }
     }
   });
 

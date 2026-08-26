@@ -50,7 +50,12 @@ export function buildEquivalentCommand(input: ScaffoldInput): string {
   parts.push("--web-deploy", input.webDeploy);
   parts.push("--server-deploy", input.serverDeploy);
   if (input.install) parts.push("--install");
-  for (const addon of input.addons) parts.push("--addons", addon);
+  // Upstream renderReproducibleCommand joins addon values in one flag
+  // (formatMultiFlag) and renders a literal "none" for an empty selection.
+  parts.push(
+    "--addons",
+    input.addons.length > 0 ? input.addons.join(" ") : "none",
+  );
   parts.push("--examples", input.examples);
   return parts.join(" ");
 }

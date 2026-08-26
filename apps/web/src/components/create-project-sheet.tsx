@@ -16,6 +16,9 @@ import type {
   FormediblePageConfig,
 } from "@workspace-welcome/ui/components/formedible/lib/types";
 import {
+  addonChoices,
+  addonIncompatibilityReason,
+  addonsExclusivity,
   scaffoldDefaults,
   scaffoldInputSchema,
   scaffoldOptionLists,
@@ -106,7 +109,7 @@ export function CreateProjectSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+      <SheetContent side="right" className="w-full sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Create a new project</SheetTitle>
           <SheetDescription>
@@ -115,8 +118,15 @@ export function CreateProjectSheet({
           </SheetDescription>
         </SheetHeader>
 
-        {/* The form stays mounted (hidden) while a job runs so its values survive the back-to-form path. */}
-        <div className={job === null ? undefined : "hidden"}>
+        {/* The form stays mounted (hidden) while a job runs so its values
+            survive the back-to-form path. The body is a flex column whose
+            scrollable region ends above the pinned command preview — a sticky
+            footer inside the scroll area floats over and swallows clicks on
+            the fields and the wizard navigation (the addons picker sat
+            exactly there), so it must never overlap the scrolling content. */}
+        <div
+          className={job === null ? "flex min-h-0 flex-1 flex-col" : "hidden"}
+        >
           {rootsQuery.isPending ? (
             <div className="flex flex-col items-center gap-3 p-8 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
@@ -156,14 +166,16 @@ export function CreateProjectSheet({
           )}
         </div>
         {job !== null ? (
-          <ScaffoldJobView
-            jobId={job.id}
-            command={job.command}
-            onSuccess={handleSuccess}
-            onError={handleError}
-            onDismiss={handleDismiss}
-            onClose={handleClose}
-          />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <ScaffoldJobView
+              jobId={job.id}
+              command={job.command}
+              onSuccess={handleSuccess}
+              onError={handleError}
+              onDismiss={handleDismiss}
+              onClose={handleClose}
+            />
+          </div>
         ) : null}
       </SheetContent>
     </Sheet>
@@ -346,9 +358,32 @@ function ScaffoldForm({
         name: "addons",
         type: "multiSelect",
         label: "Addons",
+        description: "Extras layered onto the stack; unavailable ones say why.",
         page: 4,
         multiSelectConfig: { placeholder: "Pick addons…" },
-        options: scaffoldOptionLists.addons,
+        options: (values) =>
+          scaffoldOptionLists.addons.map((value) => {
+            const reason = addonIncompatibilityReason(value, values);
+            // Upstream getCompatibleAddons filters out other task runners
+            // once one is selected; here they disable with an explanation.
+            const taskRunnerTaken =
+              addonsExclusivity.taskRunners.includes(value) &&
+              values.addons.some(
+                (selected) =>
+                  selected !== value &&
+                  addonsExclusivity.taskRunners.includes(selected),
+              );
+            return {
+              value,
+              label: addonChoices[value].label,
+              description:
+                reason ??
+                (taskRunnerTaken
+                  ? "Only one task runner: turborepo, nx, or vite-plus."
+                  : addonChoices[value].description),
+              disabled: reason !== null || taskRunnerTaken,
+            };
+          }),
       },
       {
         name: "examples",
@@ -460,7 +495,7 @@ function ScaffoldForm({
   const command = buildEquivalentCommand(normalizeScaffoldInput(values));
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       {startError !== null ? (
         <div
           role="alert"
@@ -469,8 +504,12 @@ function ScaffoldForm({
           {startError}
         </div>
       ) : null}
-      <Form className="px-4 py-4" />
-      <div className="sticky bottom-0 border-t border-foreground/10 bg-popover px-4 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <Form className="px-4 py-4" />
+      </div>
+      {/* Plain flex sibling of the scroll region (not sticky inside it), so
+          the preview is always visible yet can never cover a field. */}
+      <div className="border-t border-foreground/10 bg-popover px-4 py-3">
         <span className="text-xs font-medium">Equivalent command</span>
         <pre className="mt-1 overflow-x-auto rounded-none border border-foreground/10 bg-muted/30 p-3 font-mono text-[0.7rem] leading-relaxed whitespace-pre-wrap break-all">
           {command}

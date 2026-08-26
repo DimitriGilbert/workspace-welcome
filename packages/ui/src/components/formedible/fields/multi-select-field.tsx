@@ -127,11 +127,18 @@ export function MultiSelectField<TFormValues extends FormedibleFormValues>({ fie
                     type="button"
                     variant="ghost"
                     disabled={isDisabled || fieldConfig.disabled || option.disabled}
-                    className="flex h-auto w-full justify-between rounded-sm px-2 py-1.5 text-left text-sm"
+                    className="flex h-auto w-full justify-between gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
                     onClick={() => toggleValue(option.value)}
                   >
-                    <span>{option.label}</span>
-                    {isSelected && <Check className="size-4" />}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span>{option.label}</span>
+                      {option.description !== undefined ? (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </span>
+                    {isSelected && <Check className="size-4 shrink-0" />}
                   </Button>
                 );
               })}
