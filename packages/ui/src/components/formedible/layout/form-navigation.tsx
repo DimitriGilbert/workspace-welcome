@@ -39,10 +39,16 @@ export function FormNavigation({
       <Button type="button" variant="outline" onClick={onPrevious} disabled={disabled || isFirstPage} className={buttonClassName}>
         {previousLabel}
       </Button>
+      {/* The next and submit buttons must never share a DOM node: morphing the
+          clicked "Next" node into type="submit" while its click dispatch is
+          still pending makes the browser's activation behavior submit the form,
+          skipping the last page without a user action. Distinct keys force the
+          swap to unmount/remount, so the pending click runs on a detached
+          node. */}
       {isLastPage ? (
-        showSubmitButton ? <Button type="submit" disabled={disabled || !canSubmit} className={submitButtonClassName}>{submitLabel}</Button> : undefined
+        showSubmitButton ? <Button key="submit" type="submit" disabled={disabled || !canSubmit} className={submitButtonClassName}>{submitLabel}</Button> : undefined
       ) : (
-        <Button type="button" onClick={onNext} disabled={disabled || isLastPage} className={buttonClassName}>
+        <Button key="next" type="button" onClick={onNext} disabled={disabled || isLastPage} className={buttonClassName}>
           {nextLabel}
         </Button>
       )}
