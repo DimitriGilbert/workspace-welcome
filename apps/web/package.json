@@ -22,6 +22,7 @@
     "@workspace-welcome/api": "workspace:*",
     "@workspace-welcome/env": "workspace:*",
     "@workspace-welcome/ui": "workspace:*",
+    "create-better-t-stack": "^3.40.3",
     "date-fns": "^4.4.0",
     "dotenv": "catalog:",
     "lucide-react": "catalog:",

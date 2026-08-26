@@ -114,6 +114,9 @@ importers:
       '@workspace-welcome/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      create-better-t-stack:
+        specifier: ^3.40.3
+        version: 3.40.5(typescript@6.0.3)
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
