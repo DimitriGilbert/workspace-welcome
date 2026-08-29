@@ -8,30 +8,19 @@ interface PinnedSectionProps {
 }
 
 /**
- * Pinned projects get their own elevated surface: a panel with the amber
- * accent wash, separated from the recency grid by a section header. Cards
- * inside use accentMode="pinned" so the left border matches the panel and
- * doesn't compete with the recency ramp in the main grid.
- *
- * Wider 2-column grid (vs 3-4 in the main grid) because pinned projects
- * deserve more room — they're the ones the user reaches for.
+ * Pinned projects, in their own section above the recency grid. No special
+ * panel or accent wash: the section header and the pin glyph on each card
+ * carry the distinction.
  */
 export function PinnedSection({ projects }: PinnedSectionProps) {
   if (projects.length === 0) return null;
 
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader
-        eyebrow="Pinned"
-        count={projects.length}
-        accent="pinned"
-      />
-      <div
-        className="grid grid-cols-1 gap-3 rounded-none border border-[color-mix(in_oklch,var(--pinned-accent)_25%,transparent)] p-3 sm:grid-cols-2"
-        style={{ backgroundColor: "var(--pinned-accent-wash)" }}
-      >
+      <SectionHeader title="Pinned" count={projects.length} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {projects.map((p) => (
-          <ProjectCard key={p.path} project={p} accentMode="pinned" />
+          <ProjectCard key={p.path} project={p} />
         ))}
       </div>
     </section>

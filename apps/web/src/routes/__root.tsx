@@ -6,7 +6,8 @@ import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@workspace-welcome/api/routers/index";
 import { Toaster } from "@workspace-welcome/ui/components/sonner";
 
-import Header from "../components/header";
+import "@fontsource-variable/geist";
+import "@fontsource-variable/geist-mono";
 
 import appCss from "../index.css?url";
 export interface RouterAppContext {
@@ -46,8 +47,7 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <div className="grid h-svh grid-rows-[auto_1fr]">
-          <Header />
+        <div className="min-h-svh">
           <Outlet />
         </div>
         <Toaster richColors />

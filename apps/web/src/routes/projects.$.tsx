@@ -7,29 +7,18 @@ import {
   ArrowLeft,
   ArrowUp,
   CodeXml,
-  Copy,
   ExternalLink,
   ExternalLinkIcon,
   FileText,
   Folder,
-  GitBranch,
   Loader2,
   RefreshCw,
+  Settings,
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace-welcome/ui/components/card";
 import { Button } from "@workspace-welcome/ui/components/button";
-import { Badge } from "@workspace-welcome/ui/components/badge";
-import { Separator } from "@workspace-welcome/ui/components/separator";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 import { cn } from "@workspace-welcome/ui/lib/utils";
@@ -39,6 +28,7 @@ import { absoluteDate, relativeTime } from "@/lib/format";
 import { hostLabel, stackIcon } from "@/lib/icons";
 import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
+import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
 
 export const Route = createFileRoute("/projects/$")({
@@ -232,16 +222,15 @@ function ProjectPage() {
         <Button variant="ghost" size="icon-sm" render={<Link to="/" />}>
           <ArrowLeft className="size-3.5" />
         </Button>
-        <Card size="sm" className="w-full">
-          <CardHeader>
-            <CardTitle>Project not found</CardTitle>
-            <CardDescription>
-              <span className="break-all font-mono text-xs">{path}</span>{" "}
-              isn&rsquo;t in the current scan — it may have been moved, hidden
-              or deleted.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="w-full border border-foreground/10 p-4">
+          <h1 className="text-sm font-semibold tracking-tight">
+            Project not found
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            <span className="break-all font-mono">{path}</span> isn&rsquo;t in
+            the current scan — it may have been moved, hidden or deleted.
+          </p>
+        </div>
       </div>
     );
   }
@@ -290,308 +279,320 @@ function ProjectPage() {
   };
 
   return (
-    // Full-bleed page: the Files section below must span the viewport, so the
-    // centered max-w container wraps only the header and the two-column grid.
-    <div className="w-full px-5 py-6 sm:px-8 lg:px-10">
-      <div className="mx-auto w-full max-w-[1480px]">
-      {/* Header band ------------------------------------------------------- */}
-      <header className="mb-6 flex flex-col gap-4 border-b border-foreground/10 pb-5">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            render={<Link to="/" />}
-            aria-label="Back to dashboard"
-          >
-            <ArrowLeft className="size-3.5" />
-          </Button>
-          <Link
-            to="/"
-            className="font-mono text-[0.65rem] font-medium uppercase tracking-[0.24em] text-[var(--eyebrow)]"
-          >
-            Workspace
-          </Link>
-        </div>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tight">
-              <StackIcon className="size-6 shrink-0 text-muted-foreground" />
-              <span className="truncate">{project.name}</span>
-            </h1>
+    // The header block uses the exact same container recipe as home
+    // (max-w + padding inside), so both pages' left edges line up to the
+    // pixel. Files alone breaks out — full-bleed minus the page padding —
+    // which is the one deliberate difference on this page.
+    <div>
+      <div className="mx-auto w-full max-w-[1480px] px-5 pt-6 sm:px-8 lg:px-10">
+        <header className="relative flex flex-col gap-3">
+          {/* Row 1 — the same skeleton as home: identity, vitals, settings. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link
+              to="/"
+              className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
+            >
+              <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
+                <span className="rounded-[1px] bg-primary" />
+                <span className="rounded-[1px] bg-foreground/20" />
+                <span className="rounded-[1px] bg-foreground/20" />
+                <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
+              </span>
+              <span className="font-mono text-[0.8rem] font-medium tracking-tight">
+                workspace
+              </span>
+            </Link>
+            <div className="ml-auto mr-1">
+              <StatusStrip
+                items={[
+                  {
+                    label: relativeTime(project.updatedAt),
+                    value: "updated",
+                    accent:
+                      Date.now() - new Date(project.updatedAt).getTime() <
+                      48 * 60 * 60 * 1000
+                        ? "positive"
+                        : undefined,
+                  },
+                  git.isRepo && (git.ahead ?? 0) > 0
+                    ? { label: "ahead", value: git.ahead, accent: "positive" as const }
+                    : null,
+                  git.isRepo && (git.behind ?? 0) > 0
+                    ? { label: "behind", value: git.behind, accent: "warn" as const }
+                    : null,
+                  git.isRepo && (git.dirtyCount ?? 0) > 0
+                    ? { label: "dirty", value: git.dirtyCount }
+                    : null,
+                  project.stack ? { label: "stack", value: project.stack.label } : null,
+                ]}
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              render={<Link to="/settings" />}
+              aria-label="Settings"
+            >
+              <Settings className="size-3.5" />
+            </Button>
+          </div>
+
+          {/* Row 2 — the project's identity and its commands. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-foreground/10 pb-4">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              render={<Link to="/" />}
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="size-3.5" />
+            </Button>
+            <StackIcon className="size-4 shrink-0 text-muted-foreground" />
+            <h1 className="text-sm font-semibold tracking-tight">{project.name}</h1>
             <button
               type="button"
               onClick={copyPath}
               title="Copy path"
-              className="break-all text-left font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="min-w-0 truncate font-mono text-[0.7rem] text-muted-foreground transition-colors hover:text-foreground lg:max-w-[42ch]"
             >
               {project.path}
             </button>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => openMutation.mutate({ path, target: "editor" })}
+              >
+                <Folder className="size-3.5" /> Open editor
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openMutation.mutate({ path, target: "terminal" })}
+              >
+                <TerminalIcon className="size-3.5" /> Terminal
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openMutation.mutate({ path, target: "folder" })}
+              >
+                <ExternalLink className="size-3.5" /> Folder
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={ideInstalling || ideStarting}
+                onClick={openIde}
+              >
+                {ideInstalling || ideStarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <CodeXml className="size-3.5" />
+                )}
+                {ide.data !== undefined && ideInstalling
+                  ? installingLabel(ide.data.install)
+                  : ideStarting
+                    ? "Starting IDE…"
+                    : "Open IDE"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!git.isRepo || reportPending}
+                title={!git.isRepo ? "Not a git repository" : undefined}
+                onClick={() => runReport("repo", path)}
+              >
+                {reportPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <FileText className="size-3.5" />
+                )}
+                {reportPending ? "Generating…" : "Report"}
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() =>
-                openMutation.mutate({ path, target: "editor" })
-              }
-            >
-              <Folder className="size-3.5" /> Open editor
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openMutation.mutate({ path, target: "terminal" })}
-            >
-              <TerminalIcon className="size-3.5" /> Terminal
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openMutation.mutate({ path, target: "folder" })}
-            >
-              <ExternalLink className="size-3.5" /> Folder
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={ideInstalling || ideStarting}
-              onClick={openIde}
-            >
-              {ideInstalling || ideStarting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <CodeXml className="size-3.5" />
-              )}
-              {ide.data !== undefined && ideInstalling
-                ? installingLabel(ide.data.install)
-                : ideStarting
-                  ? "Starting IDE…"
-                  : "Open IDE"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!git.isRepo || reportPending}
-              title={!git.isRepo ? "Not a git repository" : undefined}
-              onClick={() => runReport("repo", path)}
-            >
-              {reportPending ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <FileText className="size-3.5" />
-              )}
-              {reportPending ? "Generating…" : "Report"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={copyPath}>
-              <Copy className="size-3.5" /> Copy path
-            </Button>
-          </div>
-        </div>
+        </header>
+
         {project.alerts.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
+          <div className="mt-4 flex flex-wrap gap-1">
             {project.alerts.map((a) => (
-              <AlertBadge
-                key={a.code}
-                severity={a.severity}
-                message={a.message}
-              />
+              <AlertBadge key={a.code} severity={a.severity} message={a.message} />
             ))}
           </div>
         ) : null}
-      </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Main column */}
-        <div className="flex min-w-0 flex-col gap-6">
-          {/* Git */}
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <GitBranch className="size-4 text-muted-foreground" />
-                Git
-              </CardTitle>
-              {git.isRepo && git.remote ? (
-                <CardAction>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={gitBusy}
-                      onClick={() => fetchMutation.mutate({ path })}
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "size-3.5",
-                          fetchMutation.isPending && "animate-spin",
-                        )}
-                      />
-                      Fetch
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={gitBusy}
-                      onClick={() => pullMutation.mutate({ path })}
-                    >
-                      <ArrowDownToLine className="size-3.5" /> Pull
-                    </Button>
-                  </div>
-                </CardAction>
-              ) : null}
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {!git.isRepo ? (
-                <p className="text-xs text-muted-foreground">
-                  Not a git repository.
-                </p>
-              ) : (
-                <>
-                  <Row label="Branch">
-                    {git.branch ? (
-                      <Badge variant="outline" className="font-mono">
-                        <GitBranch className="size-3" />
-                        {git.branch}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">detached</span>
-                    )}
-                  </Row>
-                  {git.remote ? (
-                    <Row label="Remote">
-                      <a
-                        href={git.remote.links.web}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-primary hover:underline"
-                      >
-                        {hostLabel(git.remote.host)} · {git.remote.slug}
-                        <ExternalLinkIcon className="size-3" />
-                      </a>
-                    </Row>
+        {/* Vitals — one dense band instead of three airy cards. */}
+        <section className="mt-5 grid grid-cols-1 border border-foreground/10 md:grid-cols-3 md:divide-x md:divide-foreground/[0.07]">
+          <InfoCell
+            title="git"
+            trailing={
+              git.isRepo && git.remote ? (
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    disabled={gitBusy}
+                    onClick={() => fetchMutation.mutate({ path })}
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "size-3",
+                        fetchMutation.isPending && "animate-spin",
+                      )}
+                    />
+                    Fetch
+                  </Button>
+                  <Button
+                    size="xs"
+                    disabled={gitBusy}
+                    onClick={() => pullMutation.mutate({ path })}
+                  >
+                    <ArrowDownToLine className="size-3" /> Pull
+                  </Button>
+                </div>
+              ) : undefined
+            }
+          >
+            {!git.isRepo ? (
+              <p className="text-xs text-muted-foreground">Not a git repository.</p>
+            ) : (
+              <>
+                <Row label="Branch">
+                  {git.branch ? (
+                    <span className="font-mono">{git.branch}</span>
                   ) : (
-                    <Row label="Remote">
-                      <span className="text-muted-foreground">none</span>
-                    </Row>
+                    <span className="text-muted-foreground">detached</span>
                   )}
-                  <Row label="Ahead / behind">
-                    <span className="inline-flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-emerald-500">
-                        <ArrowUp className="size-3" />
-                        {git.ahead ?? 0}
-                      </span>
-                      <span className="inline-flex items-center gap-1 text-amber-500">
-                        <ArrowDown className="size-3" />
-                        {git.behind ?? 0}
-                      </span>
+                </Row>
+                <Row label="Remote">
+                  {git.remote ? (
+                    <a
+                      href={git.remote.links.web}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 hover:underline"
+                      style={{ color: "var(--primary)" }}
+                    >
+                      {hostLabel(git.remote.host)} · {git.remote.slug}
+                      <ExternalLinkIcon className="size-3" />
+                    </a>
+                  ) : (
+                    <span className="text-muted-foreground">none</span>
+                  )}
+                </Row>
+                <Row label="Ahead / behind">
+                  <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-positive">
+                      <ArrowUp className="size-3" />
+                      {git.ahead ?? 0}
+                    </span>
+                    <span
+                      className="inline-flex items-center gap-1"
+                      style={{ color: "var(--sev-warn)" }}
+                    >
+                      <ArrowDown className="size-3" />
+                      {git.behind ?? 0}
+                    </span>
+                  </span>
+                </Row>
+                <Row label="Dirty files">{git.dirtyCount ?? 0}</Row>
+                {git.lastCommit ? (
+                  <Row label="Last commit">
+                    <span className="tabular-nums">
+                      {relativeTime(git.lastCommit.date)}
                     </span>
                   </Row>
-                  <Row label="Dirty files">{git.dirtyCount ?? 0}</Row>
-                  {git.lastCommit ? (
-                    <>
-                      <Separator />
-                      <div className="flex flex-col gap-1 pt-1">
-                        <span className="text-xs text-muted-foreground">
-                          Last commit · {relativeTime(git.lastCommit.date)}
-                        </span>
-                        <p className="text-xs">{git.lastCommit.message}</p>
-                        <span className="text-xs text-muted-foreground">
-                          by {git.lastCommit.author}
-                        </span>
-                      </div>
-                    </>
-                  ) : null}
-                  {diverged ? (
-                    <p
-                      className="pt-1 text-xs"
-                      style={{ color: "var(--sev-error)" }}
+                ) : null}
+                {diverged ? (
+                  <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+                    Diverged from upstream — a fast-forward pull isn&rsquo;t
+                    possible. Reconcile the branches from a terminal.
+                  </p>
+                ) : null}
+              </>
+            )}
+          </InfoCell>
+
+          <InfoCell title="project">
+            <Row label="Stack">{project.stack?.label ?? "unknown"}</Row>
+            <Row label="Created">{absoluteDate(project.createdAt)}</Row>
+            <Row label="Updated">{relativeTime(project.updatedAt)}</Row>
+            {project.lastOpenedAt ? (
+              <Row label="Last opened">{relativeTime(project.lastOpenedAt)}</Row>
+            ) : null}
+          </InfoCell>
+
+          <InfoCell title="last commit">
+            {git.lastCommit ? (
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <p className="line-clamp-3 text-xs leading-relaxed">
+                  {git.lastCommit.message}
+                </p>
+                <span className="font-mono text-[0.7rem] text-muted-foreground">
+                  {git.lastCommit.author} · {relativeTime(git.lastCommit.date)}
+                </span>
+                {git.remote ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      render={
+                        <a
+                          href={git.remote.links.issues}
+                          target="_blank"
+                          rel="noreferrer"
+                        />
+                      }
                     >
-                      Diverged from upstream — a fast-forward pull isn&rsquo;t
-                      possible. Reconcile the branches from a terminal.
-                    </p>
-                  ) : null}
-                  {git.remote ? (
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        render={
-                          <a
-                            href={git.remote.links.issues}
-                            target="_blank"
-                            rel="noreferrer"
-                          />
-                        }
-                      >
-                        Issues
-                      </Button>
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        render={
-                          <a
-                            href={git.remote.links.pulls}
-                            target="_blank"
-                            rel="noreferrer"
-                          />
-                        }
-                      >
-                        Pull requests
-                      </Button>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                      Issues
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      render={
+                        <a
+                          href={git.remote.links.pulls}
+                          target="_blank"
+                          rel="noreferrer"
+                        />
+                      }
+                    >
+                      Pull requests
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                {git.isRepo ? "No commits yet." : "No git data."}
+              </p>
+            )}
+          </InfoCell>
+        </section>
 
-          {/* Note */}
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>Where I left off</CardTitle>
-              <CardDescription>
-                Saved automatically when you click away.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                value={noteDraft}
-                onChange={(e) => setNoteDraft(e.target.value)}
-                onBlur={saveNote}
-                placeholder="What were you doing? What's next?"
-                rows={6}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="flex flex-col gap-6">
-          <Card size="sm">
-            <CardHeader>
-              <CardTitle>Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              <Row label="Stack">
-                {project.stack ? (
-                  <Badge variant="secondary">{project.stack.label}</Badge>
-                ) : (
-                  <span className="text-muted-foreground">unknown</span>
-                )}
-              </Row>
-              <Row label="Created">{absoluteDate(project.createdAt)}</Row>
-              <Row label="Updated">{relativeTime(project.updatedAt)}</Row>
-              {project.lastOpenedAt ? (
-                <Row label="Last opened">
-                  {relativeTime(project.lastOpenedAt)}
-                </Row>
-              ) : null}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        {/* Note */}
+        <section className="mt-4 border border-foreground/10 p-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-mono text-[0.65rem] text-muted-foreground">
+              where i left off
+            </span>
+            <span className="text-[0.65rem] text-muted-foreground/70">
+              saved when you click away
+            </span>
+          </div>
+          <Textarea
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            onBlur={saveNote}
+            placeholder="What were you doing? What's next?"
+            rows={3}
+            className="mt-2"
+          />
+        </section>
       </div>
 
-      {/* Files — full viewport width (only the page padding), outside the
-          centered container so wide monitors get all available space. */}
-      <div className="mt-6">
+      {/* Files — the one full-bleed section: page padding only, no max-w. */}
+      <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
         <FileBrowser project={path} />
       </div>
     </div>
@@ -613,20 +614,71 @@ function Row({
   );
 }
 
-function LoadingPage() {
+/**
+ * One zone of the vitals band. Titles use the same lowercase mono voice as
+ * the status strip; cells are separated by hairlines on wide screens.
+ */
+function InfoCell({
+  title,
+  trailing,
+  children,
+}: {
+  title: string;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-6 px-5 py-6 sm:px-8 lg:px-10">
-      <div className="flex flex-col gap-3 border-b border-foreground/10 pb-5">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-9 w-72" />
-        <Skeleton className="h-4 w-96" />
-      </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex flex-col gap-6">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-44" />
+    <div className="flex min-w-0 flex-col gap-2 p-3">
+      <InfoCellHeader title={title} trailing={trailing} />
+      {children}
+    </div>
+  );
+}
+
+function InfoCellHeader({
+  title,
+  trailing,
+}: {
+  title: string;
+  trailing?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-7 items-center justify-between gap-2">
+      <span className="font-mono text-[0.65rem] text-muted-foreground">
+        {title}
+      </span>
+      {trailing}
+    </div>
+  );
+}
+
+function LoadingPage() {
+  // Same skeleton shapes as the page it stands in for: two masthead rows,
+  // the three-cell vitals band, the note block.
+  return (
+    <div className="w-full px-5 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto w-full max-w-[1480px]">
+        <header className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-80" />
+          </div>
+          <div className="flex items-center justify-between border-b border-foreground/10 pb-4">
+            <Skeleton className="h-5 w-72" />
+            <div className="flex gap-2">
+              <Skeleton className="h-7 w-24" />
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-7 w-20" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+          </div>
+        </header>
+        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
         </div>
-        <Skeleton className="h-40" />
+        <Skeleton className="mt-4 h-24" />
       </div>
     </div>
   );

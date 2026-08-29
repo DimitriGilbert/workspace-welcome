@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { FolderPlus, PackagePlus, RefreshCw, Search, Terminal as TerminalIcon } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  FolderPlus,
+  PackagePlus,
+  RefreshCw,
+  Search,
+  Settings,
+  Terminal as TerminalIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
@@ -12,7 +19,7 @@ import { ProjectCard } from "@/components/project-card";
 import { PinnedSection } from "@/components/pinned-section";
 import { SectionHeader } from "@/components/section-header";
 import {
-  SummaryCards,
+  SummaryLine,
   computeStats,
 } from "@/components/summary-cards";
 import { NeedsAttention } from "@/components/needs-attention";
@@ -139,24 +146,54 @@ function HomeComponent() {
   const loading = scan.isLoading;
 
   return (
-    <div className="mx-auto w-full max-w-[1480px] px-5 py-6 sm:px-8 lg:px-10">
-      {/* Header band ------------------------------------------------------- */}
-      <header className="mb-6 flex flex-col gap-4 border-b border-foreground/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-2">
-          <span className="font-mono text-[0.65rem] font-medium uppercase tracking-[0.24em] text-[var(--eyebrow)]">
-            Workspace
-          </span>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Welcome back
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {hasRoots
-              ? `${projects.length} projects across ${roots.data?.length ?? 0} director${(roots.data?.length ?? 0) === 1 ? "y" : "ies"}`
-              : "Add a directory to see your projects here."}
-          </p>
+    <div className="relative mx-auto w-full max-w-[1480px] px-5 py-6 sm:px-8 lg:px-10">
+      {/* Faint terracotta ambience behind the masthead — sets the tone
+          without becoming a gradient-hero cliché. Purely decorative. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 -top-20 h-80"
+        style={{
+          background:
+            "radial-gradient(600px 260px at 50% 0%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 72%)",
+        }}
+      />
+      <h1 className="sr-only">Projects</h1>
+
+      <header className="relative flex flex-col gap-3">
+        {/* Masthead: identity on the left, live status on the right. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
+          >
+            <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
+              <span className="rounded-[1px] bg-primary" />
+              <span className="rounded-[1px] bg-foreground/20" />
+              <span className="rounded-[1px] bg-foreground/20" />
+              <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
+            </span>
+            <span className="font-mono text-[0.8rem] font-medium tracking-tight">
+              workspace
+            </span>
+          </Link>
+          {loading || projects.length === 0 ? null : (
+            <div className="ml-auto mr-1">
+              <SummaryLine stats={visibleStats} rootCount={roots.data?.length} />
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            render={<Link to="/settings" />}
+            aria-label="Settings"
+          >
+            <Settings className="size-3.5" />
+          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
+
+        {/* Command row: search owns the left edge, actions the right. */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 pb-4">
+          <div className="relative mr-auto">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               ref={searchRef}
@@ -170,7 +207,7 @@ function HomeComponent() {
               }}
               placeholder="Filter projects"
               aria-label="Filter projects"
-              className="h-8 w-48 rounded-none border border-input bg-background pl-7 pr-12 text-xs outline-none transition-colors focus:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:w-64"
+              className="h-8 w-48 rounded-none border border-input bg-background/60 pl-7 pr-12 text-xs outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-ring focus-visible:ring-1 focus-visible:ring-ring/50 sm:w-64"
             />
             <kbd
               className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 select-none rounded-sm border border-border/60 bg-muted/60 px-1 font-mono text-[0.6rem] font-medium text-muted-foreground"
@@ -216,23 +253,13 @@ function HomeComponent() {
       ) : projects.length === 0 ? (
         <EmptyState noRoots={!hasRoots} onAddRoot={() => setAddRootOpen(true)} />
       ) : (
-        <div className="flex flex-col gap-8">
-          {/* Summary strip */}
-          <SummaryCards stats={visibleStats} />
-
+        <div className="relative mt-6 flex flex-col gap-7">
           {/* Needs attention */}
           <NeedsAttention projects={visible} />
 
           {/* Root errors (missing dirs etc.) */}
           {scan.data?.rootErrors.length ? (
-            <div
-              className="flex flex-col gap-1 rounded-none p-3 text-xs"
-              style={{
-                backgroundColor:
-                  "color-mix(in oklch, var(--sev-error) 8%, transparent)",
-                boxShadow: "inset 3px 0 0 0 var(--sev-error)",
-              }}
-            >
+            <div className="flex flex-col gap-1 border-l-2 p-3 text-xs" style={{ borderColor: "var(--sev-error)" }}>
               {scan.data.rootErrors.map((e) => (
                 <span key={e.rootId} style={{ color: "var(--sev-error)" }}>
                   Couldn&rsquo;t read <span className="font-mono">{e.path}</span>:{" "}
@@ -242,17 +269,13 @@ function HomeComponent() {
             </div>
           ) : null}
 
-          {/* Pinned section — visually separated, amber accent */}
+          {/* Pinned section */}
           {pinned.length > 0 ? <PinnedSection projects={pinned} /> : null}
 
-          {/* Recent grid — hot projects, prominent cards */}
+          {/* Recent grid */}
           {recent.length > 0 ? (
             <section className="flex flex-col gap-3">
-              <SectionHeader
-                eyebrow="Recent"
-                count={recent.length}
-                accent="recency"
-              />
+              <SectionHeader title="Recent" count={recent.length} />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {recent.map((p) => (
                   <ProjectCard key={p.path} project={p} />
@@ -264,11 +287,7 @@ function HomeComponent() {
           {/* Older list — compact rows, breaks the card forest */}
           {older.length > 0 ? (
             <section className="flex flex-col gap-3">
-              <SectionHeader
-                eyebrow="Older"
-                count={older.length}
-                accent="neutral"
-              />
+              <SectionHeader title="Older" count={older.length} />
               <OlderList projects={older} />
             </section>
           ) : null}
@@ -318,8 +337,7 @@ function HomeComponent() {
 /**
  * Dense row-based list for older projects. Each row carries the same signals
  * as a card (stack, git, alerts, recency) but compressed horizontally so the
- * eye scans a long archive quickly. Recency still shows as a left bar so the
- * heatmap extends across the whole page, not just the card grid.
+ * eye scans a long archive quickly. Cold entries dim until hovered.
  */
 function OlderList({ projects }: { projects: Project[] }) {
   const openProject = useOpenProject();
@@ -328,36 +346,29 @@ function OlderList({ projects }: { projects: Project[] }) {
       {projects.map((p, i) => {
         const f = freshness(p.updatedAt, p.lastOpenedAt);
         const tier: RecencyTier = tierFromFreshness(f);
-        const errorAlert = p.alerts.find((a) => a.severity === "error");
-        const accentColor = errorAlert
-          ? "var(--sev-error)"
-          : tier === "cold"
-            ? "var(--border)"
-            : `color-mix(in oklch, var(--recency-fresh) ${Math.round(Math.max(0.08, f * 1.15) * 100)}%, var(--recency-stale))`;
         const StackIcon = stackIcon(p.stack?.id);
         return (
           <button
             key={p.path}
             type="button"
             onClick={() => openProject(p.path)}
-            style={{ boxShadow: `inset 2px 0 0 0 ${accentColor}` }}
             className={[
-              "group flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50",
+              "group flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-foreground/[0.04]",
               tier === "cold" ? "opacity-60 hover:opacity-100" : "",
-              i > 0 ? "border-t border-foreground/10" : "",
+              i > 0 ? "border-t border-foreground/[0.07]" : "",
             ].join(" ")}
           >
-            <StackIcon className="size-4 shrink-0 text-muted-foreground" />
+            <StackIcon className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="truncate text-sm font-medium">{p.name}</span>
+                <span className="truncate text-[0.8rem] font-medium tracking-tight">{p.name}</span>
                 {p.git.branch ? (
                   <span className="hidden shrink-0 items-center gap-1 font-mono text-[0.7rem] text-muted-foreground sm:inline-flex">
                     {p.git.branch}
                   </span>
                 ) : null}
               </div>
-              <span className="truncate font-mono text-[0.7rem] text-muted-foreground">
+              <span className="truncate font-mono text-[0.7rem] text-muted-foreground/80">
                 {p.path}
               </span>
             </div>
@@ -367,7 +378,7 @@ function OlderList({ projects }: { projects: Project[] }) {
             <div className="flex shrink-0 items-center gap-2">
               <AlertIcons alerts={p.alerts} />
               <span
-                className="w-20 shrink-0 text-right text-[0.7rem] tabular-nums text-muted-foreground"
+                className="min-w-24 shrink-0 text-right font-mono text-[0.7rem] tabular-nums text-muted-foreground"
                 title={dateTooltip(p.updatedAt)}
               >
                 {relativeTime(p.updatedAt)}
@@ -382,17 +393,13 @@ function OlderList({ projects }: { projects: Project[] }) {
 
 function LoadingGrid() {
   return (
-    <div className="flex flex-col gap-8">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[1.4fr_repeat(3,1fr)]">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-20" />
-        ))}
-      </div>
+    <div className="mt-5 flex flex-col gap-6">
+      <Skeleton className="h-4 w-80" />
       <div className="flex flex-col gap-3">
-        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-5 w-24" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-36" />
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
       </div>

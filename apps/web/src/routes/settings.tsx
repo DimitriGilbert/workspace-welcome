@@ -368,7 +368,7 @@ function IdeCard() {
             <div className="flex items-center gap-2 text-xs">
               <span
                 aria-hidden
-                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-positive"
               />
               Running
               {s.version ? (

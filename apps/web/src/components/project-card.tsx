@@ -34,23 +34,13 @@ import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
-import { freshness, heatBorderColor, tierFromFreshness } from "@/lib/recency";
+import { freshness, tierFromFreshness } from "@/lib/recency";
 
 interface ProjectCardProps {
   project: Project;
-  /**
-   * "auto" picks the accent by priority: error > pinned > recency.
-   * "recency" forces the recency-heat border even on pinned cards (used in
-   * the main grid where pinned-ness is not the dominant signal).
-   * "pinned" forces the pinned amber (used inside the pinned section).
-   */
-  accentMode?: "auto" | "recency" | "pinned";
 }
 
-export function ProjectCard({
-  project,
-  accentMode = "auto",
-}: ProjectCardProps) {
+export function ProjectCard({ project }: ProjectCardProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const openProject = useOpenProject();
@@ -109,45 +99,24 @@ export function ProjectCard({
     }
   };
 
-  const errorAlert = project.alerts.find((a) => a.severity === "error");
   const f = freshness(project.updatedAt, project.lastOpenedAt);
   const tier = tierFromFreshness(f);
+  // The accent-colored timestamp says "updated", so it keys off updatedAt
+  // alone (not the last-opened boost): lit only when genuinely fresh.
+  const updatedHot =
+    Date.now() - new Date(project.updatedAt).getTime() < 48 * 60 * 60 * 1000;
 
-  // Accent priority: error always wins; otherwise the caller decides whether
-  // pinned-ness or recency drives the left border.
-  let accentColor: string;
-  if (errorAlert) {
-    accentColor = "var(--sev-error)";
-  } else if (accentMode === "pinned" || (accentMode === "auto" && project.pinned)) {
-    accentColor = "var(--pinned-accent)";
-  } else {
-    accentColor = heatBorderColor(f);
-  }
-  const edgeStyle: React.CSSProperties = {
-    // 3px left heat bar + neutral 1px ring via layered inset shadows.
-    boxShadow: `inset 3px 0 0 0 ${accentColor}`,
-  };
-  // Hot cards get a faint wash so freshness reads at a glance even before
-  // the border registers; cold cards dim slightly to recede — but never dim
-  // pinned cards (the user promoted them deliberately).
-  const tierSurface =
-    accentMode === "pinned" || (accentMode === "auto" && project.pinned)
-      ? tier === "fresh"
-        ? "bg-[var(--pinned-accent-wash)]"
-        : ""
-      : tier === "fresh"
-        ? "bg-[var(--recency-fresh-wash)]"
-        : tier === "cold"
-          ? "opacity-70 hover:opacity-100"
-          : "";
+  // No color-coded edges: recency reads from the timestamp (fresh projects
+  // light up in the accent cyan), alerts from the alert icons, pinned from
+  // the pin glyph. Cold entries dim a little.
+  const dimmed = tier === "cold" ? "opacity-70 hover:opacity-100" : "";
 
   return (
     <Card
       size="sm"
-      style={edgeStyle}
       className={cn(
-        "cursor-pointer ring-1 ring-foreground/10 transition-all duration-200 hover:-translate-y-px hover:ring-foreground/20 hover:bg-muted/40",
-        tierSurface,
+        "group cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] ring-1 ring-foreground/10 transition-all duration-200 hover:-translate-y-px hover:bg-muted/40 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_14px_36px_-18px_rgba(0,0,0,0.65)] hover:ring-[color-mix(in_oklch,var(--primary)_45%,transparent)]",
+        dimmed,
       )}
       onClick={(e) => {
         const target = e.target as HTMLElement;
@@ -161,9 +130,14 @@ export function ProjectCard({
       }}
     >
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <StackIcon className="size-4 shrink-0 text-muted-foreground" />
-          <span className="truncate font-medium">{project.name}</span>
+        <CardTitle className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="flex size-6 shrink-0 items-center justify-center bg-muted text-muted-foreground transition-colors group-hover:text-foreground"
+          >
+            <StackIcon className="size-3.5" />
+          </span>
+          <span className="truncate font-medium tracking-tight">{project.name}</span>
           {project.pinned ? (
             <Pin
               className="size-3.5 shrink-0"
@@ -199,7 +173,7 @@ export function ProjectCard({
               >
                 <MoreHorizontal className="size-3.5" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="min-w-48">
                 <DropdownMenuItem onClick={() => open("editor")}>
                   <Folder className="size-3.5" /> Open in editor
                 </DropdownMenuItem>
@@ -243,13 +217,17 @@ export function ProjectCard({
         </div>
 
         {project.note ? (
-          <p className="line-clamp-2 border-l-2 border-foreground/10 pl-2 text-xs italic text-muted-foreground">
+          <p className="line-clamp-2 text-xs text-muted-foreground">
             {project.note}
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between text-[0.7rem] text-muted-foreground">
-          <span title={dateTooltip(project.updatedAt)} className="tabular-nums">
+        <div className="flex items-center justify-between border-t border-foreground/[0.07] pt-2 text-[0.7rem] text-muted-foreground">
+          <span
+            title={dateTooltip(project.updatedAt)}
+            className={"tabular-nums" + (updatedHot ? " font-medium" : "")}
+            style={updatedHot ? { color: "var(--recency-fresh)" } : undefined}
+          >
             updated {relativeTime(project.updatedAt)}
           </span>
           {project.lastOpenedAt ? (

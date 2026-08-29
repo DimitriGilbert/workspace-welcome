@@ -7,9 +7,8 @@
  * difference between "today" and "3 days ago" matters more to a developer
  * than the difference between "60 days" and "90 days".
  *
- * The freshness value drives:
- *   - border color via color-mix(in oklch, fresh X%, stale)
- *   - tier classification (which layout treatment the card gets)
+ * The freshness value drives the tier classification, which decides where a
+ * project lands (recent card grid vs compact older list) and whether it dims.
  */
 
 /** Horizon in ms. Older than this -> freshness 0. 90 days feels right for
@@ -48,29 +47,17 @@ export type RecencyTier = "fresh" | "recent" | "stale" | "cold";
 
 /**
  * Layout tier. Drives whether a project gets a full card, a dimmed card,
- * or collapses into the compact "older" list.
- *   fresh  < 2 days   — hottest border
- *   recent < 14 days  — warm border, still a prominent card
- *   stale  < 90 days   — faint border, normal card
+ * or collapses into the compact "older" list — and whether the "updated"
+ * timestamp lights up in the accent color. Kept honest: fresh really means
+ * "touched in the last couple of days".
+ *   fresh  <= ~2 days  — alive; accent-colored timestamp
+ *   recent < 14 days   — normal card
+ *   stale  < 90 days   — normal card, quieter
  *   cold   >= 90 days  — collapses into compact list
  */
 export function tierFromFreshness(f: number): RecencyTier {
-  if (f >= 0.78) return "fresh";
+  if (f >= 0.95) return "fresh";
   if (f >= 0.45) return "recent";
   if (f > 0.02) return "stale";
   return "cold";
-}
-
-/** Percentage of the "fresh" endpoint to mix in for color-mix. We exaggerate
- * slightly above the raw freshness so even "recent" cards still show clear
- * color instead of looking grey. Min floor keeps cold cards from vanishing. */
-export function heatMixPercent(f: number): number {
-  const scaled = Math.min(1, f * 1.15);
-  return Math.round(Math.max(0.06, scaled) * 100);
-}
-
-/** CSS color value for the recency border, ready to drop into a style attr. */
-export function heatBorderColor(f: number): string {
-  const pct = heatMixPercent(f);
-  return `color-mix(in oklch, var(--recency-fresh) ${pct}%, var(--recency-stale))`;
 }

@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Badge } from "@workspace-welcome/ui/components/badge";
 import {
   Tooltip,
   TooltipContent,
@@ -23,45 +22,41 @@ import type { AlertCode, AlertSeverity, GitInfo } from "@workspace-welcome/api/l
 import { hostLabel } from "@/lib/icons";
 
 /**
- * The compact git status badges shown on a project card:
- * host, branch, ahead/behind, dirty count.
+ * Git status for a project card, as quiet text rather than chip boxes:
+ * host, branch, ahead/behind, dirty count. The metadata reads like a line
+ * of mono notes; color only marks ahead/behind direction.
  */
 export function GitBadges({ git }: { git: GitInfo }) {
   if (!git.isRepo) {
-    return (
-      <Badge variant="outline" className="text-muted-foreground">
-        not a repo
-      </Badge>
-    );
+    return <span className="text-[0.7rem] text-muted-foreground">not a repo</span>;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {git.remote ? (
-        <Badge variant="secondary">{hostLabel(git.remote.host)}</Badge>
-      ) : null}
+    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[0.7rem] text-muted-foreground">
+      {git.remote ? <span>{hostLabel(git.remote.host)}</span> : null}
       {git.branch ? (
-        <Badge variant="outline" className="font-mono">
-          <GitFork className="size-3" />
-          {git.branch}
-        </Badge>
+        <span className="inline-flex max-w-[18ch] items-center gap-1 truncate font-mono">
+          <GitFork className="size-3 shrink-0" />
+          <span className="truncate">{git.branch}</span>
+        </span>
       ) : null}
       {(git.ahead ?? 0) > 0 ? (
-        <Badge variant="secondary" className="text-emerald-500">
+        <span className="inline-flex items-center gap-0.5 text-positive">
           <ArrowUp className="size-3" />
           {git.ahead}
-        </Badge>
+        </span>
       ) : null}
       {(git.behind ?? 0) > 0 ? (
-        <Badge variant="secondary" className="text-amber-500">
+        <span
+          className="inline-flex items-center gap-0.5"
+          style={{ color: "var(--sev-warn)" }}
+        >
           <ArrowDown className="size-3" />
           {git.behind}
-        </Badge>
+        </span>
       ) : null}
       {(git.dirtyCount ?? 0) > 0 ? (
-        <Badge variant="secondary" className="text-muted-foreground">
-          dirty {git.dirtyCount}
-        </Badge>
+        <span>dirty {git.dirtyCount}</span>
       ) : null}
     </div>
   );
@@ -90,7 +85,7 @@ const ALERT_META: Record<
 
 const SEVERITY_CLASS: Record<AlertSeverity, string> = {
   error: "text-destructive",
-  warn: "text-amber-500",
+  warn: "text-[var(--sev-warn)]",
   info: "text-muted-foreground",
 };
 
@@ -134,12 +129,12 @@ export function AlertIcons({
 }
 
 const SEVERITY_PILL_CLASS: Record<string, string> = {
-  error: "bg-destructive/15 text-destructive ring-destructive/30",
-  warn: "bg-amber-500/15 text-amber-500 ring-amber-500/30",
-  info: "bg-muted text-muted-foreground ring-border",
+  error: "bg-destructive/10 text-destructive",
+  warn: "bg-[color-mix(in_oklch,var(--sev-warn)_12%,transparent)] text-[var(--sev-warn)]",
+  info: "bg-muted text-muted-foreground",
 };
 
-/** Pill with full text — used in the needs-attention list where space allows. */
+/** Compact pill with full text — used in the needs-attention list. */
 export function AlertBadge({
   severity,
   message,
@@ -150,7 +145,7 @@ export function AlertBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center gap-1 rounded-none px-2 text-xs font-medium ring-1",
+        "inline-flex h-4 items-center whitespace-nowrap px-1.5 text-[0.65rem] font-medium",
         SEVERITY_PILL_CLASS[severity],
       )}
     >

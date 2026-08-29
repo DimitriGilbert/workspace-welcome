@@ -24,12 +24,7 @@ export function EmptyState({ noRoots, onAddRoot }: EmptyStateProps) {
     <div className="flex flex-col items-center justify-center gap-4 rounded-none border border-dashed border-foreground/15 p-16 text-center">
       <span
         aria-hidden
-        className="flex size-12 items-center justify-center rounded-none"
-        style={{
-          color: "var(--recency-fresh)",
-          backgroundColor:
-            "color-mix(in oklch, var(--recency-fresh) 12%, transparent)",
-        }}
+        className="flex size-12 items-center justify-center rounded-none bg-muted text-muted-foreground"
       >
         <Icon className="size-6" />
       </span>

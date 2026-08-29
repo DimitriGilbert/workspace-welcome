@@ -3,25 +3,12 @@ import type { ReactNode } from "react";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 /**
- * Section anchor: a small uppercase eyebrow (accent dot + label + optional
- * count) that gives the page rhythm without resorting to boxes everywhere.
- *
- * The `accent` prop tints the eyebrow rule + label with a section-specific
- * hue so sections are visually distinct at a glance.
+ * Section anchor: a plain heading with an optional count. No eyebrows, no
+ * accent dots — the section's position on the page already says what it is.
  */
-type Accent = "neutral" | "recency" | "pinned" | "alert";
-
-const ACCENT_VAR: Record<Accent, string> = {
-  neutral: "var(--eyebrow)",
-  recency: "var(--recency-fresh)",
-  pinned: "var(--pinned-accent)",
-  alert: "var(--sev-warn)",
-};
-
 interface SectionHeaderProps {
-  eyebrow: string;
+  title: string;
   count?: number;
-  accent?: Accent;
   description?: ReactNode;
   /** Right-aligned actions (buttons, etc). */
   trailing?: ReactNode;
@@ -29,35 +16,28 @@ interface SectionHeaderProps {
 }
 
 export function SectionHeader({
-  eyebrow,
+  title,
   count,
-  accent = "neutral",
   description,
   trailing,
   className,
 }: SectionHeaderProps) {
-  const accentVar = ACCENT_VAR[accent];
   return (
     <div className={cn("flex items-end justify-between gap-4", className)}>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className="inline-block h-2 w-2 rounded-full"
-            style={{
-              backgroundColor: accentVar,
-              boxShadow: `0 0 0 3px color-mix(in oklch, ${accentVar} 22%, transparent)`,
-            }}
-          />
-          <span
-            className="font-mono text-[0.65rem] font-medium uppercase tracking-[0.22em]"
-            style={{ color: accentVar }}
-          >
-            {eyebrow}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center gap-3">
+          <h2 className="text-[0.8rem] font-medium tracking-tight">
+            {title}
             {typeof count === "number" ? (
-              <span className="ml-2 tabular-nums opacity-60">{count}</span>
+              <span className="ml-2 font-mono text-[0.7rem] font-normal tabular-nums text-muted-foreground">
+                {count}
+              </span>
             ) : null}
-          </span>
+          </h2>
+          <div
+            aria-hidden
+            className="h-px flex-1 bg-gradient-to-r from-foreground/15 to-transparent"
+          />
         </div>
         {description ? (
           <p className="max-w-prose text-sm text-muted-foreground">{description}</p>

@@ -1,6 +1,6 @@
-import { AlertTriangle, Pin, Timer, FolderCheck } from "lucide-react";
-
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+import { StatusStrip } from "@/components/status-strip";
 
 export interface SummaryStats {
   total: number;
@@ -34,79 +34,36 @@ export function computeStats(
 }
 
 /**
- * Editorial metric strip — one horizontal panel, not a forest of identical
- * cards. The hero metric (Total) anchors the left; supporting metrics branch
- * to the right, separated by hairline dividers. Each metric is colored by
- * its semantic role so the eye can scan meaning, not just numbers.
- *
- * Deliberately shape-consistent with the rest of the workbench: sharp
- * corners, 1px border, no shadows, no gradients.
+ * Workspace vitals on the home masthead: the shared StatusStrip fed from
+ * computeStats. Amber on the needs-attention count is the only color — it
+ * means something.
  */
-export function SummaryCards({ stats }: { stats: SummaryStats }) {
+export function SummaryLine({
+  stats,
+  rootCount,
+}: {
+  stats: SummaryStats;
+  rootCount?: number;
+}) {
+  const projectNoun = stats.total === 1 ? "project" : "projects";
   return (
-    <div className="grid grid-cols-2 items-stretch overflow-hidden rounded-none border border-foreground/10 sm:grid-cols-[1.4fr_repeat(3,1fr)]">
-      <Metric
-        label="Projects"
-        value={stats.total}
-        icon={<FolderCheck className="size-3.5" />}
-        accent="var(--foreground)"
-        hero
-      />
-      <Metric
-        label="Active this week"
-        value={stats.activeThisWeek}
-        icon={<Timer className="size-3.5" />}
-        accent="var(--recency-fresh)"
-      />
-      <Metric
-        label="Needs attention"
-        value={stats.needsAttention}
-        icon={<AlertTriangle className="size-3.5" />}
-        accent={stats.needsAttention > 0 ? "var(--sev-warn)" : "var(--eyebrow)"}
-      />
-      <Metric
-        label="Pinned"
-        value={stats.pinned}
-        icon={<Pin className="size-3.5" />}
-        accent="var(--pinned-accent)"
-      />
-    </div>
-  );
-}
-
-interface MetricProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  accent: string;
-  hero?: boolean;
-}
-
-function Metric({ label, value, icon, accent, hero }: MetricProps) {
-  return (
-    <div
-      className={[
-        "flex flex-col justify-center gap-1 p-3",
-        // Hairline dividers between metrics (not around the outer edges,
-        // the container border handles those).
-        "border-foreground/10 [&:not(:nth-child(1))]:border-l",
-        "max-sm:[&:nth-child(odd)]:border-l-0 max-sm:[&:nth-child(n+3)]:border-t",
-        hero ? "bg-muted/30" : "",
-      ].join(" ")}
-    >
-      <div
-        className="flex items-center gap-1.5 font-mono text-[0.62rem] font-medium uppercase tracking-[0.2em]"
-        style={{ color: accent }}
-      >
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div
-        className="text-3xl font-semibold leading-none tabular-nums"
-        style={{ color: hero ? "var(--foreground)" : accent }}
-      >
-        {value}
-      </div>
-    </div>
+    <StatusStrip
+      items={[
+        {
+          label:
+            rootCount === undefined
+              ? projectNoun
+              : `${projectNoun} in ${rootCount} ${rootCount === 1 ? "directory" : "directories"}`,
+          value: stats.total,
+        },
+        { label: "active this week", value: stats.activeThisWeek },
+        {
+          label: stats.needsAttention === 1 ? "needs attention" : "need attention",
+          value: stats.needsAttention,
+          accent: stats.needsAttention > 0 ? "warn" : undefined,
+        },
+        { label: "pinned", value: stats.pinned },
+      ]}
+    />
   );
 }
