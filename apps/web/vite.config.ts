@@ -15,5 +15,12 @@ export default defineConfig({
   ssr: {
     external: ["create-better-t-stack"],
   },
+  // Same package as the ssr.external above: only the server API routes import
+  // it, but the client dep-optimizer still walks that chain and dies trying
+  // to bundle its node-only dependency graph (unicorn-magic resolves through
+  // its browser condition, which lacks the exports npm-run-path imports).
+  optimizeDeps: {
+    exclude: ["create-better-t-stack"],
+  },
   plugins: [tailwindcss(), tanstackStart(), viteReact()],
 });
