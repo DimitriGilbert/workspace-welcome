@@ -62,6 +62,47 @@ export interface GitInfo {
   } | null;
 }
 
+/** Local and origin branch names of a repo, for pickers. */
+export interface BranchList {
+  local: string[];
+  /** Remote-tracking branches with the `origin/` prefix stripped. */
+  remote: string[];
+}
+
+/**
+ * Fresh safety probe taken right before confirming a branch switch —
+ * signals that an agent (or another process) may be mid-work in the repo.
+ */
+export interface SwitchSafety {
+  /** Number of uncommitted changes from a fresh `git status --porcelain`. */
+  dirtyCount: number;
+  /** True when `.git/index.lock` exists — a git operation may be in flight. */
+  gitLock: boolean;
+  /** Seconds since `.git/index` was last written; null when there is none. */
+  indexIdleSeconds: number | null;
+  /** Whether the shared web IDE server is running against this machine. */
+  ideRunning: boolean;
+}
+
+/** One commit in a project's history (commit graph / log). */
+export interface CommitLogEntry {
+  hash: string;
+  /** Parent hashes, first parent first; empty for root commits. */
+  parents: string[];
+  subject: string;
+  author: string;
+  /** Author time, unix seconds. */
+  timestamp: number;
+  /**
+   * Decoration ref names from `%d`, lightly normalized: the branch after
+   * `HEAD -> ` plus names like `origin/main` / `tag: v1` as-is (`HEAD` alone
+   * when detached).
+   */
+  refs: string[];
+  /** True when this commit is the current HEAD. */
+  isHead: boolean;
+}
+
 /** Detected language/toolchain from a manifest file. */
 export interface StackInfo {
   /** Stable identifier, e.g. "node", "rust". */

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowDown,
-  ArrowDownToLine,
   ArrowLeft,
   ArrowUp,
   CodeXml,
@@ -12,7 +11,6 @@ import {
   FileText,
   Folder,
   Loader2,
-  RefreshCw,
   Settings,
   Terminal as TerminalIcon,
 } from "lucide-react";
@@ -21,7 +19,6 @@ import { toast } from "sonner";
 import { Button } from "@workspace-welcome/ui/components/button";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
-import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { useTRPC } from "@/utils/trpc";
 import { absoluteDate, relativeTime } from "@/lib/format";
@@ -30,6 +27,11 @@ import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
 import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
+import { ProjectCommitHistory } from "@/components/project-commit-history";
+import {
+  BranchSwitcher,
+  GitActionsToolbar,
+} from "@/components/project-git-actions";
 
 export const Route = createFileRoute("/projects/$")({
   component: ProjectPage,
@@ -76,8 +78,18 @@ function ProjectPage() {
   const scan = useQuery(trpc.projects.scan.queryOptions());
   const project = scan.data?.projects.find((p) => p.path === path) ?? null;
 
+  // Git mutations refresh both the scan (branch, ahead/behind, dirty) and
+  // this project's commit log, so the History graph tracks every pull /
+  // push / fetch / branch switch.
   const invalidateScan = () =>
-    queryClient.invalidateQueries({ queryKey: trpc.projects.scan.queryKey() });
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: trpc.projects.scan.queryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: trpc.projects.commitLog.queryKey(),
+      }),
+    ]);
 
   const noteMutation = useMutation(
     trpc.projects.setNote.mutationOptions({
@@ -110,6 +122,33 @@ function ProjectPage() {
       onSuccess: async (data) => {
         await invalidateScan();
         toast.success(data.message || "Already up to date.");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+  const pushMutation = useMutation(
+    trpc.projects.push.mutationOptions({
+      onSuccess: async (data) => {
+        await invalidateScan();
+        toast.success(data.message || "Pushed.");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+  const fetchBranchMutation = useMutation(
+    trpc.projects.fetchBranch.mutationOptions({
+      onSuccess: async (data) => {
+        await invalidateScan();
+        toast.success(data.message || "Branch fetched.");
+      },
+      onError: (e) => toast.error(e.message),
+    }),
+  );
+  const switchBranchMutation = useMutation(
+    trpc.projects.switchBranch.mutationOptions({
+      onSuccess: async (data) => {
+        await invalidateScan();
+        toast.success(data.message || "Switched.");
       },
       onError: (e) => toast.error(e.message),
     }),
@@ -237,7 +276,14 @@ function ProjectPage() {
 
   const StackIcon = stackIcon(project.stack?.id);
   const git = project.git;
-  const gitBusy = fetchMutation.isPending || pullMutation.isPending;
+  // One gate for every git op on the page — fetch, pull, push, fetch-a-
+  // branch and switch all rest while any of the others is in flight.
+  const gitBusy =
+    fetchMutation.isPending ||
+    pullMutation.isPending ||
+    pushMutation.isPending ||
+    fetchBranchMutation.isPending ||
+    switchBranchMutation.isPending;
   const diverged = (git.ahead ?? 0) > 0 && (git.behind ?? 0) > 0;
 
   const ideInstalling =
@@ -281,8 +327,8 @@ function ProjectPage() {
   return (
     // The header block uses the exact same container recipe as home
     // (max-w + padding inside), so both pages' left edges line up to the
-    // pixel. Files alone breaks out — full-bleed minus the page padding —
-    // which is the one deliberate difference on this page.
+    // pixel. Files and History break out — full-bleed minus the page
+    // padding — the deliberate differences on this page.
     <div>
       <div className="mx-auto w-full max-w-[1480px] px-5 pt-6 sm:px-8 lg:px-10">
         <header className="relative flex flex-col gap-3">
@@ -427,29 +473,14 @@ function ProjectPage() {
             title="git"
             trailing={
               git.isRepo && git.remote ? (
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    disabled={gitBusy}
-                    onClick={() => fetchMutation.mutate({ path })}
-                  >
-                    <RefreshCw
-                      className={cn(
-                        "size-3",
-                        fetchMutation.isPending && "animate-spin",
-                      )}
-                    />
-                    Fetch
-                  </Button>
-                  <Button
-                    size="xs"
-                    disabled={gitBusy}
-                    onClick={() => pullMutation.mutate({ path })}
-                  >
-                    <ArrowDownToLine className="size-3" /> Pull
-                  </Button>
-                </div>
+                <GitActionsToolbar
+                  path={path}
+                  gitBusy={gitBusy}
+                  fetch={fetchMutation}
+                  pull={pullMutation}
+                  push={pushMutation}
+                  fetchBranch={fetchBranchMutation}
+                />
               ) : undefined
             }
           >
@@ -458,11 +489,12 @@ function ProjectPage() {
             ) : (
               <>
                 <Row label="Branch">
-                  {git.branch ? (
-                    <span className="font-mono">{git.branch}</span>
-                  ) : (
-                    <span className="text-muted-foreground">detached</span>
-                  )}
+                  <BranchSwitcher
+                    path={path}
+                    branch={git.branch}
+                    gitBusy={gitBusy}
+                    switchBranch={switchBranchMutation}
+                  />
                 </Row>
                 <Row label="Remote">
                   {git.remote ? (
@@ -595,6 +627,13 @@ function ProjectPage() {
       <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
         <FileBrowser project={path} />
       </div>
+
+      {/* History — full-bleed like Files, bottom of the page; repos only. */}
+      {git.isRepo ? (
+        <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
+          <ProjectCommitHistory path={path} />
+        </div>
+      ) : null}
     </div>
   );
 }

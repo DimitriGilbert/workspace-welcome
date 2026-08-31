@@ -3,7 +3,17 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 import { getScan, refreshCachedProject } from "../lib/scan-cache";
-import { gitFetch, gitPull } from "../lib/git";
+import {
+  branchNameSchema,
+  commitLog,
+  gitFetch,
+  gitFetchBranch,
+  gitPull,
+  gitPush,
+  gitSwitchBranch,
+  listBranches,
+  switchSafety,
+} from "../lib/git";
 import { mutateStore, readStore } from "../lib/store";
 import { openForTarget, type OpenTarget } from "../lib/spawn";
 import { publicProcedure, router } from "../index";
@@ -44,6 +54,39 @@ export const projectsRouter = router({
       .map(([path]) => ({ path, name: path.split("/").pop() ?? path }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }),
+
+  /** Local and origin branch names for the fetch/switch pickers. */
+  branches: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .query(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      return listBranches(path);
+    }),
+
+  /**
+   * Fresh safety probe for the switch-branch confirmation: dirty state, an
+   * in-flight git index lock, recent index activity, and the shared IDE —
+   * the signals that an agent may be working the repo right now.
+   */
+  switchSafety: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .query(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      return switchSafety(path);
+    }),
+
+  /** Commit history for the graph block, newest first. Read-only. */
+  commitLog: publicProcedure
+    .input(
+      z.object({
+        path: z.string(),
+        limit: z.number().int().min(1).max(500).optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      return commitLog(path, input.limit);
+    }),
 
   setPinned: publicProcedure
     .input(z.object({ path: z.string(), pinned: z.boolean() }))
@@ -132,6 +175,59 @@ export const projectsRouter = router({
       await refreshCachedProject(path, settings);
       if (!res.ok) throw new Error(res.output || "git pull failed");
       return { ok: true, message: res.output || "Already up to date." };
+    }),
+
+  /**
+   * `git push -u origin HEAD` — pushes the current branch to origin and sets
+   * upstream, covering both first-push and the already-tracked case.
+   */
+  push: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .mutation(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      const { settings } = await readStore();
+      const res = await gitPush(path);
+      await refreshCachedProject(path, settings);
+      if (!res.ok) throw new Error(res.output || "git push failed");
+      return { ok: true, message: res.output || "Pushed." };
+    }),
+
+  /**
+   * `git fetch origin <branch>` — one branch rather than the whole remote.
+   * Unknown refs fail in git with a message that surfaces as the toast.
+   */
+  fetchBranch: publicProcedure
+    .input(z.object({ path: z.string(), branch: branchNameSchema }))
+    .mutation(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      const { settings } = await readStore();
+      const res = await gitFetchBranch(path, input.branch);
+      await refreshCachedProject(path, settings);
+      if (!res.ok) throw new Error(res.output || "git fetch failed");
+      return {
+        ok: true,
+        message: res.output || `Fetched origin/${input.branch}.`,
+      };
+    }),
+
+  /**
+   * `git switch <branch>` — DWIM creates a local branch tracking the unique
+   * `origin/<branch>` when only the remote one exists. The UI confirms first
+   * against the `switchSafety` probe. HEAD moves, but the refresh is still
+   * explicit, following the pull template.
+   */
+  switchBranch: publicProcedure
+    .input(z.object({ path: z.string(), branch: branchNameSchema }))
+    .mutation(async ({ input }) => {
+      const path = await requireKnownProject(input.path);
+      const { settings } = await readStore();
+      const res = await gitSwitchBranch(path, input.branch);
+      await refreshCachedProject(path, settings);
+      if (!res.ok) throw new Error(res.output || "git switch failed");
+      return {
+        ok: true,
+        message: res.output || `Switched to ${input.branch}.`,
+      };
     }),
 });
 
