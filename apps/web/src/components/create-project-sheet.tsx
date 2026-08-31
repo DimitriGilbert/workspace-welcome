@@ -646,7 +646,9 @@ function ScaffoldJobView({
         <Loader2 className="size-4 animate-spin text-muted-foreground" />
         {snap.phase === "installing"
           ? "Installing dependencies"
-          : "Scaffolding project"}
+          : snap.phase === "agents-md"
+            ? "Writing AGENTS.md"
+            : "Scaffolding project"}
         <span className="ml-auto font-mono text-xs tabular-nums text-muted-foreground">
           {formatElapsed(now - snap.startedAt)}
         </span>

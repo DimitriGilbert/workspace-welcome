@@ -1,11 +1,12 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { CLIError, create, DirectoryConflictError } from "create-better-t-stack";
 import type { CreateError } from "create-better-t-stack";
 
+import { generateAgentsMdFromScaffoldInput } from "./agents-md";
 import {
   deregisterExitCleanup,
   registerExitCleanup,
@@ -32,8 +33,11 @@ export type { ScaffoldInput } from "./scaffold-options";
  * create() in-process (install: false), phase 2 optionally spawns an
  * attached `<packageManager> install` child following snitch.ts
  * conventions (bounded stderr tail, SIGTERM→SIGKILL ladder, exit cleanup).
- * A failed job never deletes what was scaffolded — the error says
- * the directory was kept.
+ * Once create() has succeeded the job also writes an AGENTS.md into the
+ * project (never overwriting one that already exists); that step is
+ * non-fatal — its outcome is recorded on the snapshot and can never fail
+ * the scaffold. A failed job never deletes what was scaffolded — the
+ * error says the directory was kept.
  */
 
 export interface ScaffoldJobSnapshot {
@@ -41,7 +45,7 @@ export interface ScaffoldJobSnapshot {
   status: "running" | "success" | "error";
   startedAt: number;
   /** Last known phase; only meaningful while status is "running". */
-  phase: "scaffolding" | "installing";
+  phase: "scaffolding" | "installing" | "agents-md";
   /** Bounded tail of the install child's stderr, live during install. */
   logTail: string[];
   result?: {
@@ -50,6 +54,18 @@ export interface ScaffoldJobSnapshot {
     elapsedTimeMs: number;
   };
   error?: string;
+  /**
+   * Outcome of the AGENTS.md step, which runs once create() has succeeded:
+   * "written" after a fresh write, "skipped" when the scaffolded project
+   * already contained an AGENTS.md (benign, not a warning), "failed" when
+   * generation or the write threw. Absent for jobs that never got that far
+   * (start-up or create() failures).
+   */
+  agentsMd?: {
+    outcome: "written" | "skipped" | "failed";
+    /** Present only when outcome is "failed": why nothing was written. */
+    warning?: string;
+  };
 }
 
 interface JobRecord {
@@ -203,6 +219,35 @@ async function runJob(input: ScaffoldInput, rec: JobRecord): Promise<void> {
       return;
     }
     const init = result.value;
+    if (timedOut) return;
+
+    // AGENTS.md step: generated from the exact options the user picked and
+    // written as soon as create() has succeeded, so it lands even if the
+    // install phase later fails. Non-fatal by design — any failure here is
+    // recorded on the snapshot and the scaffold result stands.
+    snap.phase = "agents-md";
+    const agentsMdPath = join(init.projectDirectory, "AGENTS.md");
+    try {
+      const agentsMdExists = await stat(agentsMdPath).then(
+        () => true,
+        (err: NodeJS.ErrnoException) => {
+          if (err.code === "ENOENT") return false;
+          throw err;
+        },
+      );
+      if (agentsMdExists) {
+        snap.agentsMd = { outcome: "skipped" };
+      } else {
+        await writeFile(agentsMdPath, generateAgentsMdFromScaffoldInput(input));
+        snap.agentsMd = { outcome: "written" };
+      }
+    } catch (err) {
+      snap.agentsMd = {
+        outcome: "failed",
+        warning: `AGENTS.md was not written: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    // The step awaited fs work, so re-check before touching job completion.
     if (timedOut) return;
 
     if (input.install) {

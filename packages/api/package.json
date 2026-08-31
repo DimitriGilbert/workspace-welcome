@@ -10,6 +10,7 @@
     }
   },
   "scripts": {
+    "agents-md": "tsx src/lib/agents-md/cli.ts",
     "check-types": "tsc --noEmit -p tsconfig.check.json"
   },
   "dependencies": {
@@ -18,10 +19,12 @@
     "@workspace-welcome/env": "workspace:*",
     "create-better-t-stack": "^3.40.3",
     "dotenv": "catalog:",
+    "jsonc-parser": "^3.3.1",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@workspace-welcome/config": "workspace:*",
+    "tsx": "^4.19.2",
     "typescript": "catalog:"
   }
 }
