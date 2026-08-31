@@ -27,7 +27,7 @@ import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
 import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
-import { ProjectCommitHistory } from "@/components/project-commit-history";
+import { CommitHistoryCell } from "@/components/project-commit-history";
 import {
   BranchSwitcher,
   GitActionsToolbar,
@@ -327,8 +327,8 @@ function ProjectPage() {
   return (
     // The header block uses the exact same container recipe as home
     // (max-w + padding inside), so both pages' left edges line up to the
-    // pixel. Files and History break out — full-bleed minus the page
-    // padding — the deliberate differences on this page.
+    // pixel. The vitals band and Files break out — full-bleed minus the
+    // page padding — the deliberate differences on this page.
     <div>
       <div className="mx-auto w-full max-w-[1480px] px-5 pt-6 sm:px-8 lg:px-10">
         <header className="relative flex flex-col gap-3">
@@ -466,9 +466,11 @@ function ProjectPage() {
             ))}
           </div>
         ) : null}
+      </div>
 
-        {/* Vitals — one dense band instead of three airy cards. */}
-        <section className="mt-5 grid grid-cols-1 border border-foreground/10 md:grid-cols-3 md:divide-x md:divide-foreground/[0.07]">
+      {/* Vitals — four cells, full-bleed like Files so the band is page-wide. */}
+      <div className="px-5 pt-5 sm:px-8 lg:px-10">
+        <section className="grid grid-cols-1 border border-foreground/10 md:grid-cols-4 md:divide-x md:divide-foreground/[0.07]">
           <InfoCell
             title="git"
             trailing={
@@ -600,8 +602,14 @@ function ProjectPage() {
               </p>
             )}
           </InfoCell>
-        </section>
 
+          <InfoCell title="history">
+            <CommitHistoryCell path={path} isRepo={git.isRepo} />
+          </InfoCell>
+        </section>
+      </div>
+
+      <div className="mx-auto w-full max-w-[1480px] px-5 sm:px-8 lg:px-10">
         {/* Note */}
         <section className="mt-4 border border-foreground/10 p-3">
           <div className="flex items-baseline justify-between gap-3">
@@ -623,17 +631,10 @@ function ProjectPage() {
         </section>
       </div>
 
-      {/* Files — the one full-bleed section: page padding only, no max-w. */}
+      {/* Files — full-bleed: page padding only, no max-w (like the vitals band). */}
       <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
         <FileBrowser project={path} />
       </div>
-
-      {/* History — full-bleed like Files, bottom of the page; repos only. */}
-      {git.isRepo ? (
-        <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
-          <ProjectCommitHistory path={path} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -693,7 +694,7 @@ function InfoCellHeader({
 
 function LoadingPage() {
   // Same skeleton shapes as the page it stands in for: two masthead rows,
-  // the three-cell vitals band, the note block.
+  // the four-cell full-bleed vitals band, the note block.
   return (
     <div className="w-full px-5 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto w-full max-w-[1480px]">
@@ -712,11 +713,16 @@ function LoadingPage() {
             </div>
           </div>
         </header>
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+      </div>
+      <div className="pt-5">
+        <div className="grid grid-cols-1 border border-foreground/10 md:grid-cols-4 md:divide-x md:divide-foreground/[0.07]">
+          <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
+      </div>
+      <div className="mx-auto w-full max-w-[1480px]">
         <Skeleton className="mt-4 h-24" />
       </div>
     </div>
