@@ -57,6 +57,12 @@ async function tryStaticAsset(urlPath) {
 }
 
 const server = createServer(async (req, res) => {
+  // Fired only when the client disconnects mid-stream (see the "close"
+  // listener below). Its signal rides on the Request handed to the fetch
+  // handler — the app's SSE routes abort their model calls on
+  // request.signal — and the catch below stays quiet when it was this
+  // deliberate teardown, not a fault, that failed the pump.
+  const disconnect = new AbortController();
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -89,21 +95,43 @@ const server = createServer(async (req, res) => {
       duplex: "half",
     };
 
-    const response = await fetchHandler(new Request(`http://${host}:${port}${req.url}`, init));
+    let bodyReader = null;
+    res.on("close", () => {
+      // "close" after end() is the normal end of a response; a close before
+      // it is a client disconnect, and the handler's work must be torn down.
+      if (res.writableEnded) return;
+      // Abort the in-flight request (fires request.signal inside the fetch
+      // handler) and cancel the response body. Cancelling goes through the
+      // reader because getReader() locked the body — reader.cancel() is the
+      // same cancel, and it propagates into the handler's stream, unwinding
+      // its generator instead of letting it pump to completion invisibly.
+      disconnect.abort();
+      bodyReader?.cancel().catch(() => undefined);
+    });
+
+    const response = await fetchHandler(
+      new Request(`http://${host}:${port}${req.url}`, {
+        ...init,
+        signal: disconnect.signal,
+      }),
+    );
 
     res.writeHead(response.status, Object.fromEntries(response.headers));
     if (response.body) {
-      const reader = response.body.getReader();
+      bodyReader = response.body.getReader();
       // @ts-ignore
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await bodyReader.read();
         if (done) break;
+        if (res.destroyed) break;
         res.write(value);
       }
     }
     res.end();
   } catch (err) {
-    console.error("[workspace-welcome] request error:", err);
+    if (!disconnect.signal.aborted) {
+      console.error("[workspace-welcome] request error:", err);
+    }
     if (!res.headersSent) res.writeHead(500);
     res.end("Internal Server Error");
   }
