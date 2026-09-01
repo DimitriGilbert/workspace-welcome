@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const defaultDeployOutputDirectory = "apps/docs/dist/client";
-const customDomain = "welcome-workspace.debuild.dev";
+const customDomain = "welcome-workspace.dbuild.dev";
 
 function currentRootDirectory() {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..");

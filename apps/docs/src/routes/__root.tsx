@@ -8,7 +8,7 @@ import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
 import appCss from "../index.css?url";
 
-const SITE_URL = "https://welcome-workspace.debuild.dev";
+const SITE_URL = "https://welcome-workspace.dbuild.dev";
 
 export const Route = createRootRoute({
   head: () => ({
