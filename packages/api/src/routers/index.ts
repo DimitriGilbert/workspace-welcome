@@ -2,6 +2,7 @@ import { publicProcedure, router } from "../index";
 
 import { filesRouter } from "./files";
 import { ideRouter } from "./ide";
+import { ideationRouter } from "./ideation";
 import { projectsRouter } from "./projects";
 import { reportsRouter } from "./reports";
 import { rootsRouter } from "./roots";
@@ -19,6 +20,7 @@ export const appRouter = router({
   reports: reportsRouter,
   files: filesRouter,
   ide: ideRouter,
+  ideation: ideationRouter,
   scaffold: scaffoldRouter,
 });
 
