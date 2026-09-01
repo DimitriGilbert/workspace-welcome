@@ -5,10 +5,11 @@ import type { ScaffoldInput } from "../scaffold-options";
 /**
  * The client-safe half of the ideation pipeline (PRD §4.1): phases, message
  * and model-set shapes, candidate/grade records, the session.json snapshot,
- * and the zod schemas shared by the model runner and the UI — with zero
- * Node-only imports so apps/web can pull it straight into its bundle (the
- * scaffold-options.ts discipline). Disk persistence lives in session.ts;
- * everything touching the model SDK lives in runner.ts.
+ * the models.list response shape, and the zod schemas shared by the model
+ * runner and the UI — with zero Node-only imports so apps/web can pull it
+ * straight into its bundle (the scaffold-options.ts discipline). Disk
+ * persistence lives in session.ts; everything touching the model SDK lives
+ * in runner.ts; the catalog behind models.list lives in catalog.ts.
  */
 
 /** Pipeline phases (PRD §4.2): grilling → prd → planning → done. */
@@ -73,6 +74,46 @@ export const DEFAULT_STEP_MODELS: Readonly<
   plan: Object.freeze(["zai/glm-5.3-flash"]),
 });
 export const DEFAULT_RECONCILER_MODEL = "zai/glm-5.3";
+
+/**
+ * The models.list response (PRD §4.4): every catalog provider reachable
+ * through the OpenAI-compatible adapter, with key presence so the picker can
+ * hide models of providers whose env var is unset and name the missing
+ * vars. Assembled server-side by catalog.ts — never the raw dump.
+ */
+export interface IdeationCatalogModel {
+  /** Composite catalog id: "<provider>/<model>", e.g. "zai/glm-5.3-flash". */
+  id: string;
+  /** Display name from the dump, falling back to the raw model id. */
+  label: string;
+}
+
+export interface IdeationCatalogProvider {
+  /** models.dev provider slug, e.g. "zai". */
+  id: string;
+  /** Display name from the dump, falling back to the slug. */
+  label: string;
+  /**
+   * Env var this provider's API key comes from — catalog.ts's own table,
+   * never the dump (PRD §4.1).
+   */
+  envVar: string;
+  /** Whether process.env[envVar] holds a non-empty value; never the value. */
+  keyPresent: boolean;
+  /** OpenAI-compatible base URL the runner builds its adapter against. */
+  baseUrl?: string;
+  models: IdeationCatalogModel[];
+}
+
+export interface IdeationModelsList {
+  providers: IdeationCatalogProvider[];
+  /**
+   * Present when a degraded source was served — a stale cache after a failed
+   * refresh, the baked-in fallback, or an uncachable fresh dump (PRD §7) —
+   * so the UI can surface it as a soft warning.
+   */
+  warning?: string;
+}
 
 /** A saved final artifact, as tracked in session.json (PRD §5). */
 export interface IdeationArtifactStatus {
