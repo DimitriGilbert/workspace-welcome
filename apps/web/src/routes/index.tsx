@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
 import {
+  Folder,
   FolderPlus,
   PackagePlus,
   RefreshCw,
   Search,
   Settings,
+  Sparkles,
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +19,7 @@ import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rai
 import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
+import { scaffoldInputSchema } from "@workspace-welcome/api/lib/scaffold-options";
 
 import { useTRPC } from "@/utils/trpc";
 import { ProjectCard } from "@/components/project-card";
@@ -31,10 +35,12 @@ import { CloneScriptSheet } from "@/components/clone-script-sheet";
 import { CreateProjectSheet } from "@/components/create-project-sheet";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
+import { ideationScaffoldSeedKey } from "@/lib/ideation-seed";
 import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
 import { matchProject } from "@/lib/search";
+import type { ScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options";
 import type { ScaffoldJobSnapshot } from "@workspace-welcome/api/lib/scaffold";
 import type { Project } from "@workspace-welcome/api/lib/types";
 
@@ -126,19 +132,64 @@ function HomeComponent() {
   };
 
   const openProject = useOpenProject();
+  const navigate = useNavigate();
+
+  // Deep link into the fresh project's ideation panel (PRD §3): park the
+  // wizard's ScaffoldInput in sessionStorage keyed by the project path —
+  // the panel persists it into session.json at session.start, because the
+  // scaffold job's own snapshot is garbage-collected after 15 min — then
+  // navigate with the ?ideation=new flag the project route consumes.
+  const startIdeation = (projectDirectory: string) => {
+    const seed = latestScaffoldStartInput(queryClient);
+    if (seed !== null) {
+      sessionStorage.setItem(
+        ideationScaffoldSeedKey(projectDirectory),
+        JSON.stringify(seed),
+      );
+    }
+    navigate({
+      to: "/projects/$",
+      params: { _splat: projectDirectory.replace(/^\/+/, "") },
+      search: { ideation: "new" },
+    });
+  };
 
   // The sheet closes itself on success; this side owns the toast, the scan
   // refresh that makes the new project appear, and the optional jump to it.
   const handleCreateSuccess = (result: ScaffoldResult) => {
     const segments = result.projectDirectory.split("/").filter(Boolean);
-    toast.success(
+    // sonner 2.0.7's action slot is single, so both affordances render as
+    // one compact ReactNode: "Open project" keeps the old jump, and "Start
+    // ideation" hands the wizard's seed to the project page. A ReactNode
+    // action does not get sonner's auto-dismiss (only the object form does),
+    // so both buttons dismiss the toast by its captured id themselves.
+    const toastId = toast.success(
       `Created ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
       {
         description: result.reproducibleCommand,
-        action: {
-          label: "Open project",
-          onClick: () => openProject(result.projectDirectory),
-        },
+        action: (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                openProject(result.projectDirectory);
+                toast.dismiss(toastId);
+              }}
+            >
+              <Folder className="size-3.5" /> Open project
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                startIdeation(result.projectDirectory);
+                toast.dismiss(toastId);
+              }}
+            >
+              <Sparkles className="size-3.5" /> Start ideation
+            </Button>
+          </div>
+        ),
       },
     );
     refresh();
@@ -399,4 +450,45 @@ function formatElapsed(ms: number): string {
   return minutes > 0
     ? `${minutes}m ${String(rest).padStart(2, "0")}s`
     : `${rest}s`;
+}
+
+/**
+ * The wizard's ScaffoldInput for the scaffold that just succeeded. It is
+ * not part of the job result and never crosses the sheet's onSuccess
+ * boundary, but the settled `scaffold.start` mutation still holds its
+ * variables in the shared MutationCache at toast time — the sheet stays
+ * mounted through the whole job, and its form instance keeps the mutation
+ * observed. The newest successful one is the job that landed (single-flight
+ * server-side guarantees start order matches settle order). Validated
+ * through the shared client-safe schema, never trusted blind; null when
+ * unavailable, which merely starts the ideation session unseeded.
+ */
+function latestScaffoldStartInput(
+  queryClient: QueryClient,
+): ScaffoldInput | null {
+  const latest = queryClient
+    .getMutationCache()
+    .getAll()
+    .filter(
+      (mutation) =>
+        isScaffoldStartMutationKey(mutation.options.mutationKey) &&
+        mutation.state.status === "success",
+    )
+    .sort((a, b) => b.state.submittedAt - a.state.submittedAt)[0];
+  if (latest === undefined) return null;
+  const parsed = scaffoldInputSchema.safeParse(latest.state.variables);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * tRPC nests the procedure path inside the react-query mutation key —
+ * `[['scaffold', 'start']]` here (no keyPrefix is configured; a future one
+ * would prepend its own segment). Matched from the flattened path's tail so
+ * the check is prefix-tolerant but rejects longer procedure paths.
+ */
+function isScaffoldStartMutationKey(
+  key: readonly unknown[] | undefined,
+): boolean {
+  const path = key?.flat(2);
+  return path?.at(-2) === "scaffold" && path?.at(-1) === "start";
 }

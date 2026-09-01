@@ -15,6 +15,7 @@ import {
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
@@ -29,13 +30,25 @@ import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
 import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
+import { IdeationPanel } from "@/components/ideation/ideation-panel";
 import { CommitHistoryCell } from "@/components/project-commit-history";
 import {
   BranchSwitcher,
   GitActionsToolbar,
 } from "@/components/project-git-actions";
 
+/**
+ * Search params (PRD §3): `?ideation=new` is the create-success toast's
+ * deep link into a fresh ideation session. Only "new" is meaningful —
+ * anything else degrades to absent (the catch) instead of erroring the
+ * whole route on a typo'd or foreign value.
+ */
+const projectSearchSchema = z.object({
+  ideation: z.literal("new").optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/projects/$")({
+  validateSearch: projectSearchSchema,
   component: ProjectPage,
 });
 
@@ -72,6 +85,8 @@ function installingLabel(install: {
 function ProjectPage() {
   const { _splat } = Route.useParams();
   const path = `/${_splat ?? ""}`;
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -79,6 +94,25 @@ function ProjectPage() {
 
   const scan = useQuery(trpc.projects.scan.queryOptions());
   const project = scan.data?.projects.find((p) => p.path === path) ?? null;
+
+  // ?ideation=new consumption (PRD §3): once the page's content — and with
+  // it the panel, which captures startNew at mount — is on screen, scroll
+  // the anchor into view and strip the flag. The panel already forced the
+  // fresh-session form by then, so the reload lands on a clean URL that
+  // doesn't re-force it; gated on the project being found because that is
+  // exactly when the panel (and its #ideation anchor) mounts.
+  useEffect(() => {
+    if (search.ideation !== "new" || project === null) return;
+    document.getElementById("ideation")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, ideation: undefined }),
+      replace: true,
+    });
+  }, [search.ideation, project, navigate]);
 
   // Git mutations refresh both the scan (branch, ahead/behind, dirty) and
   // this project's commit log, so the History graph tracks every pull /
@@ -622,6 +656,9 @@ function ProjectPage() {
             className="mt-2"
           />
         </section>
+
+        {/* Ideation — docs before code: after Note, before the full-bleed Files. */}
+        <IdeationPanel project={path} startNew={search.ideation === "new"} />
       </div>
 
       {/* Files — full-bleed: page padding only, no max-w (like the vitals band). */}
