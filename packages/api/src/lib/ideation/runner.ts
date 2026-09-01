@@ -13,9 +13,13 @@ import { listModels } from "./catalog";
 import type { IdeationCatalogProvider } from "./shared";
 
 /**
- * The TanStack AI model-runner boundary (PRD §4.1): the ONLY file in the
- * repo that imports `@tanstack/ai` / `@tanstack/ai-openai`, so the SDK's 0.x
- * churn (PRD §10) is confined here. It re-creates ideadump's ModelRunner
+ * The TanStack AI model-runner boundary (PRD §4.1): the only file in the
+ * repo that calls the SDK, so the SDK's 0.x churn (PRD §10) is confined
+ * here. `@tanstack/ai` has exactly two sanctioned importers: this file (the
+ * sole SDK caller) and ideation/sse.ts, a pure re-export of the server-side
+ * SSE helpers that keeps apps/web — which depends on @tanstack/ai-react
+ * only — from ever importing the SDK directly; `@tanstack/ai-openai`
+ * remains runner-only. It re-creates ideadump's ModelRunner
  * shape (`ideadump-lib/src/types.ts:78-83`) without the package: four
  * chat-completion operations — generate (text), generateJson (zod-validated
  * structured), stream (text deltas), streamJson (structured with streaming)
