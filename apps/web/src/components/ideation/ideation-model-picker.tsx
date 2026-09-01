@@ -73,9 +73,10 @@ export interface IdeationModelPickerProps {
   /** Emits the full next set on every pick; every mode change only re-renders, never emits. */
   onChange: (next: IdeationModelSet) => void;
   /**
-   * The step the "choose multiple models" multi-select edits — the panel
-   * maps the session phase to it (grilling → questions, prd → PRD,
-   * planning → plan). Defaults to "questions".
+   * The step the "choose multiple models" multi-select edits. Optional
+   * because no caller passes it today: the fresh-session form is the only
+   * call site, and before a session starts the questions step is the one
+   * whose fan-out matters (the first model call is a grilling turn).
    */
   step?: IdeationStep;
   className?: string;

@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { listModels } from "../lib/ideation/catalog";
+import { gatherProjectContext } from "../lib/ideation/context";
 import {
   CANDIDATES_DIR_NAME,
   IDEADUMP_DIR_NAME,
@@ -34,10 +35,11 @@ import type {
 
 /**
  * Ideation router (PRD §4.4): the control plane of the ideation panel —
- * model catalog for the picker, session lifecycle (start / poll / list), the
- * candidates drawer listing, and the write-once save of the final docs/
- * artifacts. All disk work is delegated to ideation/session.ts, whose every
- * path goes through requireKnownProject + resolveInside (PRD §4.6); the only
+ * model catalog for the picker, the pre-start context preview, session
+ * lifecycle (start / poll / list), the candidates drawer listing, and the
+ * write-once save of the final docs/ artifacts. All disk work is delegated
+ * to ideation/session.ts, whose every path goes through requireKnownProject
+ * + resolveInside (PRD §4.6); the only
  * filesystem this file touches directly is the read-only walk of a session's
  * candidates/ tree, under the same discipline.
  *
@@ -206,6 +208,26 @@ export const ideationRouter = router({
      * degraded source was served — the picker's data source (PRD §4.4, §7).
      */
     list: publicProcedure.query(() => listModels()),
+  }),
+
+  context: router({
+    /**
+     * Pre-start context preview (criterion 1): the one-line summary the
+     * gatherer produces, served on demand for the idea form so even an
+     * un-seeded project shows its real bts.jsonc/tree/README/git context
+     * before the first session exists. Read-only — nothing is persisted,
+     * the frozen copy is gatherer output re-run at session.start — and the
+     * idea is empty because the summary describes the project, not the
+     * draft. Containment is the same requireKnownProject gate every other
+     * procedure here passes (PRD §4.6).
+     */
+    preview: publicProcedure
+      .input(z.object({ path: z.string() }))
+      .query(async ({ input }) => {
+        const projectPath = await requireKnownProject(input.path);
+        const { contextSummary } = await gatherProjectContext(projectPath, "");
+        return { contextSummary };
+      }),
   }),
 
   session: router({

@@ -570,7 +570,9 @@ async function* questionsTurn(
 ): AsyncGenerator<StreamChunk> {
   const messageId = `${turn.runId}-question`;
   // The answer joins the in-memory history BEFORE the step (the Phase 4
-  // handoff contract); a bare kickoff turn appends nothing anywhere.
+  // handoff contract); a bare kickoff turn records no USER message anywhere,
+  // but the model's first question is appended/persisted below like any
+  // grilling turn — resume depends on it.
   const working =
     answer === null ? turn.session : recordGrillAnswer(turn.session, answer);
   const run = runQuestionsStep({

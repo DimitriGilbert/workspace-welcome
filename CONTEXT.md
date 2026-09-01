@@ -42,3 +42,20 @@ code, UI copy, and docs. Keep entries current as concepts sharpen.
   `?folder=` (ADR-0003). Auto-installed into the app data dir on first use.
   Binds all interfaces with `--auth none`; browser URLs are built client-side
   from `window.location.hostname`, so the server reports only the port.
+
+## Ideation
+
+- **Ideation panel** — the per-Project AI interview on the project page:
+  grills the idea one question at a time, then generates a PRD and an
+  implementation plan into the Project's `docs/`. Each step can fan out over
+  several models; a reconciler merges and grades the candidates.
+- **Ideation session** — one grilling→PRD→plan run, persisted under
+  `.ideadump/ideation/<sessionId>/` in the Project so it survives
+  dev-server restarts.
+- **Matter string** — the front-matter block atop every generated candidate
+  and artifact: model, step, timestamp, grade, rationale.
+- **Candidate backlog** — the per-model outputs plus grades kept on disk
+  under the session directory, for traceability and benchmarking.
+- **Reconciler** — merges fan-out candidates into the one user-visible
+  output and scores each candidate; active only when a step has more than
+  one model.

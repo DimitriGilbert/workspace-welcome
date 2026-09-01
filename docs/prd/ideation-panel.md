@@ -1,6 +1,6 @@
 # PRD — Ideation panel
 
-Status: draft (2026-09-01)
+Status: implemented (2026-09-02)
 
 ## 1. Summary & motivation
 
@@ -175,6 +175,7 @@ fetchServerSentEvents("/api/ideation/chat") })` from `@tanstack/ai-react`.
 | Procedure | Kind | Input | Output |
 | --- | --- | --- | --- |
 | `models.list` | query | — | `{ providers: Array<{ id, label, envVar, keyPresent, baseUrl?, models: Array<{ id, label }> }> }` — every catalog provider with OpenAI-compatible reach; UI shows models only for `keyPresent`, and lists absent env vars for the missing-key state. |
+| `context.preview` | query | `{ path }` | `{ contextSummary }` — read-only pre-start preview of the gatherer's one-line summary for the idea form (criterion 1); containment-checked via `requireKnownProject`, nothing persisted. |
 | `session.start` | mutation | `{ path, idea, scaffoldInput?, models? }` | `{ sessionId, phase, contextSummary }` — gathers + freezes context, writes `session.json`, persists the `ScaffoldInput` seed immediately. |
 | `session.get` | query | `{ path, sessionId }` | Session snapshot (transcript, phase, model sets, artifact status) or null. Doubles as the status/poll op. |
 | `sessions.list` | query | `{ path }` | Session summaries for the panel's resume picker. |
@@ -464,16 +465,46 @@ Final artifacts carry matter too, with provenance instead of grades:
 | new | `packages/api/src/lib/ideation/runner.ts` | TanStack AI model-runner boundary |
 | new | `packages/api/src/lib/ideation/fanout.ts` | Fan-out + reconcile engine |
 | new | `packages/api/src/lib/ideation/session.ts` | Disk-backed sessions, candidates, artifacts |
-| new | `packages/api/src/routers/ideation.ts` | tRPC control router |
+| new | `packages/api/src/lib/ideation/sse.ts` | Server-side re-export of the `@tanstack/ai` SSE transport (`chatParamsFromRequest` / `toServerSentEventsResponse` / `EventType`) — keeps SDK imports inside packages/api |
+| new | `packages/api/src/routers/ideation.ts` | tRPC control router (incl. the `context.preview` pre-start summary, criterion 1) |
 | new | `apps/web/src/routes/api/ideation/chat.ts` | SSE chat route |
-| new | `apps/web/src/components/ideation/` | Panel, model picker, candidates drawer |
+| new | `apps/web/src/lib/ideation-wire.ts` | Client-safe wire contract: chat endpoint, sentinel commands, AG-UI CUSTOM event vocabulary |
+| new | `apps/web/src/lib/ideation-seed.ts` | Scaffold-seed handoff: sessionStorage key + schema-validated read |
+| new | `apps/web/src/components/ideation/` | Panel, model picker, candidates drawer, chat view, model listbox |
 | mod | `packages/api/src/routers/index.ts` | Register `ideation` router |
 | mod | `packages/api/src/lib/store.ts` | Settings defaults + migration for the ideation block |
 | mod | `packages/api/src/routers/settings.ts` | Extend the update schema (or it wipes the block) |
 | mod | `packages/env/src/server.ts` | Optional provider key vars |
 | mod | `apps/web/src/routes/projects.$.tsx` | Panel section + `validateSearch` (`?ideation=new`) |
 | mod | `apps/web/src/routes/index.tsx` | "Start ideation" toast action + seed handoff |
-| mod | `packages/ui` | `questionnaire` via shadcn CLI (Base UI variant) |
+| skipped | `packages/ui` | `questionnaire` shadcn component — suggested-answer chips are plain kiln buttons instead (deviation a) |
 | mod | `apps/web` + `pnpm-workspace.yaml` | `streamdown` dep; exact-pin `@tanstack/ai*` |
+| mod | `apps/web/serve-prod.mjs` | Client-disconnect propagation: aborts `request.signal` and cancels the response body (deviation d) |
 
-Suggested (not done by this PRD): the CONTEXT.md glossary entry above.
+Suggested (appended to CONTEXT.md during implementation): the CONTEXT.md
+glossary entry above.
+
+### Implementation deviations (validated)
+
+Where the implementation landed off the PRD's letter, with the reason each
+deviation stands:
+
+- **(a) Questionnaire shadcn component skipped** — the ≤4 suggested answers
+  render as a chip row of plain kiln `Button`s under the question
+  (`ideation-chat-view.tsx`); no `questionnaire` component was added to
+  packages/ui.
+- **(b) Model picker placement** — the picker lives in the fresh-session
+  idea form, its value frozen into `session.json` at start, rather than in
+  the panel header; a live session does not re-show its frozen model set.
+- **(c) `sse.ts` re-export** — apps/web cannot import `@tanstack/ai` under
+  pnpm's isolated node_modules, so the server-side SSE transport slice is
+  re-exported from `packages/api/src/lib/ideation/sse.ts`, keeping every
+  SDK import inside packages/api (the runner.ts discipline).
+- **(d) `serve-prod.mjs` disconnect propagation** — the prod launcher now
+  aborts `request.signal` and cancels the response body when the client
+  disconnects mid-stream; this is what made the first SSE route work in
+  prod (the §10 first-SSE risk).
+- **(e) Solo-mode artifact display** — PRD/plan markdown renders as an
+  in-flight streamdown overlay in the chat and is not re-rendered after a
+  reload; disk (the candidates/ files, then `docs/` on save) is the durable
+  home for artifact text.

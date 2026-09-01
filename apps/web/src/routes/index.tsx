@@ -160,9 +160,13 @@ function HomeComponent() {
     const segments = result.projectDirectory.split("/").filter(Boolean);
     // sonner 2.0.7's action slot is single, so both affordances render as
     // one compact ReactNode: "Open project" keeps the old jump, and "Start
-    // ideation" hands the wizard's seed to the project page. A ReactNode
-    // action does not get sonner's auto-dismiss (only the object form does),
-    // so both buttons dismiss the toast by its captured id themselves.
+    // ideation" hands the wizard's seed to the project page. Only the
+    // object form ({ label, onClick }) gets dismiss-on-click — sonner wraps
+    // it in a button that deletes the toast after the onClick — while a
+    // ReactNode action renders verbatim with no such wiring. The 4s
+    // auto-dismiss timer (TOAST_LIFETIME) runs for ReactNode actions too,
+    // so each button dismisses by the captured id to close the toast on
+    // click instead of leaving it up until the timer fires.
     const toastId = toast.success(
       `Created ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
       {

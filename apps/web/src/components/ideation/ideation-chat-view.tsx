@@ -26,6 +26,8 @@ import {
 } from "@workspace-welcome/ui/components/message-scroller";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 
+import { IDEATION_STEPS } from "@workspace-welcome/api/lib/ideation/shared";
+
 import {
   IDEATION_CANDIDATE_EVENT,
   IDEATION_GENERATE_PLAN_SENTINEL,
@@ -110,8 +112,13 @@ function parseSuggestedAnswers(
   return { messageId, suggestedAnswers };
 }
 
+/**
+ * Runtime witness of the wire-local IdeationChipPhase union — the type comes
+ * from ideation-wire.ts, which (unlike steps via shared IDEATION_STEPS)
+ * exports no runtime constant, so this literal is what `includes` validates
+ * the raw event value against.
+ */
 const CHIP_PHASES: readonly IdeationChipPhase[] = ["start", "complete", "error"];
-const STEP_NAMES: readonly IdeationStep[] = ["questions", "prd", "plan"];
 
 function parseChip(
   value: unknown,
@@ -121,7 +128,7 @@ function parseChip(
   const { step, phase, model, error } = value;
   if (
     typeof step !== "string" ||
-    !STEP_NAMES.includes(step as IdeationStep) ||
+    !IDEATION_STEPS.includes(step as IdeationStep) ||
     typeof phase !== "string" ||
     !CHIP_PHASES.includes(phase as IdeationChipPhase) ||
     typeof model !== "string"
@@ -148,7 +155,7 @@ function parseChip(
 function parseStepNote(value: unknown): { step: IdeationStep; note: string } | null {
   if (!isRecord(value)) return null;
   const { step, note } = value;
-  if (typeof step !== "string" || !STEP_NAMES.includes(step as IdeationStep)) {
+  if (typeof step !== "string" || !IDEATION_STEPS.includes(step as IdeationStep)) {
     return null;
   }
   if (typeof note !== "string") return null;

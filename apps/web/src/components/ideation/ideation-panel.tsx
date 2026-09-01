@@ -107,6 +107,17 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
     ),
   );
   const settingsQuery = useQuery(trpc.settings.get.queryOptions());
+  // Criterion 1: the un-seeded idea form still shows the project's real
+  // context — the same one-line summary session.start freezes. Fetched only
+  // while no session is active and held for this mount (staleTime Infinity:
+  // a re-opened form reuses it; the durable copy is re-gathered at start).
+  // Soft chrome, not a gate: pending and failed both render nothing.
+  const contextPreviewQuery = useQuery(
+    trpc.ideation.context.preview.queryOptions(
+      { path: project },
+      { enabled: activeSessionId === null, staleTime: Infinity },
+    ),
+  );
   const session = sessionQuery.data ?? null;
   const sessions = sessionsQuery.data ?? [];
 
@@ -299,6 +310,16 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
             rows={2}
             placeholder="What are you building?"
           />
+          {/* Criterion 1: the context line under the idea — kiln micro-label
+              voice, full summary on hover, absent while pending or failed. */}
+          {contextPreviewQuery.data ? (
+            <span
+              className="truncate font-mono text-[0.65rem] text-muted-foreground/70"
+              title={contextPreviewQuery.data.contextSummary}
+            >
+              context · {contextPreviewQuery.data.contextSummary}
+            </span>
+          ) : null}
           {/* Model choice for the session being composed — frozen into
               session.json at start, so later settings changes never rewrite
               it (PRD §4.5). No step prop: there is no session yet, so the
