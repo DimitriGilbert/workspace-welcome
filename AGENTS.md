@@ -9,6 +9,7 @@ pnpm workspaces monorepo.
 | Path | Package | Purpose |
 |------|---------|---------|
 | `apps/web` | `web` | The dashboard app: UI, server routes, tRPC API (dev port 37420) |
+| `apps/docs` | `docs` | Marketing + light docs site (dev port 8005); static to GitHub Pages |
 | `packages/api` | `@workspace-welcome/api` | tRPC routers and all server logic — scanner, git, store, reports, scaffolding |
 | `packages/ui` | `@workspace-welcome/ui` | Shared shadcn-style components on Base UI (Tailwind CSS v4) |
 | `packages/env` | `@workspace-welcome/env` | Typed environment validation |
@@ -16,8 +17,9 @@ pnpm workspaces monorepo.
 
 ## Commands
 
-Dev: `pnpm dev` or `pnpm dev:web` (both start the web app — Vite on port 37420)
+Dev: `pnpm dev` or `pnpm dev:web` (dashboard — Vite on port 37420); docs site: `pnpm dev:docs` (port 8005)
 Build & typecheck: `pnpm build`, `pnpm run check-types`
+Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, pushes `dist/client` to `gh-pages`)
 Per package: `pnpm --filter <name> <script>` — e.g. `pnpm --filter web build`; across packages: `pnpm -r <script>`
 The api package also ships the AGENTS.md generator: `pnpm --filter @workspace-welcome/api agents-md --bts-jsonc <path/to/bts.jsonc>`
 

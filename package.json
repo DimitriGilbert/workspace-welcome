@@ -7,10 +7,14 @@
   ],
   "type": "module",
   "scripts": {
-    "dev": "pnpm -r dev",
+    "dev": "pnpm --filter web dev",
     "build": "pnpm -r build",
     "check-types": "pnpm -r check-types",
-    "dev:web": "pnpm --filter web dev"
+    "dev:web": "pnpm --filter web dev",
+    "dev:docs": "pnpm --filter docs dev",
+    "build:docs": "pnpm --filter docs build",
+    "prepare:docs-pages": "node scripts/prepare-docs-deploy.js",
+    "deploy:docs": "pnpm run build:docs && pnpm run prepare:docs-pages && node scripts/deploy-docs-gh-pages.js"
   },
   "dependencies": {
     "@workspace-welcome/env": "workspace:*",
@@ -20,6 +24,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@workspace-welcome/config": "workspace:*",
+    "gh-pages": "^6.3.0",
     "typescript": "catalog:"
   },
   "packageManager": "pnpm@10.33.4"

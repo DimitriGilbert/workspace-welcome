@@ -17,8 +17,10 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
+import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
+import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
 
 import { useTRPC } from "@/utils/trpc";
 import { absoluteDate, relativeTime } from "@/lib/format";
@@ -330,24 +332,13 @@ function ProjectPage() {
     // pixel. The vitals band and Files break out — full-bleed minus the
     // page padding — the deliberate differences on this page.
     <div>
-      <div className="mx-auto w-full max-w-[1480px] px-5 pt-6 sm:px-8 lg:px-10">
+      <PageRail className="pt-6">
         <header className="relative flex flex-col gap-3">
           {/* Row 1 — the same skeleton as home: identity, vitals, settings. */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
-            >
-              <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
-                <span className="rounded-[1px] bg-primary" />
-                <span className="rounded-[1px] bg-foreground/20" />
-                <span className="rounded-[1px] bg-foreground/20" />
-                <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
-              </span>
-              <span className="font-mono text-[0.8rem] font-medium tracking-tight">
-                workspace
-              </span>
-            </Link>
+          <MastheadRow
+            brand={<WorkspaceBrand render={<Link to="/" />} />}
+            trailing={
+              <>
             <div className="ml-auto mr-1">
               <StatusStrip
                 items={[
@@ -381,7 +372,9 @@ function ProjectPage() {
             >
               <Settings className="size-3.5" />
             </Button>
-          </div>
+              </>
+            }
+          />
 
           {/* Row 2 — the project's identity and its commands. */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-foreground/10 pb-4">
@@ -466,7 +459,7 @@ function ProjectPage() {
             ))}
           </div>
         ) : null}
-      </div>
+      </PageRail>
 
       {/* Vitals — four cells, full-bleed like Files so the band is page-wide. */}
       <div className="px-5 pt-5 sm:px-8 lg:px-10">

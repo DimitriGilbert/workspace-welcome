@@ -12,12 +12,14 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
+import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
+import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
 
 import { useTRPC } from "@/utils/trpc";
 import { ProjectCard } from "@/components/project-card";
 import { PinnedSection } from "@/components/pinned-section";
-import { SectionHeader } from "@/components/section-header";
 import {
   SummaryLine,
   computeStats,
@@ -146,50 +148,31 @@ function HomeComponent() {
   const loading = scan.isLoading;
 
   return (
-    <div className="relative mx-auto w-full max-w-[1480px] px-5 py-6 sm:px-8 lg:px-10">
-      {/* Faint terracotta ambience behind the masthead — sets the tone
-          without becoming a gradient-hero cliché. Purely decorative. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-20 h-80"
-        style={{
-          background:
-            "radial-gradient(600px 260px at 50% 0%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 72%)",
-        }}
-      />
+    <PageRail className="py-6" ambience>
       <h1 className="sr-only">Projects</h1>
 
       <header className="relative flex flex-col gap-3">
         {/* Masthead: identity on the left, live status on the right. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
-          >
-            <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
-              <span className="rounded-[1px] bg-primary" />
-              <span className="rounded-[1px] bg-foreground/20" />
-              <span className="rounded-[1px] bg-foreground/20" />
-              <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
-            </span>
-            <span className="font-mono text-[0.8rem] font-medium tracking-tight">
-              workspace
-            </span>
-          </Link>
-          {loading || projects.length === 0 ? null : (
-            <div className="ml-auto mr-1">
-              <SummaryLine stats={visibleStats} rootCount={roots.data?.length} />
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            render={<Link to="/settings" />}
-            aria-label="Settings"
-          >
-            <Settings className="size-3.5" />
-          </Button>
-        </div>
+        <MastheadRow
+          brand={<WorkspaceBrand render={<Link to="/" />} />}
+          trailing={
+            <>
+              {loading || projects.length === 0 ? null : (
+                <div className="ml-auto mr-1">
+                  <SummaryLine stats={visibleStats} rootCount={roots.data?.length} />
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                render={<Link to="/settings" />}
+                aria-label="Settings"
+              >
+                <Settings className="size-3.5" />
+              </Button>
+            </>
+          }
+        />
 
         {/* Command row: search owns the left edge, actions the right. */}
         <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 pb-4">
@@ -330,7 +313,7 @@ function HomeComponent() {
           setAddRootOpen(true);
         }}
       />
-    </div>
+    </PageRail>
   );
 }
 
