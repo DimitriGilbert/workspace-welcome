@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { statSync } from "node:fs";
+import { statSync, unlinkSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve, sep } from "node:path";
@@ -52,8 +52,9 @@ const LOCAL_SNITCH_ENTRY = join(
 /** Shape of every report key; shared by production and validation below. */
 export const REPORT_KEY_RE = /^(repo|scan)-[a-z0-9.-]+-[a-f0-9]{8}$/;
 
-/** Hard ceiling for one run — generous so a first-run npx download fits. */
-const REPORT_TIMEOUT_MS = 300_000;
+/** Hard ceiling for one run — generous so a first-run npx download and the
+ * --ai-usage attribution pass over a large workspace both fit. */
+const REPORT_TIMEOUT_MS = 600_000;
 /** Grace between SIGTERM and SIGKILL when a run times out. */
 const KILL_GRACE_MS = 5_000;
 /** How much stderr to keep on the job. */
@@ -102,6 +103,43 @@ export function resolveSnitchCommand(settings: Settings): {
 /** File a finished report lands in: reportsDir/<key>.html. */
 function reportPath(key: string): string {
   return join(reportsDir(), `${key}.html`);
+}
+
+/** Whether a finished report file is already cached for the key. */
+export function reportFileExists(key: string): boolean {
+  if (!REPORT_KEY_RE.test(key)) return false;
+  try {
+    return statSync(reportPath(key)).isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Synthetic done job for a report that is already on disk. The registry has
+ * no entry — the file is the state — so the file's mtime stands in for the
+ * run timestamps: for a cache hit that is honestly when the report was
+ * written.
+ */
+export function cachedReportJob(kind: ReportKind, absPath: string): ReportJob {
+  const key = reportKey(kind, absPath);
+  let finishedAt = new Date().toISOString();
+  try {
+    finishedAt = statSync(reportPath(key)).mtime.toISOString();
+  } catch {
+    // Raced away between the caller's existence check and here; the cache is
+    // disposable and the tab will land on the waiting page instead.
+  }
+  return {
+    key,
+    kind,
+    targetPath: absPath,
+    status: "done",
+    startedAt: finishedAt,
+    finishedAt,
+    exitCode: 0,
+    stderrTail: "",
+  };
 }
 
 /**
@@ -175,7 +213,16 @@ export function startReportRun(
 
   const child = spawn(
     command,
-    [...baseArgs, kind, targetPath, "--output", output, "--verbose"],
+    [
+      ...baseArgs,
+      kind,
+      targetPath,
+      "--output",
+      output,
+      // Include attributable local AI assistant usage in the report.
+      "--ai-usage",
+      "--verbose",
+    ],
     {
       cwd: targetPath,
       stdio: ["ignore", "pipe", "pipe"],
@@ -184,6 +231,15 @@ export function startReportRun(
   );
   // Last state wins: a fresh run for a finished key replaces the old job.
   jobs.set(key, job);
+
+  // A fresh run voids the previous file immediately: the cache is disposable
+  // and the browser's waiting page must not race a stale report on reload.
+  // Sync unlink so the dedupe-before-spawn guarantee above stays intact.
+  try {
+    unlinkSync(output);
+  } catch {
+    // ENOENT is the normal first-run case.
+  }
 
   let tail = "";
   const appendTail = (chunk: Buffer): void => {
