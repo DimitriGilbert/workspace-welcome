@@ -25,13 +25,15 @@ export function ideationScaffoldSeedKey(project: string): string {
 /**
  * The stored seed, validated through the client-safe schema — a corrupt or
  * foreign entry yields null and is simply not seeded, never trusted blind.
+ * Storage access itself is guarded too (private mode etc.): a throwing
+ * sessionStorage degrades to unseeded instead of breaking start.
  */
 export function readIdeationScaffoldSeed(
   project: string,
 ): ScaffoldInput | null {
-  const raw = sessionStorage.getItem(ideationScaffoldSeedKey(project));
-  if (raw === null) return null;
   try {
+    const raw = sessionStorage.getItem(ideationScaffoldSeedKey(project));
+    if (raw === null) return null;
     const parsed = scaffoldInputSchema.safeParse(JSON.parse(raw));
     return parsed.success ? parsed.data : null;
   } catch {

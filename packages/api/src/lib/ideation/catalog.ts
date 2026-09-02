@@ -13,13 +13,15 @@ import type {
  * The models.dev catalog (PRD §4.1): fetch api.json, validate only the
  * fields we consume, cache it under the XDG cache dir with a 24 h TTL and
  * atomic tmp+rename writes (the persistRaw discipline from store.ts), and
- * degrade gracefully — stale cache with a warning on a failed refresh, the
+ * degrade gracefully — stale cache with a warning on a failed refresh
+ * (repeat calls inside a short backoff window skip the fetch entirely), the
  * baked-in z.ai-only set when there is no cache to fall back on (PRD §7).
  * Providers the dump leaves without an `api` still resolve via the
  * code-owned well-known-URL table (WELL_KNOWN_BASE_URLS below) — but only
  * the genuinely OpenAI-compatible ones, and a dump-provided `api` always
- * wins over the well-known URL. Server-only on purpose (Node throughout);
- * the client-safe response types live in shared.ts.
+ * wins over the well-known URL when it is a valid https URL (an invalid
+ * one drops the provider; adoptBaseUrl below). Server-only on purpose
+ * (Node throughout); the client-safe response types live in shared.ts.
  */
 
 const MODELS_DEV_URL = "https://models.dev/api.json";
@@ -27,6 +29,14 @@ const MODELS_DEV_URL = "https://models.dev/api.json";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;
 const CACHE_FILENAME = "models-dev.json";
+/**
+ * How long a failed refresh suppresses further fetch attempts: repeated
+ * stale-serving calls inside the window skip models.dev entirely, so a
+ * fan-out of callers costs one failed fetch, not one per caller. In-process
+ * only — the persisted fetchedAt keeps dating the last successful fetch, so
+ * the 24 h TTL is unaffected.
+ */
+const REFRESH_BACKOFF_MS = 60_000;
 
 /**
  * The provider→env-var table is ours, never the dump's (PRD §4.1): the dump
@@ -75,7 +85,9 @@ const modelsDevModelSchema = z.looseObject({
 
 const modelsDevProviderSchema = z.looseObject({
   name: z.string().optional(),
-  /** OpenAI-compatible base URL; absent on providers without one. */
+  /** OpenAI-compatible base URL; absent on providers without one. Parsed
+   * permissively — https-only validation happens at adoption
+   * (adoptBaseUrl), so one poisoned provider can't fail the whole dump. */
   api: z.string().optional(),
   models: z.record(z.string(), modelsDevModelSchema).optional(),
 });
@@ -115,6 +127,14 @@ function cachePath(): string {
 
 /** Last validated dump, so repeat calls skip re-parsing the multi-MB cache. */
 let memoryCache: { fetchedAt: number; dump: ModelsDevDump } | null = null;
+
+/**
+ * When the last refresh attempt failed (ms epoch), driving the
+ * REFRESH_BACKOFF_MS negative cache: inside the window, listModels serves
+ * the stale dump without re-attempting the fetch. Cleared by a successful
+ * fetch; never persisted.
+ */
+let lastFetchFailedAt: number | null = null;
 
 /**
  * Read the cached dump (memoized). A missing, corrupt, or no-longer-valid
@@ -196,19 +216,43 @@ function isKeyPresent(envVar: string): boolean {
 }
 
 /**
+ * https-only gate for a dump-provided `api`, applied at adoption: a valid
+ * https URL wins over the well-known one (the documented precedence), an
+ * absent `api` falls back to the well-known URL, and an invalid one —
+ * http, relative, garbage — drops the provider rather than downgrading to
+ * the well-known URL. Enforced here instead of in modelsDevProviderSchema
+ * on purpose: a schema-level failure would reject the whole dump (fresh
+ * fetches and the cached envelope alike) over one poisoned provider, while
+ * this drops just that provider via mapDump's drop-gate — and cached dumps
+ * flow through mapDump too, so a poisoned cache entry is dropped without
+ * needing a successful refetch.
+ */
+const httpsApiUrlSchema = z.url({ protocol: /^https$/ });
+
+/** The provider's base URL, per the adoption rules above. */
+function adoptBaseUrl(
+  slug: string,
+  api: string | undefined,
+): string | undefined {
+  if (api === undefined) return WELL_KNOWN_BASE_URLS[slug];
+  return httpsApiUrlSchema.safeParse(api).success ? api : undefined;
+}
+
+/**
  * Project a validated dump onto the models.list shape: only providers in
  * the env-var table that carry an OpenAI-compatible base URL and at least
- * one model — the adapter-reachability filter. The base URL is the dump's
- * `api` when present, else the well-known URL for providers that have one
- * (WELL_KNOWN_BASE_URLS); providers with neither are dropped. Sorted by id
- * for stable output; the dump's key order is not meaningful.
+ * one model — the adapter-reachability filter. The base URL follows
+ * adoptBaseUrl: the dump's `api` when it is a valid https URL, the
+ * well-known URL when the dump leaves `api` off; providers with neither —
+ * including a dump `api` that fails the https check — are dropped. Sorted
+ * by id for stable output; the dump's key order is not meaningful.
  */
 function mapDump(dump: ModelsDevDump): IdeationCatalogProvider[] {
   const providers: IdeationCatalogProvider[] = [];
   for (const [slug, entry] of Object.entries(dump)) {
     const envVar = PROVIDER_ENV_VARS[slug];
     if (envVar === undefined) continue;
-    const baseUrl = entry.api ?? WELL_KNOWN_BASE_URLS[slug];
+    const baseUrl = adoptBaseUrl(slug, entry.api);
     if (baseUrl === undefined) continue;
     const models = Object.entries(entry.models ?? {})
       .map(([id, model]) => ({
@@ -248,8 +292,12 @@ function queueCatalog<T>(next: () => Promise<T>): Promise<T> {
 /**
  * The models.list data source (PRD §4.4). Fresh cache within the TTL,
  * otherwise a refetch; on a failed fetch or validation the stale cache,
- * else the baked-in fallback — degraded results carry `warning`. Key
- * presence is re-read from the environment on every call.
+ * else the baked-in fallback — degraded results carry `warning`. A failed
+ * refresh also starts the REFRESH_BACKOFF_MS negative cache: inside the
+ * window, repeat calls serve the stale cache without attempting the fetch,
+ * so a down models.dev costs one failed fetch per window no matter how many
+ * callers fan in, while the first failure still degrades exactly as
+ * documented. Key presence is re-read from the environment on every call.
  */
 export async function listModels(): Promise<IdeationModelsList> {
   return queueCatalog(async () => {
@@ -257,10 +305,22 @@ export async function listModels(): Promise<IdeationModelsList> {
     if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
       return { providers: mapDump(cached.dump) };
     }
+    if (
+      cached &&
+      lastFetchFailedAt !== null &&
+      Date.now() - lastFetchFailedAt < REFRESH_BACKOFF_MS
+    ) {
+      return {
+        providers: mapDump(cached.dump),
+        warning:
+          "models.dev refresh recently failed; serving the stale cached catalog until the retry backoff elapses",
+      };
+    }
     let dump: ModelsDevDump;
     try {
       dump = await fetchDump();
     } catch (err) {
+      lastFetchFailedAt = Date.now();
       const reason = err instanceof Error ? err.message : String(err);
       if (cached) {
         return {
@@ -274,6 +334,7 @@ export async function listModels(): Promise<IdeationModelsList> {
       };
     }
     memoryCache = { fetchedAt: Date.now(), dump };
+    lastFetchFailedAt = null;
     const result: IdeationModelsList = { providers: mapDump(dump) };
     // The dump is fresh and served either way; only its persistence is
     // best-effort — surface a failed cache write as a warning, not an error.

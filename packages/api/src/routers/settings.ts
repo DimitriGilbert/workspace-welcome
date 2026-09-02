@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-import {
-  DEFAULT_RECONCILER_MODEL,
-  DEFAULT_STEP_MODELS,
-  ideationSettingsSchema,
-} from "../lib/ideation/shared";
+import { ideationSettingsSchema } from "../lib/ideation/shared";
 import { invalidateScanCache } from "../lib/scan-cache";
 import { mutateStore, readSettings } from "../lib/store";
 import { publicProcedure, router } from "../index";
@@ -25,29 +21,27 @@ export const settingsRouter = router({
         snitchPath: z.string().nullable().default(null),
         excludeGlobs: z.array(z.string()),
         // update replaces the whole settings object, so the ideation block
-        // must ride along or every save wipes it (PRD §4.5 pitfall). The
-        // default keeps pre-ideation callers — payloads without the block —
-        // valid while preserving the ideation defaults (criterion 13).
-        ideation: ideationSettingsSchema.default({
-          models: {
-            questions: [...DEFAULT_STEP_MODELS.questions],
-            prd: [...DEFAULT_STEP_MODELS.prd],
-            plan: [...DEFAULT_STEP_MODELS.plan],
-          },
-          reconciler: DEFAULT_RECONCILER_MODEL,
-        }),
+        // must ride along or every save wipes it (PRD §4.5 pitfall). Keeping
+        // it optional keeps pre-ideation callers — payloads without the
+        // block — valid (criterion 13): an explicit block wins wholesale,
+        // while an omitted one carries the stored values forward (the
+        // mutation below), so hand-tuned model choices survive a save.
+        ideation: ideationSettingsSchema.optional(),
       }),
     )
     .mutation(async ({ input }) => {
+      // Snapshot the stored settings so an omitted ideation block can carry
+      // the current values forward instead of resetting them.
+      const current = await readSettings();
       await mutateStore((draft) => {
         draft.settings = {
           editorCommand: input.editorCommand.trim(),
           terminalCommand: input.terminalCommand?.trim() || null,
           snitchPath: input.snitchPath?.trim() || null,
           excludeGlobs: input.excludeGlobs,
-          // Clone so the persisted block never aliases the schema's shared
-          // default object when the caller omitted it.
-          ideation: structuredClone(input.ideation),
+          // Clone so the persisted block never aliases the cached store
+          // object — the store only shallow-copies settings on write.
+          ideation: structuredClone(input.ideation ?? current.ideation),
         };
       });
       // excludeGlobs feeds the scan denylist, so a settings change can alter

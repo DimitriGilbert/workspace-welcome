@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+
 import { createFileRoute } from "@tanstack/react-router";
 
 import {
@@ -73,7 +75,9 @@ import type {
  * `‹generate-plan›`) — sentinels are never recorded as answers or transcript.
  *
  * One AbortController per request, wired both ways: `request.signal` (client
- * disconnect, where the platform provides it) aborts it, and
+ * disconnect, where the platform provides it) aborts it — including a
+ * disconnect that already landed during the body parse, where the signal
+ * fires no event and is checked directly — and
  * `toServerSentEventsResponse` aborts it when the response body is cancelled
  * — the dev-middleware path proven by the Phase 5 spike. Aborting fails the
  * step's `final` with IdeationAbortedError and nothing is persisted; the
@@ -523,6 +527,44 @@ function runErrorChunk(error: unknown): StreamChunk {
   };
 }
 
+// --- per-session turn lock -----------------------------------------------------------
+
+/**
+ * In-process mutex per session, keyed by the session identity the route
+ * already has (projectPath + sessionId, joined with a \u0000 separator so a
+ * path/id pair stays unambiguous): a turn's load → classify → generate →
+ * saveSession span must be exclusive, or two concurrent turns for one session
+ * both classify against the same stale phase and last-writer-wins the save,
+ * silently dropping a turn's questionHistory entries. Overlapping requests
+ * queue on the lock and each then loads a fresh post-turn snapshot.
+ * In-process is sufficient — the chat route and the tRPC artifacts.save
+ * mutation run in the same process (saveArtifacts carries its own in-queue
+ * merge guard for that direction).
+ */
+const sessionTurnLocks = new Map<string, Promise<void>>();
+
+/**
+ * Acquire the session's turn lock, resolving once any in-flight turn for the
+ * session has released. Returns the release thunk for a finally, so a throw
+ * anywhere in the turn still frees the lock.
+ */
+async function acquireSessionTurnLock(key: string): Promise<() => void> {
+  const previous = sessionTurnLocks.get(key) ?? Promise.resolve();
+  let releaseGate!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseGate = resolve;
+  });
+  sessionTurnLocks.set(key, gate);
+  await previous;
+  return () => {
+    // Drop the map entry only if no later waiter has already replaced it.
+    if (sessionTurnLocks.get(key) === gate) {
+      sessionTurnLocks.delete(key);
+    }
+    releaseGate();
+  };
+}
+
 // --- the turn -------------------------------------------------------------------------
 
 /** Everything a turn runs with; `session`/`context` are loaded per request. */
@@ -695,20 +737,45 @@ async function* artifactTurn(
   }
 }
 
-/** RUN_STARTED, the classified turn, RUN_FINISHED after persistence — or exactly one RUN_ERROR. */
-async function* runTurn(input: {
+/** Everything one POST's turn runs with — shared by the lock wrapper and the locked body. */
+interface TurnInput {
   readonly params: { readonly threadId: string; readonly runId: string };
   readonly messages: ReadonlyArray<UIMessage | ModelMessage>;
   readonly projectPath: string;
   readonly sessionId: string;
   readonly runner: ModelRunner;
   readonly abortController: AbortController;
-}): AsyncGenerator<StreamChunk> {
+}
+
+/** RUN_STARTED, the classified turn, RUN_FINISHED after persistence — or exactly one RUN_ERROR. */
+async function* runTurn(input: TurnInput): AsyncGenerator<StreamChunk> {
   yield {
     type: EventType.RUN_STARTED,
     threadId: input.params.threadId,
     runId: input.params.runId,
   };
+  // The whole load → classify → generate → saveSession span holds the
+  // session's turn lock: a concurrent request for the same session queues
+  // here and then classifies against the fresh post-turn snapshot, and the
+  // finally frees the lock on abort or failure too.
+  const release = await acquireSessionTurnLock(
+    `${input.projectPath}\u0000${input.sessionId}`,
+  );
+  try {
+    yield* runTurnLocked(input);
+  } finally {
+    release();
+  }
+}
+
+/**
+ * The locked turn body: load → classify → generate → persist in the Phase 4
+ * handoff order, ending in RUN_FINISHED — or the failure backlog plus exactly
+ * one RUN_ERROR.
+ */
+async function* runTurnLocked(
+  input: TurnInput,
+): AsyncGenerator<StreamChunk> {
   try {
     let session: IdeationSession;
     try {
@@ -795,21 +862,32 @@ export function createIdeationChatHandler(
   return async ({ request }) => {
     const params = new URL(request.url).searchParams;
     const sessionId = params.get("session");
-    const projectPath = params.get("project");
-    if (sessionId === null || projectPath === null) {
+    const rawProject = params.get("project");
+    if (sessionId === null || rawProject === null) {
       return new Response("Missing session or project parameter", { status: 400 });
     }
+    // Canonicalize like requireKnownProject does, so non-canonical spellings
+    // of the same project ("/p" vs "/p/") read and write the same session
+    // paths and map onto one per-session turn-lock key.
+    const projectPath = resolve(rawProject);
     // Throws a 400 Response on a malformed AG-UI body — TanStack Start
     // returns thrown Responses to the client as-is.
     const chatParams = await chatParamsFromRequest(request);
     // One controller per request: the client disconnect aborts the step,
     // and toServerSentEventsResponse aborts it when the body is cancelled.
+    // The disconnect can land during the body-parse await above, and an
+    // already-aborted signal fires no event — so it is checked directly and
+    // the turn is aborted before any model call runs.
     const abortController = new AbortController();
-    request.signal.addEventListener(
-      "abort",
-      () => abortController.abort(),
-      { once: true },
-    );
+    if (request.signal.aborted) {
+      abortController.abort();
+    } else {
+      request.signal.addEventListener(
+        "abort",
+        () => abortController.abort(),
+        { once: true },
+      );
+    }
     return toServerSentEventsResponse(
       runTurn({
         params: { threadId: chatParams.threadId, runId: chatParams.runId },

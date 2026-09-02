@@ -164,6 +164,14 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
     void queryClient.invalidateQueries({
       queryKey: trpc.ideation.sessions.list.queryKey({ path: project }),
     });
+    // The drawer's data source too — without it the 60s staleTime serves a
+    // partial backlog on reopen right after a run.
+    void queryClient.invalidateQueries({
+      queryKey: trpc.ideation.candidates.list.queryKey({
+        path: project,
+        sessionId: activeSessionId,
+      }),
+    });
   }, [activeSessionId, project, queryClient, trpc]);
 
   const startMutation = useMutation(
@@ -175,7 +183,12 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
         // Seed consumed (PRD §3): the durable copy is now frozen inside
         // session.json, so drop the handoff — a reload must not re-seed a
         // later session with the wizard's input.
-        sessionStorage.removeItem(ideationScaffoldSeedKey(project));
+        try {
+          sessionStorage.removeItem(ideationScaffoldSeedKey(project));
+        } catch {
+          // Private mode etc. — best-effort; the awaited invalidate below
+          // must still run.
+        }
         await queryClient.invalidateQueries({
           queryKey: trpc.ideation.sessions.list.queryKey({ path: project }),
         });

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -31,7 +31,6 @@ import {
 } from "@/components/ideation/ideation-model-listbox";
 import type {
   IdeationMissingKey,
-  IdeationModelOption,
 } from "@/components/ideation/ideation-model-listbox";
 
 /**
@@ -51,8 +50,12 @@ import type {
  * - "choose step models": three per-step multi-select pickers
  *   (questions / PRD / plan), each free to fan out.
  * - reconciler: a single-select appears only while an advanced mode is on
- *   AND some step holds >1 model (fan-out engaged), defaulting to
- *   DEFAULT_RECONCILER_MODEL when the stored id isn't selectable anymore.
+ *   AND some step holds >1 model (fan-out engaged). A stored id the current
+ *   catalog no longer offers is normalized in the draft itself —
+ *   DEFAULT_RECONCILER_MODEL when selectable, else the first option — so
+ *   the shown value is always the submitted one; with no usable option the
+ *   stored id renders raw and session.start's BAD_REQUEST toast is the
+ *   failure mode.
  *
  * All catalog data comes from the ideation.models.list query — no local
  * model knowledge, no env reading on the client (criterion 10, §7); the
@@ -109,6 +112,24 @@ export function IdeationModelPicker({
   // The reconciler matters only once a step actually fans out, and only
   // the advanced modes can produce that; the simple picker forces solo.
   const reconcilerVisible = (multiMode || stepMode) && anyFanOut;
+
+  // A stored reconciler id the loaded catalog no longer offers (renamed
+  // model, dropped provider key) is rejected by session.start — and in
+  // simple mode no visible control can repair it. Normalize the draft
+  // itself through the normal select path, so the shown value is always
+  // the submitted one. Only the reconciler field moves, never the step
+  // picks, and it is a no-op once the id is valid; with no usable option
+  // at all the stored id renders raw and start's BAD_REQUEST toast stays
+  // the failure mode.
+  useEffect(() => {
+    if (options.length === 0) return;
+    if (findIdeationModelOption(options, value.reconciler) !== null) return;
+    const replacement = findIdeationModelOption(options, DEFAULT_RECONCILER_MODEL)
+      ? DEFAULT_RECONCILER_MODEL
+      : options[0]?.id;
+    if (replacement === undefined) return;
+    onChange({ ...value, reconciler: replacement });
+  }, [options, value, onChange]);
 
   return (
     <div className={cn("flex min-w-0 flex-col gap-2", className)}>
@@ -202,7 +223,7 @@ export function IdeationModelPicker({
             <PickerRow label="reconciler">
               <IdeationModelListbox
                 options={options}
-                value={resolveReconcilerId(value.reconciler, options)}
+                value={value.reconciler}
                 ariaLabel="reconciler model"
                 onSelect={(id) => onChange({ ...value, reconciler: id })}
               />
@@ -399,21 +420,4 @@ function withStepModels(
     prd: step === "prd" ? ids : value.prd,
     plan: step === "plan" ? ids : value.plan,
   };
-}
-
-/**
- * The reconciler picker's value: keep the stored id when it is still
- * selectable, else fall back to the default reconciler (PRD §6), else the
- * first available option — a stale id must not render an empty trigger.
- */
-function resolveReconcilerId(
-  current: string,
-  options: IdeationModelOption[],
-): string {
-  if (findIdeationModelOption(options, current) !== null) return current;
-  if (findIdeationModelOption(options, DEFAULT_RECONCILER_MODEL) !== null) {
-    return DEFAULT_RECONCILER_MODEL;
-  }
-  const first = options[0];
-  return first !== undefined ? first.id : current;
 }

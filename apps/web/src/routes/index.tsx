@@ -142,10 +142,15 @@ function HomeComponent() {
   const startIdeation = (projectDirectory: string) => {
     const seed = latestScaffoldStartInput(queryClient);
     if (seed !== null) {
-      sessionStorage.setItem(
-        ideationScaffoldSeedKey(projectDirectory),
-        JSON.stringify(seed),
-      );
+      try {
+        sessionStorage.setItem(
+          ideationScaffoldSeedKey(projectDirectory),
+          JSON.stringify(seed),
+        );
+      } catch {
+        // Private mode etc. — the panel starts unseeded, per the handoff
+        // contract; navigation must still happen.
+      }
     }
     navigate({
       to: "/projects/$",

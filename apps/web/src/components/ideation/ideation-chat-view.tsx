@@ -350,7 +350,14 @@ export function IdeationChatView({
     },
   });
 
-  const { messages, sendMessage, isLoading, stop, error: chatError } = chat;
+  const {
+    messages,
+    sendMessage,
+    isLoading,
+    stop,
+    setMessages,
+    error: chatError,
+  } = chat;
 
   // The first grilling turn of a fresh session auto-sends the kickoff
   // sentinel (there is no answer yet); exactly once per session mount.
@@ -376,6 +383,33 @@ export function IdeationChatView({
     void sendMessage(
       kind === "prd" ? IDEATION_GENERATE_PRD_SENTINEL : IDEATION_GENERATE_PLAN_SENTINEL,
     );
+  };
+
+  /**
+   * Manual stop: stop() emits no terminal chunk, so no RUN_STARTED/RUN_ERROR
+   * arrives to reset the transient in-flight state — the spinner chips and
+   * step note must be cleared here or they spin until the next run. The
+   * aborted turn's user message is dropped from the hook's history too:
+   * nothing was persisted to absorb it (PRD §7), and leaving it would
+   * double-render the answer when the same text is re-sent.
+   */
+  const stopTurn = () => {
+    stop();
+    setChips([]);
+    setStepNote(null);
+    let lastUserIndex = -1;
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const message = messages[i];
+      if (message !== undefined && message.role === "user") {
+        lastUserIndex = i;
+        break;
+      }
+    }
+    // Only flight messages are removable — the seeded prefix is the durable
+    // questionHistory snapshot, never ours to delete.
+    if (lastUserIndex >= initialMessages.length) {
+      setMessages(messages.filter((_, index) => index !== lastUserIndex));
+    }
   };
 
   const transcript = layerTranscript({
@@ -535,6 +569,10 @@ export function IdeationChatView({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
+              // The composition-commit Enter arrives as key "Enter" with
+              // isComposing (macOS) or key "Process" (Windows) — never send
+              // the half-composed draft.
+              if (e.nativeEvent.isComposing || e.key === "Process") return;
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 sendAnswer();
@@ -549,7 +587,7 @@ export function IdeationChatView({
             <Button
               variant="outline"
               size="icon-sm"
-              onClick={() => stop()}
+              onClick={stopTurn}
               aria-label="Stop generating"
               title="Stop — nothing is persisted; the step can be re-run"
             >
@@ -572,7 +610,7 @@ export function IdeationChatView({
             {phaseHint}
           </span>
           {isLoading ? (
-            <Button variant="outline" size="sm" onClick={() => stop()}>
+            <Button variant="outline" size="sm" onClick={stopTurn}>
               <Square className="size-3.5" /> Stop
             </Button>
           ) : null}

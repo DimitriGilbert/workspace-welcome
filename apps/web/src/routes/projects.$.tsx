@@ -657,9 +657,11 @@ function ProjectPage() {
           />
         </section>
 
-        {/* Ideation — docs before code: beside Note on wide screens. */}
+        {/* Ideation — docs before code: beside Note on wide screens. Keyed
+            by path so splat-only navigation remounts the panel and resets
+            its per-project state (auto-resume, draft, context summary). */}
         <div className="min-w-0">
-          <IdeationPanel project={path} startNew={search.ideation === "new"} />
+          <IdeationPanel key={path} project={path} startNew={search.ideation === "new"} />
         </div>
       </div>
 

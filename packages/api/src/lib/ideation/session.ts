@@ -395,24 +395,49 @@ export async function loadSession(
 }
 
 /**
- * Persist a session atomically, stamping updatedAt. Returns the persisted
- * snapshot (the authoritative one — its updatedAt is fresh); the input is
- * never mutated.
+ * Persist a session atomically, stamping updatedAt. The write is merge-based:
+ * the session.json on disk is reloaded inside the write section and only the
+ * turn-owned fields (phase, questionHistory) come from the caller's snapshot,
+ * so a concurrent artifacts.save's merged artifacts block survives. Returns
+ * the persisted snapshot (the authoritative one — its updatedAt is fresh);
+ * the input is never mutated.
  */
 export async function saveSession(
   session: IdeationSession,
 ): Promise<IdeationSession> {
   const projectPath = await requireKnownProject(session.projectPath);
-  const stamped: IdeationSession = {
-    ...session,
-    updatedAt: new Date().toISOString(),
-  };
   const file = await resolveInside(
     projectPath,
-    `${sessionDirRel(stamped.id)}/${SESSION_FILE_NAME}`,
+    `${sessionDirRel(session.id)}/${SESSION_FILE_NAME}`,
   );
-  await queueWrite(() => atomicWrite(file, JSON.stringify(stamped, null, 2)));
-  return stamped;
+  return queueWrite(async () => {
+    // Lost-update guard, the turn-side twin of saveArtifacts' below: the
+    // current session.json is reloaded inside this one write section and
+    // ONLY the fields a chat turn owns (phase, questionHistory) are merged
+    // onto the fresh record — so an artifacts block a concurrent
+    // artifacts.save just merged in is never reverted by the turn's stale
+    // entry-time snapshot. The write is inlined (not saveSession) because
+    // queueWrite is not reentrant.
+    const fresh = await loadSession(projectPath, session.id);
+    if (fresh === null) {
+      // No session.json yet (first save of a fresh session): write the
+      // caller's snapshot as-is.
+      const stamped: IdeationSession = {
+        ...session,
+        updatedAt: new Date().toISOString(),
+      };
+      await atomicWrite(file, JSON.stringify(stamped, null, 2));
+      return stamped;
+    }
+    const merged: IdeationSession = {
+      ...fresh,
+      phase: session.phase,
+      questionHistory: session.questionHistory,
+      updatedAt: new Date().toISOString(),
+    };
+    await atomicWrite(file, JSON.stringify(merged, null, 2));
+    return merged;
+  });
 }
 
 /**
@@ -941,11 +966,23 @@ export async function saveArtifacts(
           ]
         : []),
     ]);
-    await queueWrite(() =>
-      atomicWrite(targetAbs, matter + ensureTrailingNewline(body)),
-    );
-    written.push(target);
-    recorded[kind] = { path: target, savedAt: now };
+    const saved = await queueWrite(async () => {
+      // Authoritative write-once re-check inside the serialized section: the
+      // early check above ran outside the queue, and atomicWrite's rename
+      // silently replaces — so a target created in the window (a concurrent
+      // save, an externally created file) lands here as a collision instead
+      // of being clobbered (PRD §7: only an explicit confirm overwrites).
+      if (!input.overwrite && (await fileExists(targetAbs))) {
+        collisions.push(target);
+        return false;
+      }
+      await atomicWrite(targetAbs, matter + ensureTrailingNewline(body));
+      return true;
+    });
+    if (saved) {
+      written.push(target);
+      recorded[kind] = { path: target, savedAt: now };
+    }
   }
 
   if (written.length > 0) {

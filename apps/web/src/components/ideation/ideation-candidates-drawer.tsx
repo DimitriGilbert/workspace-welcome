@@ -88,10 +88,13 @@ export function IdeationCandidatesDrawer({
   sessionId,
 }: IdeationCandidatesDrawerProps) {
   const trpc = useTRPC();
+  // Candidates land mid-run; poll while open so the listing tracks the run
+  // instead of freezing at whatever was on disk when the drawer opened.
+  const listing = open && sessionId !== null;
   const candidatesQuery = useQuery(
     trpc.ideation.candidates.list.queryOptions(
       { path: project, sessionId: sessionId ?? "" },
-      { enabled: open && sessionId !== null },
+      { enabled: listing, refetchInterval: listing ? 5_000 : false },
     ),
   );
 
