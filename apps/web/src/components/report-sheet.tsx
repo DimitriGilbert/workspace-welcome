@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import type { ReportPeriod } from "@workspace-welcome/api/routers/reports";
+
 import {
   Sheet,
   SheetContent,
@@ -28,6 +30,21 @@ interface ReportSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** git-snitch --period presets; "all" = no flag = full history. */
+const PERIODS: ReadonlyArray<{ value: ReportPeriod | "all"; label: string }> = [
+  { value: "all", label: "All time" },
+  { value: "7d", label: "Last 7 days" },
+  { value: "14d", label: "Last 2 weeks" },
+  { value: "1m", label: "Last month" },
+  { value: "3m", label: "Last 3 months" },
+  { value: "6m", label: "Last 6 months" },
+  { value: "1y", label: "Last year" },
+];
+
+function isPeriodValue(value: string): value is ReportPeriod | "all" {
+  return PERIODS.some((p) => p.value === value);
+}
+
 /**
  * Workspace report picker: one comparative git-snitch report per tracked
  * directory, covering every project under it. A saved report is opened as-is
@@ -39,6 +56,7 @@ export function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
   const roots = useQuery(trpc.roots.list.queryOptions());
 
   const [path, setPath] = useState<string | null>(null);
+  const [period, setPeriod] = useState<ReportPeriod | "all">("all");
   const [force, setForce] = useState(false);
 
   // Preselect when only one root is tracked, so the common setup is a single
@@ -65,7 +83,12 @@ export function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
           onSubmit={(e) => {
             e.preventDefault();
             if (path === null) return;
-            run("scan", path, force);
+            run({
+              kind: "scan",
+              path,
+              force,
+              period: period === "all" ? undefined : period,
+            });
             onOpenChange(false);
           }}
         >
@@ -102,6 +125,29 @@ export function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
                 No directories tracked yet — add one first.
               </p>
             )}
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="report-period">Period</Label>
+            <Select
+              items={PERIODS}
+              value={period}
+              onValueChange={(value) => {
+                const next = value ?? "all";
+                setPeriod(isPeriodValue(next) ? next : "all");
+              }}
+            >
+              <SelectTrigger className="w-full" aria-label="Report period">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PERIODS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center justify-between gap-3">

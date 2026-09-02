@@ -1,7 +1,18 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import type { ReportPeriod } from "@workspace-welcome/api/routers/reports";
+
 import { useTRPC } from "@/utils/trpc";
+
+export interface ReportRunOptions {
+  kind: "repo" | "scan";
+  path: string;
+  /** Regenerate even when a saved report exists. Default false. */
+  force?: boolean;
+  /** git-snitch period preset; absent = all history. */
+  period?: ReportPeriod;
+}
 
 /**
  * Kick off a report run and show it in a new tab. The tab must be opened
@@ -13,7 +24,12 @@ export function useReportRun() {
   const trpc = useTRPC();
   const generate = useMutation(trpc.reports.generate.mutationOptions());
 
-  const run = (kind: "repo" | "scan", path: string, force = false): void => {
+  const run = ({
+    kind,
+    path,
+    force = false,
+    period,
+  }: ReportRunOptions): void => {
     // No "noopener": with it window.open returns null BY SPEC, so we could
     // never navigate the tab afterwards. The blank tab is same-origin, so
     // holding the opener reference is harmless. A cache hit (force=false,
@@ -21,7 +37,7 @@ export function useReportRun() {
     // into the saved report; otherwise the waiting page takes over.
     const win = window.open("", "_blank");
     generate.mutate(
-      { kind, path, force },
+      { kind, path, force, period },
       {
         onSuccess: (job) => {
           const url = `/reports/${job.key}`;

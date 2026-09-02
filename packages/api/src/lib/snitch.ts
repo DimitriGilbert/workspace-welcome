@@ -121,8 +121,12 @@ export function reportFileExists(key: string): boolean {
  * run timestamps: for a cache hit that is honestly when the report was
  * written.
  */
-export function cachedReportJob(kind: ReportKind, absPath: string): ReportJob {
-  const key = reportKey(kind, absPath);
+export function cachedReportJob(
+  kind: ReportKind,
+  absPath: string,
+  period?: string,
+): ReportJob {
+  const key = reportKey(kind, absPath, period);
   let finishedAt = new Date().toISOString();
   try {
     finishedAt = statSync(reportPath(key)).mtime.toISOString();
@@ -145,15 +149,21 @@ export function cachedReportJob(kind: ReportKind, absPath: string): ReportJob {
 /**
  * Deterministic key for a report target: kind + sanitized basename + the
  * first 8 hex chars of sha1(path). Stable across restarts, so re-running a
- * report overwrites its predecessor instead of accumulating files.
+ * report overwrites its predecessor instead of accumulating files. A period
+ * scopes the report to a time window (git-snitch --period): it is visible in
+ * the slug and mixed into the hash, so each window keeps its own cache.
  */
-export function reportKey(kind: ReportKind, absPath: string): string {
-  const slug =
+export function reportKey(kind: ReportKind, absPath: string, period?: string): string {
+  const base =
     basename(absPath)
       .toLowerCase()
       .replace(/[^a-z0-9.-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "report";
-  const hash8 = createHash("sha1").update(absPath).digest("hex").slice(0, 8);
+  const slug = period ? `${base}-${period}` : base;
+  const hash8 = createHash("sha1")
+    .update(period ? `${absPath}:${period}` : absPath)
+    .digest("hex")
+    .slice(0, 8);
   return `${kind}-${slug}-${hash8}`;
 }
 
@@ -173,8 +183,9 @@ export function startReportRun(
   kind: ReportKind,
   targetPath: string,
   settings: Settings,
+  period?: string,
 ): ReportJob {
-  const key = reportKey(kind, targetPath);
+  const key = reportKey(kind, targetPath, period);
   const existing = jobs.get(key);
   if (existing?.status === "running") return existing;
 
@@ -217,6 +228,8 @@ export function startReportRun(
       ...baseArgs,
       kind,
       targetPath,
+      // Scope the report to a time window; absent means all history.
+      ...(period ? ["--period", period] : []),
       "--output",
       output,
       // Include attributable local AI assistant usage in the report.
