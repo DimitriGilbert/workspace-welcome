@@ -1,7 +1,7 @@
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { ProjectCard } from "@/components/project-card";
-import { SectionHeader } from "@/components/section-header";
+import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 
 interface PinnedSectionProps {
   projects: Project[];

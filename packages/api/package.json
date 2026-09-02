@@ -14,6 +14,9 @@
     "check-types": "tsc --noEmit -p tsconfig.check.json"
   },
   "dependencies": {
+    "@tanstack/ai": "catalog:",
+    "@tanstack/ai-openai": "catalog:",
+    "@tanstack/ai-openrouter": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@workspace-welcome/env": "workspace:*",

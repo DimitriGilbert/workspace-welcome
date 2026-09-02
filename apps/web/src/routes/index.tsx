@@ -1,23 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
 import {
+  Folder,
   FolderPlus,
   PackagePlus,
   RefreshCw,
   Search,
   Settings,
+  Sparkles,
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
+import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
+import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
+import { scaffoldInputSchema } from "@workspace-welcome/api/lib/scaffold-options";
 
 import { useTRPC } from "@/utils/trpc";
 import { ProjectCard } from "@/components/project-card";
 import { PinnedSection } from "@/components/pinned-section";
-import { SectionHeader } from "@/components/section-header";
 import {
   SummaryLine,
   computeStats,
@@ -29,10 +35,12 @@ import { CloneScriptSheet } from "@/components/clone-script-sheet";
 import { CreateProjectSheet } from "@/components/create-project-sheet";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
 import { dateTooltip, relativeTime } from "@/lib/format";
+import { ideationScaffoldSeedKey } from "@/lib/ideation-seed";
 import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
 import { matchProject } from "@/lib/search";
+import type { ScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options";
 import type { ScaffoldJobSnapshot } from "@workspace-welcome/api/lib/scaffold";
 import type { Project } from "@workspace-welcome/api/lib/types";
 
@@ -124,19 +132,73 @@ function HomeComponent() {
   };
 
   const openProject = useOpenProject();
+  const navigate = useNavigate();
+
+  // Deep link into the fresh project's ideation panel (PRD §3): park the
+  // wizard's ScaffoldInput in sessionStorage keyed by the project path —
+  // the panel persists it into session.json at session.start, because the
+  // scaffold job's own snapshot is garbage-collected after 15 min — then
+  // navigate with the ?ideation=new flag the project route consumes.
+  const startIdeation = (projectDirectory: string) => {
+    const seed = latestScaffoldStartInput(queryClient);
+    if (seed !== null) {
+      try {
+        sessionStorage.setItem(
+          ideationScaffoldSeedKey(projectDirectory),
+          JSON.stringify(seed),
+        );
+      } catch {
+        // Private mode etc. — the panel starts unseeded, per the handoff
+        // contract; navigation must still happen.
+      }
+    }
+    navigate({
+      to: "/projects/$",
+      params: { _splat: projectDirectory.replace(/^\/+/, "") },
+      search: { ideation: "new" },
+    });
+  };
 
   // The sheet closes itself on success; this side owns the toast, the scan
   // refresh that makes the new project appear, and the optional jump to it.
   const handleCreateSuccess = (result: ScaffoldResult) => {
     const segments = result.projectDirectory.split("/").filter(Boolean);
-    toast.success(
+    // sonner 2.0.7's action slot is single, so both affordances render as
+    // one compact ReactNode: "Open project" keeps the old jump, and "Start
+    // ideation" hands the wizard's seed to the project page. Only the
+    // object form ({ label, onClick }) gets dismiss-on-click — sonner wraps
+    // it in a button that deletes the toast after the onClick — while a
+    // ReactNode action renders verbatim with no such wiring. The 4s
+    // auto-dismiss timer (TOAST_LIFETIME) runs for ReactNode actions too,
+    // so each button dismisses by the captured id to close the toast on
+    // click instead of leaving it up until the timer fires.
+    const toastId = toast.success(
       `Created ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
       {
         description: result.reproducibleCommand,
-        action: {
-          label: "Open project",
-          onClick: () => openProject(result.projectDirectory),
-        },
+        action: (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                openProject(result.projectDirectory);
+                toast.dismiss(toastId);
+              }}
+            >
+              <Folder className="size-3.5" /> Open project
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                startIdeation(result.projectDirectory);
+                toast.dismiss(toastId);
+              }}
+            >
+              <Sparkles className="size-3.5" /> Start ideation
+            </Button>
+          </div>
+        ),
       },
     );
     refresh();
@@ -146,50 +208,31 @@ function HomeComponent() {
   const loading = scan.isLoading;
 
   return (
-    <div className="relative mx-auto w-full max-w-[1480px] px-5 py-6 sm:px-8 lg:px-10">
-      {/* Faint terracotta ambience behind the masthead — sets the tone
-          without becoming a gradient-hero cliché. Purely decorative. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-20 h-80"
-        style={{
-          background:
-            "radial-gradient(600px 260px at 50% 0%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 72%)",
-        }}
-      />
+    <PageRail className="py-6" ambience>
       <h1 className="sr-only">Projects</h1>
 
       <header className="relative flex flex-col gap-3">
         {/* Masthead: identity on the left, live status on the right. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <Link
-            to="/"
-            className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
-          >
-            <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
-              <span className="rounded-[1px] bg-primary" />
-              <span className="rounded-[1px] bg-foreground/20" />
-              <span className="rounded-[1px] bg-foreground/20" />
-              <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
-            </span>
-            <span className="font-mono text-[0.8rem] font-medium tracking-tight">
-              workspace
-            </span>
-          </Link>
-          {loading || projects.length === 0 ? null : (
-            <div className="ml-auto mr-1">
-              <SummaryLine stats={visibleStats} rootCount={roots.data?.length} />
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            render={<Link to="/settings" />}
-            aria-label="Settings"
-          >
-            <Settings className="size-3.5" />
-          </Button>
-        </div>
+        <MastheadRow
+          brand={<WorkspaceBrand render={<Link to="/" />} />}
+          trailing={
+            <>
+              {loading || projects.length === 0 ? null : (
+                <div className="ml-auto mr-1">
+                  <SummaryLine stats={visibleStats} rootCount={roots.data?.length} />
+                </div>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                render={<Link to="/settings" />}
+                aria-label="Settings"
+              >
+                <Settings className="size-3.5" />
+              </Button>
+            </>
+          }
+        />
 
         {/* Command row: search owns the left edge, actions the right. */}
         <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 pb-4">
@@ -330,7 +373,7 @@ function HomeComponent() {
           setAddRootOpen(true);
         }}
       />
-    </div>
+    </PageRail>
   );
 }
 
@@ -416,4 +459,45 @@ function formatElapsed(ms: number): string {
   return minutes > 0
     ? `${minutes}m ${String(rest).padStart(2, "0")}s`
     : `${rest}s`;
+}
+
+/**
+ * The wizard's ScaffoldInput for the scaffold that just succeeded. It is
+ * not part of the job result and never crosses the sheet's onSuccess
+ * boundary, but the settled `scaffold.start` mutation still holds its
+ * variables in the shared MutationCache at toast time — the sheet stays
+ * mounted through the whole job, and its form instance keeps the mutation
+ * observed. The newest successful one is the job that landed (single-flight
+ * server-side guarantees start order matches settle order). Validated
+ * through the shared client-safe schema, never trusted blind; null when
+ * unavailable, which merely starts the ideation session unseeded.
+ */
+function latestScaffoldStartInput(
+  queryClient: QueryClient,
+): ScaffoldInput | null {
+  const latest = queryClient
+    .getMutationCache()
+    .getAll()
+    .filter(
+      (mutation) =>
+        isScaffoldStartMutationKey(mutation.options.mutationKey) &&
+        mutation.state.status === "success",
+    )
+    .sort((a, b) => b.state.submittedAt - a.state.submittedAt)[0];
+  if (latest === undefined) return null;
+  const parsed = scaffoldInputSchema.safeParse(latest.state.variables);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * tRPC nests the procedure path inside the react-query mutation key —
+ * `[['scaffold', 'start']]` here (no keyPrefix is configured; a future one
+ * would prepend its own segment). Matched from the flattened path's tail so
+ * the check is prefix-tolerant but rejects longer procedure paths.
+ */
+function isScaffoldStartMutationKey(
+  key: readonly unknown[] | undefined,
+): boolean {
+  const path = key?.flat(2);
+  return path?.at(-2) === "scaffold" && path?.at(-1) === "start";
 }

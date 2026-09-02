@@ -1,3 +1,5 @@
+import type { IdeationSettings } from "./ideation/shared";
+
 /**
  * Shared domain types for the workspace scanner.
  * These are inferred into the tRPC router and consumed by the web client.
@@ -176,6 +178,8 @@ export interface Settings {
   snitchPath: string | null;
   /** Additional glob-style directory names to skip when computing updatedAt. */
   excludeGlobs: string[];
+  /** Ideation panel model configuration (PRD §4.5). */
+  ideation: IdeationSettings;
 }
 
 export interface StoreShape {

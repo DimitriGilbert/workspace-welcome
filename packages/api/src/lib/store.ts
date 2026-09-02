@@ -2,6 +2,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 
+import {
+  DEFAULT_RECONCILER_MODEL,
+  DEFAULT_STEP_MODELS,
+} from "./ideation/shared";
 import type { ProjectOverrides, Root, Settings, StoreShape } from "./types";
 
 /**
@@ -20,6 +24,14 @@ const DEFAULT_SETTINGS: Settings = {
   terminalCommand: null,
   snitchPath: null,
   excludeGlobs: [],
+  ideation: {
+    models: {
+      questions: [...DEFAULT_STEP_MODELS.questions],
+      prd: [...DEFAULT_STEP_MODELS.prd],
+      plan: [...DEFAULT_STEP_MODELS.plan],
+    },
+    reconciler: DEFAULT_RECONCILER_MODEL,
+  },
 };
 
 function defaultStore(): StoreShape {
@@ -67,9 +79,45 @@ function migrate(raw: unknown): StoreShape {
       excludeGlobs: Array.isArray(obj.settings.excludeGlobs)
         ? obj.settings.excludeGlobs.filter((x) => typeof x === "string")
         : [],
+      ideation: migrateIdeation(obj.settings.ideation),
     };
   }
   return base;
+}
+
+/**
+ * Settings migration for the ideation block: stores written before the
+ * block existed have no `ideation` key at all, and any missing or malformed
+ * field falls back to its default so the block is always complete after
+ * migrate().
+ */
+function migrateIdeation(raw: unknown): Settings["ideation"] {
+  const block =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const models =
+    block.models && typeof block.models === "object"
+      ? (block.models as Record<string, unknown>)
+      : {};
+  const list = (value: unknown, fallback: readonly string[]): string[] => {
+    const entries = Array.isArray(value)
+      ? value.filter(
+          (entry): entry is string =>
+            typeof entry === "string" && entry.length > 0,
+        )
+      : [];
+    return entries.length > 0 ? entries : [...fallback];
+  };
+  return {
+    models: {
+      questions: list(models.questions, DEFAULT_STEP_MODELS.questions),
+      prd: list(models.prd, DEFAULT_STEP_MODELS.prd),
+      plan: list(models.plan, DEFAULT_STEP_MODELS.plan),
+    },
+    reconciler:
+      typeof block.reconciler === "string" && block.reconciler.length > 0
+        ? block.reconciler
+        : DEFAULT_RECONCILER_MODEL,
+  };
 }
 
 function isRoot(x: unknown): x is Root {

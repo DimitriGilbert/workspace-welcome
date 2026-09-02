@@ -59,6 +59,16 @@ Open `http://localhost:37420`. Add a directory from Settings (the gear icon, top
 
 The dev server defaults to port **37420** (set in `apps/web/vite.config.ts`).
 
+### Docs / marketing site
+
+Static TanStack Start app in `apps/docs` (same UI kit). Dev: `pnpm dev:docs` → `http://localhost:8005`. Deploy to GitHub Pages (`gh-pages` branch, domain `welcome-workspace.dbuild.dev`):
+
+```bash
+pnpm run deploy:docs
+```
+
+That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, and force-pushes the output as a single fresh commit with `gh-pages --dotfiles --no-history` (the branch is always exactly `dist/client` — stale files, including dotfiles, never survive a deploy).
+
 ### Terminal quick-open
 
 If you don't configure a terminal command, it auto-detects the first one it finds from: konsole, gnome-terminal, xfce4-terminal, mate-terminal, kitty, alacritty, wezterm, foot, tilix, xterm. Each gets the right working-directory flag for its CLI (`konsole --workdir`, `gnome-terminal --working-directory=`, etc. — they all disagree, which is why this exists). Set one explicitly in Settings if you care.
@@ -69,6 +79,7 @@ Three packages, a pnpm workspace:
 
 ```
 apps/web        TanStack Start app — the UI (also the server, via server route handlers)
+apps/docs       Marketing + light docs (static GitHub Pages → welcome-workspace.dbuild.dev)
 packages/api    tRPC routers + the scanner (filesystem, git, stack detection, cache)
 packages/ui     shadcn/ui components (base-ui primitives) + the design tokens
 ```

@@ -15,10 +15,13 @@ import {
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@workspace-welcome/ui/components/button";
+import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
+import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
 
 import { useTRPC } from "@/utils/trpc";
 import { absoluteDate, relativeTime } from "@/lib/format";
@@ -27,13 +30,25 @@ import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
 import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
-import { ProjectCommitHistory } from "@/components/project-commit-history";
+import { IdeationPanel } from "@/components/ideation/ideation-panel";
+import { CommitHistoryCell } from "@/components/project-commit-history";
 import {
   BranchSwitcher,
   GitActionsToolbar,
 } from "@/components/project-git-actions";
 
+/**
+ * Search params (PRD §3): `?ideation=new` is the create-success toast's
+ * deep link into a fresh ideation session. Only "new" is meaningful —
+ * anything else degrades to absent (the catch) instead of erroring the
+ * whole route on a typo'd or foreign value.
+ */
+const projectSearchSchema = z.object({
+  ideation: z.literal("new").optional().catch(undefined),
+});
+
 export const Route = createFileRoute("/projects/$")({
+  validateSearch: projectSearchSchema,
   component: ProjectPage,
 });
 
@@ -70,6 +85,8 @@ function installingLabel(install: {
 function ProjectPage() {
   const { _splat } = Route.useParams();
   const path = `/${_splat ?? ""}`;
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -77,6 +94,25 @@ function ProjectPage() {
 
   const scan = useQuery(trpc.projects.scan.queryOptions());
   const project = scan.data?.projects.find((p) => p.path === path) ?? null;
+
+  // ?ideation=new consumption (PRD §3): once the page's content — and with
+  // it the panel, which captures startNew at mount — is on screen, scroll
+  // the anchor into view and strip the flag. The panel already forced the
+  // fresh-session form by then, so the reload lands on a clean URL that
+  // doesn't re-force it; gated on the project being found because that is
+  // exactly when the panel (and its #ideation anchor) mounts.
+  useEffect(() => {
+    if (search.ideation !== "new" || project === null) return;
+    document.getElementById("ideation")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, ideation: undefined }),
+      replace: true,
+    });
+  }, [search.ideation, project, navigate]);
 
   // Git mutations refresh both the scan (branch, ahead/behind, dirty) and
   // this project's commit log, so the History graph tracks every pull /
@@ -327,27 +363,16 @@ function ProjectPage() {
   return (
     // The header block uses the exact same container recipe as home
     // (max-w + padding inside), so both pages' left edges line up to the
-    // pixel. Files and History break out — full-bleed minus the page
-    // padding — the deliberate differences on this page.
+    // pixel. The vitals band and Files break out — full-bleed minus the
+    // page padding — the deliberate differences on this page.
     <div>
-      <div className="mx-auto w-full max-w-[1480px] px-5 pt-6 sm:px-8 lg:px-10">
+      <PageRail className="pt-6">
         <header className="relative flex flex-col gap-3">
           {/* Row 1 — the same skeleton as home: identity, vitals, settings. */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
-            >
-              <span aria-hidden className="grid size-4 grid-cols-2 grid-rows-2 gap-[3px]">
-                <span className="rounded-[1px] bg-primary" />
-                <span className="rounded-[1px] bg-foreground/20" />
-                <span className="rounded-[1px] bg-foreground/20" />
-                <span className="rounded-[1px] bg-[var(--recency-fresh)]" />
-              </span>
-              <span className="font-mono text-[0.8rem] font-medium tracking-tight">
-                workspace
-              </span>
-            </Link>
+          <MastheadRow
+            brand={<WorkspaceBrand render={<Link to="/" />} />}
+            trailing={
+              <>
             <div className="ml-auto mr-1">
               <StatusStrip
                 items={[
@@ -381,7 +406,9 @@ function ProjectPage() {
             >
               <Settings className="size-3.5" />
             </Button>
-          </div>
+              </>
+            }
+          />
 
           {/* Row 2 — the project's identity and its commands. */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-foreground/10 pb-4">
@@ -466,9 +493,11 @@ function ProjectPage() {
             ))}
           </div>
         ) : null}
+      </PageRail>
 
-        {/* Vitals — one dense band instead of three airy cards. */}
-        <section className="mt-5 grid grid-cols-1 border border-foreground/10 md:grid-cols-3 md:divide-x md:divide-foreground/[0.07]">
+      {/* Vitals — four cells, full-bleed like Files so the band is page-wide. */}
+      <div className="px-5 pt-5 sm:px-8 lg:px-10">
+        <section className="grid grid-cols-1 border border-foreground/10 md:grid-cols-4 md:divide-x md:divide-foreground/[0.07]">
           <InfoCell
             title="git"
             trailing={
@@ -600,10 +629,16 @@ function ProjectPage() {
               </p>
             )}
           </InfoCell>
-        </section>
 
+          <InfoCell title="history">
+            <CommitHistoryCell path={path} isRepo={git.isRepo} />
+          </InfoCell>
+        </section>
+      </div>
+
+      <div className="mt-4 grid w-full gap-4 px-5 sm:px-8 lg:grid-cols-2 lg:px-10">
         {/* Note */}
-        <section className="mt-4 border border-foreground/10 p-3">
+        <section className="min-w-0 border border-foreground/10 p-3">
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-mono text-[0.65rem] text-muted-foreground">
               where i left off
@@ -621,19 +656,19 @@ function ProjectPage() {
             className="mt-2"
           />
         </section>
+
+        {/* Ideation — docs before code: beside Note on wide screens. Keyed
+            by path so splat-only navigation remounts the panel and resets
+            its per-project state (auto-resume, draft, context summary). */}
+        <div className="min-w-0">
+          <IdeationPanel key={path} project={path} startNew={search.ideation === "new"} />
+        </div>
       </div>
 
-      {/* Files — the one full-bleed section: page padding only, no max-w. */}
+      {/* Files — full-bleed: page padding only, no max-w (like the vitals band). */}
       <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
         <FileBrowser project={path} />
       </div>
-
-      {/* History — full-bleed like Files, bottom of the page; repos only. */}
-      {git.isRepo ? (
-        <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
-          <ProjectCommitHistory path={path} />
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -693,7 +728,7 @@ function InfoCellHeader({
 
 function LoadingPage() {
   // Same skeleton shapes as the page it stands in for: two masthead rows,
-  // the three-cell vitals band, the note block.
+  // the four-cell full-bleed vitals band, the note block.
   return (
     <div className="w-full px-5 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto w-full max-w-[1480px]">
@@ -712,11 +747,16 @@ function LoadingPage() {
             </div>
           </div>
         </header>
-        <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-3">
+      </div>
+      <div className="pt-5">
+        <div className="grid grid-cols-1 border border-foreground/10 md:grid-cols-4 md:divide-x md:divide-foreground/[0.07]">
+          <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
           <Skeleton className="h-32" />
         </div>
+      </div>
+      <div className="mx-auto w-full max-w-[1480px]">
         <Skeleton className="mt-4 h-24" />
       </div>
     </div>
