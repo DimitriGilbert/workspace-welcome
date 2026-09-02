@@ -389,9 +389,14 @@ export function IdeationChatView({
    * Manual stop: stop() emits no terminal chunk, so no RUN_STARTED/RUN_ERROR
    * arrives to reset the transient in-flight state — the spinner chips and
    * step note must be cleared here or they spin until the next run. The
-   * aborted turn's user message is dropped from the hook's history too:
-   * nothing was persisted to absorb it (PRD §7), and leaving it would
-   * double-render the answer when the same text is re-sent.
+   * aborted turn's user message is dropped from the hook's history too: a
+   * mid-generation stop persists nothing (every turn write follows
+   * generation), and leaving the message would double-render the answer when
+   * the same text is re-sent. A stop landing after generation can however
+   * have fully persisted — the server's persist sequence is atomic — so the
+   * panel refetches disk state: a completed turn shows up here instead of
+   * inviting a duplicate re-send, and a truly empty turn makes the refetch a
+   * no-op.
    */
   const stopTurn = () => {
     stop();
@@ -410,6 +415,7 @@ export function IdeationChatView({
     if (lastUserIndex >= initialMessages.length) {
       setMessages(messages.filter((_, index) => index !== lastUserIndex));
     }
+    onSessionDiskChanged();
   };
 
   const transcript = layerTranscript({

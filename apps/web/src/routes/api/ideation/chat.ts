@@ -53,6 +53,7 @@ import type {
 import type { IdeationProjectContext } from "@workspace-welcome/api/lib/ideation/context";
 import type {
   GrillDecision,
+  IdeationArtifactKind,
   IdeationGrade,
   IdeationSession,
   IdeationStep,
@@ -495,6 +496,88 @@ function candidateMarkdown(candidate: ArtifactCandidate): string {
   return candidate.ok ? candidate.markdown : renderCandidateError(candidate.error);
 }
 
+/**
+ * The whole post-generation persist sequence of a questions turn —
+ * candidates, grades, transcript lines, then the authoritative session
+ * advance — as ONE awaited call. The turn generator suspends once here, and
+ * a client disconnect can only unwind it at a suspension point, so this
+ * sequence cannot be torn mid-way: every write completes or the turn never
+ * reached it. Spread back into per-write awaits, a cancel could strand
+ * candidates or grades without the session.json advance, and the retry a
+ * stale UI invites would re-append them (the partial-turn-state class
+ * flagged on PR #1).
+ */
+async function persistQuestionsTurn(input: {
+  projectPath: string;
+  sessionId: string;
+  result: QuestionsStepResult;
+  answer: string | null;
+  working: IdeationSession;
+}): Promise<void> {
+  await persistQuestionsResult({
+    projectPath: input.projectPath,
+    sessionId: input.sessionId,
+    result: input.result,
+  });
+  if (input.result.grades.length > 0) {
+    await appendGrade(
+      input.projectPath,
+      input.sessionId,
+      "questions",
+      input.result.grades,
+    );
+  }
+  if (input.answer !== null) {
+    await appendTranscript(
+      input.projectPath,
+      input.sessionId,
+      createIdeationMessage("user", input.answer),
+    );
+  }
+  if (input.result.decision.status === "question") {
+    await appendTranscript(
+      input.projectPath,
+      input.sessionId,
+      createIdeationMessage(
+        "assistant",
+        input.result.decision.question,
+        input.result.decision.suggestedAnswers,
+      ),
+    );
+  }
+  await saveSession(applyGrillDecision(input.working, input.result.decision));
+}
+
+/**
+ * Same single-suspension contract as persistQuestionsTurn, for the PRD/plan
+ * turns: candidates → grades → session advance, atomic against a disconnect
+ * unwinding the stream mid-persist.
+ */
+async function persistArtifactTurn(input: {
+  projectPath: string;
+  sessionId: string;
+  step: IdeationArtifactKind;
+  result: ArtifactStepResult;
+  session: IdeationSession;
+}): Promise<void> {
+  await persistArtifactResult({
+    projectPath: input.projectPath,
+    sessionId: input.sessionId,
+    result: input.result,
+  });
+  if (input.result.grades.length > 0) {
+    await appendGrade(
+      input.projectPath,
+      input.sessionId,
+      input.step,
+      input.result.grades,
+    );
+  }
+  await saveSession(
+    input.step === "prd" ? completePrd(input.session) : completePlan(input.session),
+  );
+}
+
 // --- RUN_ERROR mapping --------------------------------------------------------------
 
 /** Exactly one RUN_ERROR per failed turn, with a stable code where there is one. */
@@ -632,33 +715,13 @@ async function* questionsTurn(
     result.candidates,
     working.models.questions.length,
   );
-  await persistQuestionsResult({
+  await persistQuestionsTurn({
     projectPath: turn.projectPath,
     sessionId: turn.sessionId,
     result,
+    answer,
+    working,
   });
-  if (result.grades.length > 0) {
-    await appendGrade(turn.projectPath, turn.sessionId, "questions", result.grades);
-  }
-  if (answer !== null) {
-    await appendTranscript(
-      turn.projectPath,
-      turn.sessionId,
-      createIdeationMessage("user", answer),
-    );
-  }
-  if (result.decision.status === "question") {
-    await appendTranscript(
-      turn.projectPath,
-      turn.sessionId,
-      createIdeationMessage(
-        "assistant",
-        result.decision.question,
-        result.decision.suggestedAnswers,
-      ),
-    );
-  }
-  await saveSession(applyGrillDecision(working, result.decision));
   if (result.decision.status === "question") {
     yield { type: EventType.TEXT_MESSAGE_START, messageId, role: "assistant" };
     const value: IdeationSuggestedAnswersEventValue = {
@@ -719,15 +782,13 @@ async function* artifactTurn(
     result.candidates,
     turn.session.models[step].length,
   );
-  await persistArtifactResult({
+  await persistArtifactTurn({
     projectPath: turn.projectPath,
     sessionId: turn.sessionId,
+    step,
     result,
+    session: turn.session,
   });
-  if (result.grades.length > 0) {
-    await appendGrade(turn.projectPath, turn.sessionId, step, result.grades);
-  }
-  await saveSession(step === "prd" ? completePrd(turn.session) : completePlan(turn.session));
   if (summary.messageOpen) {
     // Solo: the deltas already streamed the artifact; just close the envelope.
     yield { type: EventType.TEXT_MESSAGE_END, messageId };
