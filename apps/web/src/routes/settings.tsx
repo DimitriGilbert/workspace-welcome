@@ -112,7 +112,7 @@ function SettingsComponent() {
                   ) : (
                     <FileText className="size-3.5" />
                   )}
-                  {reportRun.isPending ? "Generating…" : "Report"}
+                  {reportRun.isPending ? "Generating…" : "Scan report"}
                 </Button>
                 <Button
                   variant="ghost"

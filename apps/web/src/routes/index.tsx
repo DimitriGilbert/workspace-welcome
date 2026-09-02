@@ -3,8 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import {
+  FileText,
   Folder,
   FolderPlus,
+  Loader2,
   PackagePlus,
   RefreshCw,
   Search,
@@ -40,6 +42,7 @@ import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { freshness, tierFromFreshness, type RecencyTier } from "@/lib/recency";
 import { matchProject } from "@/lib/search";
+import { useReportRun } from "@/lib/use-report";
 import type { ScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options";
 import type { ScaffoldJobSnapshot } from "@workspace-welcome/api/lib/scaffold";
 import type { Project } from "@workspace-welcome/api/lib/types";
@@ -133,6 +136,7 @@ function HomeComponent() {
 
   const openProject = useOpenProject();
   const navigate = useNavigate();
+  const { run: runScanReport, isPending: scanReportPending } = useReportRun();
 
   // Deep link into the fresh project's ideation panel (PRD §3): park the
   // wizard's ScaffoldInput in sessionStorage keyed by the project path —
@@ -290,6 +294,54 @@ function HomeComponent() {
           </Button>
         </div>
       </header>
+
+      {/* Directories — the scan report lives on the main page, not only in
+          Settings: one comparative git-snitch report per tracked directory,
+          covering every project under it. */}
+      {hasRoots ? (
+        <section className="mt-6 flex flex-col gap-3">
+          <SectionHeader
+            title="Directories"
+            count={roots.data?.length}
+            description="One comparative git report per tracked directory — every project under it on a single page."
+          />
+          <div className="overflow-hidden rounded-none border border-foreground/10">
+            {roots.data?.map((r, i) => (
+              <div
+                key={r.id}
+                className={[
+                  "flex w-full items-center gap-3 px-3 py-2",
+                  i > 0 ? "border-t border-foreground/[0.07]" : "",
+                ].join(" ")}
+              >
+                <Folder className="size-4 shrink-0 text-muted-foreground" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[0.8rem] font-medium tracking-tight">
+                    {r.label}
+                  </span>
+                  <span className="truncate font-mono text-[0.7rem] text-muted-foreground/80">
+                    {r.path}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={scanReportPending}
+                  onClick={() => runScanReport("scan", r.path)}
+                >
+                  {scanReportPending ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <FileText className="size-3.5" />
+                  )}
+                  {scanReportPending ? "Generating…" : "Scan report"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {loading ? (
         <LoadingGrid />
