@@ -39,6 +39,17 @@ const CACHE_FILENAME = "models-dev.json";
 const REFRESH_BACKOFF_MS = 60_000;
 
 /**
+ * Recency gate for catalog models: a model older than this (by the dump's
+ * release_date) leaves the projection, so the picker offers the current
+ * generation instead of the dump's ~500-model backlog. Undated models
+ * always stay — the baked-in fallback carries no dates, and a missing date
+ * must not silently hide a model. Validate/suggest paths all flow through
+ * the same projection, so stored defaults stay valid: they are recent
+ * releases (glm-5.3 lineage).
+ */
+const MODEL_MAX_AGE_MS = 182 * 24 * 60 * 60 * 1000;
+
+/**
  * The provider→env-var table is ours, never the dump's (PRD §4.1): the dump
  * names provider-blessed vars (e.g. ZHIPU_API_KEY for zai) that this app
  * deliberately does not read. Providers without an entry are ignored — the
@@ -239,15 +250,31 @@ function adoptBaseUrl(
 }
 
 /**
+ * The model's release_date (an ISO date, sometimes month-precision like
+ * "2026-01"), when parseable — undefined-equivalent otherwise. Recency
+ * comparison happens on the parsed timestamp; Date.parse handles both
+ * precisions.
+ */
+function releasedAt(model: z.infer<typeof modelsDevModelSchema>): number | null {
+  const release = model.release_date;
+  if (typeof release !== "string") return null;
+  const ts = Date.parse(release);
+  return Number.isNaN(ts) ? null : ts;
+}
+
+/**
  * Project a validated dump onto the models.list shape: only providers in
  * the env-var table that carry an OpenAI-compatible base URL and at least
- * one model — the adapter-reachability filter. The base URL follows
- * adoptBaseUrl: the dump's `api` when it is a valid https URL, the
- * well-known URL when the dump leaves `api` off; providers with neither —
- * including a dump `api` that fails the https check — are dropped. Sorted
- * by id for stable output; the dump's key order is not meaningful.
+ * one model — the adapter-reachability filter — with models gated to the
+ * last MODEL_MAX_AGE_MS by release_date (undated models stay). The base
+ * URL follows adoptBaseUrl: the dump's `api` when it is a valid https URL,
+ * the well-known URL when the dump leaves `api` off; providers with
+ * neither — including a dump `api` that fails the https check — are
+ * dropped. Sorted by id for stable output; the dump's key order is not
+ * meaningful.
  */
 function mapDump(dump: ModelsDevDump): IdeationCatalogProvider[] {
+  const cutoff = Date.now() - MODEL_MAX_AGE_MS;
   const providers: IdeationCatalogProvider[] = [];
   for (const [slug, entry] of Object.entries(dump)) {
     const envVar = PROVIDER_ENV_VARS[slug];
@@ -255,6 +282,10 @@ function mapDump(dump: ModelsDevDump): IdeationCatalogProvider[] {
     const baseUrl = adoptBaseUrl(slug, entry.api);
     if (baseUrl === undefined) continue;
     const models = Object.entries(entry.models ?? {})
+      .filter(([, model]) => {
+        const ts = releasedAt(model);
+        return ts === null || ts >= cutoff;
+      })
       .map(([id, model]) => ({
         id: `${slug}/${id}`,
         label: model.name ?? id,
