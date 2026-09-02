@@ -6,9 +6,17 @@ import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFile } from "node:fs/promises";
+import { config as loadDotenv } from "dotenv";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "dist");
+
+// The SSR build drops packages/env's bare `import "dotenv/config"` (rollup
+// tree-shakes side-effect-only imports of external deps), so nothing loads
+// .env in prod — the launcher owns it. Read apps/web/.env before the entry
+// below evaluates the env schema; variables already set in the environment
+// (e.g. systemd Environment=) win, matching dotenv/config semantics.
+loadDotenv({ path: join(__dirname, ".env") });
 
 const { default: entry } = await import("./dist/server/server.js");
 const fetchHandler = entry.fetch;
@@ -56,6 +64,12 @@ async function tryStaticAsset(urlPath) {
   }
 }
 
+// Disconnect controllers of in-flight requests. Shutdown aborts them so a
+// live SSE turn tears down exactly like a client disconnect (the
+// disconnect-propagation intent above) instead of holding server.close()
+// open for a minutes-long generation.
+const inFlight = new Set();
+
 const server = createServer(async (req, res) => {
   // Fired only when the client disconnects mid-stream (see the "close"
   // listener below). Its signal rides on the Request handed to the fetch
@@ -97,6 +111,10 @@ const server = createServer(async (req, res) => {
 
     let bodyReader = null;
     res.on("close", () => {
+      // "close" fires for a completed response and a mid-stream client
+      // disconnect alike — the request is over either way, so stop tracking
+      // it before the completed-response early return below.
+      inFlight.delete(disconnect);
       // "close" after end() is the normal end of a response; a close before
       // it is a client disconnect, and the handler's work must be torn down.
       if (res.writableEnded) return;
@@ -109,6 +127,7 @@ const server = createServer(async (req, res) => {
       bodyReader?.cancel().catch(() => undefined);
     });
 
+    inFlight.add(disconnect);
     const response = await fetchHandler(
       new Request(`http://${host}:${port}${req.url}`, {
         ...init,
@@ -141,9 +160,23 @@ server.listen(port, host, () => {
   console.log(`[workspace-welcome] prod server listening on http://${host}:${port}`);
 });
 
+let shuttingDown = false;
 for (const sig of ["SIGTERM", "SIGINT"]) {
   process.on(sig, () => {
+    // A repeated signal means the graceful path already ran and something
+    // (a hung socket, a stubborn stream) is still holding the process —
+    // exit immediately instead of re-running the shutdown.
+    if (shuttingDown) process.exit(0);
+    shuttingDown = true;
     console.log(`[workspace-welcome] received ${sig}, shutting down`);
+    // Abort in-flight requests first: live SSE turns unwind through the
+    // same request.signal wiring as a client disconnect, so server.close()
+    // is not left waiting on a minutes-long generation.
+    for (const disconnect of inFlight) disconnect.abort();
     server.close(() => process.exit(0));
+    // Bound the wait: after the grace period a hung socket cannot hold the
+    // process any longer. unref()'d so the timer alone never keeps the
+    // process alive.
+    setTimeout(() => server.closeAllConnections(), 10_000).unref();
   });
 }

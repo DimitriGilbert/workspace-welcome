@@ -3,7 +3,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const defaultDeployOutputDirectory = "apps/docs/dist/client";
-const customDomain = "welcome-workspace.dbuild.dev";
+
+/** Shared with deploy-docs-gh-pages.js — the published GitHub Pages domain. */
+export const customDomain = "welcome-workspace.dbuild.dev";
 
 function currentRootDirectory() {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,7 +45,8 @@ function parseDeployOutputDirectory(argv) {
   return firstArgument;
 }
 
-async function assertDirectoryExists(directoryPath) {
+/** Shared with deploy-docs-gh-pages.js — validates the build output exists. */
+export async function assertDirectoryExists(directoryPath) {
   try {
     const directoryStats = await stat(directoryPath);
     if (!directoryStats.isDirectory()) {
