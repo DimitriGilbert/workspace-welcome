@@ -263,7 +263,7 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
 
   return (
     // The id is the deep-link anchor: ?ideation=new scrolls here (PRD §3).
-    <section id="ideation" className="mt-4 border border-foreground/10 p-3">
+    <section id="ideation" className="flex h-full flex-col border border-foreground/10 p-3">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <span className="font-mono text-[0.65rem] text-muted-foreground">
           ideation{session !== null ? ` · ${session.phase}` : ""}

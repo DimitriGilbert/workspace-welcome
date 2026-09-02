@@ -636,9 +636,9 @@ function ProjectPage() {
         </section>
       </div>
 
-      <div className="mx-auto w-full max-w-[1480px] px-5 sm:px-8 lg:px-10">
+      <div className="mt-4 grid w-full gap-4 px-5 sm:px-8 lg:grid-cols-2 lg:px-10">
         {/* Note */}
-        <section className="mt-4 border border-foreground/10 p-3">
+        <section className="min-w-0 border border-foreground/10 p-3">
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-mono text-[0.65rem] text-muted-foreground">
               where i left off
@@ -657,8 +657,10 @@ function ProjectPage() {
           />
         </section>
 
-        {/* Ideation — docs before code: after Note, before the full-bleed Files. */}
-        <IdeationPanel project={path} startNew={search.ideation === "new"} />
+        {/* Ideation — docs before code: beside Note on wide screens. */}
+        <div className="min-w-0">
+          <IdeationPanel project={path} startNew={search.ideation === "new"} />
+        </div>
       </div>
 
       {/* Files — full-bleed: page padding only, no max-w (like the vitals band). */}

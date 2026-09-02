@@ -9,6 +9,7 @@ catalog:
   "@tanstack/ai": 0.52.1
   "@tanstack/ai-react": 0.22.4
   "@tanstack/ai-openai": 0.22.3
+  "@tanstack/ai-openrouter": 0.19.6
   streamdown: 2.6.0
   "@types/node": ^22.13.14
   lucide-react: ^1.23.0

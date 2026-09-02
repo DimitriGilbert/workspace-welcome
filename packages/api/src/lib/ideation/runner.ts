@@ -1,5 +1,7 @@
 import { chat } from "@tanstack/ai";
 import { openaiCompatible } from "@tanstack/ai-openai/compatible";
+import { createOpenRouterText } from "@tanstack/ai-openrouter";
+import type { OpenRouterSummarizeModel } from "@tanstack/ai-openrouter";
 import { z, ZodError } from "zod";
 import type {
   AnyTextAdapter,
@@ -231,6 +233,19 @@ type CachedFactory = {
 const adapterCache = new Map<string, CachedFactory>();
 
 function buildFactory(provider: IdeationCatalogProvider, apiKey: string): (model: string) => AnyTextAdapter {
+  // OpenRouter is first-party: the dedicated @tanstack/ai-openrouter
+  // adapter (@openrouter/sdk wire shapes, app attribution headers) instead
+  // of the generic compatible client every other provider uses.
+  if (provider.id === "openrouter") {
+    return (model) =>
+      createOpenRouterText(
+        // Dynamic catalog ids vs the SDK's known-model union — runtime
+        // accepts any model string; the cast only satisfies the generic.
+        model as OpenRouterSummarizeModel,
+        apiKey,
+        { appTitle: "workspace-welcome" },
+      );
+  }
   return openaiCompatible({
     name: provider.id,
     baseURL: provider.baseUrl ?? "",
