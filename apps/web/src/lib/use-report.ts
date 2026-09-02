@@ -13,13 +13,15 @@ export function useReportRun() {
   const trpc = useTRPC();
   const generate = useMutation(trpc.reports.generate.mutationOptions());
 
-  const run = (kind: "repo" | "scan", path: string): void => {
+  const run = (kind: "repo" | "scan", path: string, force = false): void => {
     // No "noopener": with it window.open returns null BY SPEC, so we could
     // never navigate the tab afterwards. The blank tab is same-origin, so
-    // holding the opener reference is harmless.
+    // holding the opener reference is harmless. A cache hit (force=false,
+    // report on disk) resolves done instantly and the tab opens straight
+    // into the saved report; otherwise the waiting page takes over.
     const win = window.open("", "_blank");
     generate.mutate(
-      { kind, path },
+      { kind, path, force },
       {
         onSuccess: (job) => {
           const url = `/reports/${job.key}`;
