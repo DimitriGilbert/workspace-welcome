@@ -61,13 +61,13 @@ The dev server defaults to port **37420** (set in `apps/web/vite.config.ts`).
 
 ### Docs / marketing site
 
-Static TanStack Start app in `apps/docs` (same UI kit). Dev: `pnpm dev:docs` → `http://localhost:8005`. Deploy to GitHub Pages (`gh-pages` branch, domain `welcome-workspace.debuild.dev`):
+Static TanStack Start app in `apps/docs` (same UI kit). Dev: `pnpm dev:docs` → `http://localhost:8005`. Deploy to GitHub Pages (`gh-pages` branch, domain `welcome-workspace.dbuild.dev`):
 
 ```bash
 pnpm run deploy:docs
 ```
 
-That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, and pushes with `gh-pages --dotfiles`.
+That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, and force-pushes the output as a single fresh commit with `gh-pages --dotfiles --no-history` (the branch is always exactly `dist/client` — stale files, including dotfiles, never survive a deploy).
 
 ### Terminal quick-open
 
@@ -79,7 +79,7 @@ Three packages, a pnpm workspace:
 
 ```
 apps/web        TanStack Start app — the UI (also the server, via server route handlers)
-apps/docs       Marketing + light docs (static GitHub Pages → welcome-workspace.debuild.dev)
+apps/docs       Marketing + light docs (static GitHub Pages → welcome-workspace.dbuild.dev)
 packages/api    tRPC routers + the scanner (filesystem, git, stack detection, cache)
 packages/ui     shadcn/ui components (base-ui primitives) + the design tokens
 ```

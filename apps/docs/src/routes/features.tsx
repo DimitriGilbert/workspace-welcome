@@ -3,11 +3,15 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 
 import { PageShell } from "../components/page-shell";
+import { seoHead } from "../seo";
 
 export const Route = createFileRoute("/features")({
   component: FeaturesPage,
-  head: () => ({
-    meta: [{ title: "Features — welcome-workspace" }],
+  head: seoHead({
+    title: "Features — welcome-workspace",
+    description:
+      "Not a collaboration cloud. A dashboard for your disk — scan, triage, open, scaffold, report.",
+    path: "/features",
   }),
 });
 

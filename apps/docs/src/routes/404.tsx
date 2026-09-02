@@ -5,7 +5,10 @@ import { PageRail } from "@workspace-welcome/ui/components/page-rail";
 export const Route = createFileRoute("/404")({
   component: NotFoundPage,
   head: () => ({
-    meta: [{ title: "Not found — welcome-workspace" }],
+    meta: [
+      { title: "Not found — welcome-workspace" },
+      { name: "robots", content: "noindex" },
+    ],
   }),
 });
 

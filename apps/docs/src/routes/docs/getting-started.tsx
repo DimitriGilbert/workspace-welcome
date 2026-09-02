@@ -4,11 +4,15 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 
 import { PageShell } from "../../components/page-shell";
+import { seoHead } from "../../seo";
 
 export const Route = createFileRoute("/docs/getting-started")({
   component: GettingStartedPage,
-  head: () => ({
-    meta: [{ title: "Install — welcome-workspace" }],
+  head: seoHead({
+    title: "Install — welcome-workspace",
+    description:
+      "Install and run welcome-workspace: Node 22+, pnpm, and git. Add a root, watch the first scan.",
+    path: "/docs/getting-started",
   }),
 });
 

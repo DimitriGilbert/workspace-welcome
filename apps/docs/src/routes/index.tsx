@@ -3,10 +3,15 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { PageRail } from "@workspace-welcome/ui/components/page-rail";
 import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 
+import { seoHead } from "../seo";
+
 export const Route = createFileRoute("/")({
   component: HomePage,
-  head: () => ({
-    meta: [{ title: "welcome-workspace" }],
+  head: seoHead({
+    title: "welcome-workspace",
+    description:
+      "A local dashboard for people with too many projects. Scans git, stack, and health. No accounts, no cloud.",
+    path: "/",
   }),
 });
 

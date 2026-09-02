@@ -6,33 +6,27 @@ import "@fontsource-variable/geist-mono";
 
 import { SiteFooter } from "../components/site-footer";
 import { SiteHeader } from "../components/site-header";
+import { seoHead } from "../seo";
 import appCss from "../index.css?url";
 
-const SITE_URL = "https://welcome-workspace.dbuild.dev";
+const rootSeo = seoHead({
+	title: "welcome-workspace",
+	description:
+		"Local dashboard for your projects folder. Scans git, stack, and health. No accounts, no cloud.",
+	path: "/",
+});
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "welcome-workspace" },
-      {
-        name: "description",
-        content:
-          "Local dashboard for your projects folder. Scans git, stack, and health. No accounts, no cloud.",
-      },
-      { property: "og:title", content: "welcome-workspace" },
-      {
-        property: "og:description",
-        content: "Local dashboard for the folder where your projects live.",
-      },
-      { property: "og:url", content: SITE_URL },
+      ...rootSeo().meta,
       { name: "theme-color", content: "#2a2218" },
     ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      { rel: "canonical", href: SITE_URL },
-    ],
+    // No canonical here: the router merges link tags without deduping, and
+    // every page route supplies its own per-page canonical via seoHead.
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   component: RootDocument,
 });

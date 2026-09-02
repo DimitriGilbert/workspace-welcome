@@ -2,11 +2,15 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { Button } from "@workspace-welcome/ui/components/button";
 
 import { PageShell } from "../../components/page-shell";
+import { seoHead } from "../../seo";
 
 export const Route = createFileRoute("/docs/concepts")({
   component: ConceptsPage,
-  head: () => ({
-    meta: [{ title: "Concepts — welcome-workspace" }],
+  head: seoHead({
+    title: "Concepts — welcome-workspace",
+    description:
+      "The words welcome-workspace uses: Root, Project, Scan, Report, file browser, IDE server.",
+    path: "/docs/concepts",
   }),
 });
 

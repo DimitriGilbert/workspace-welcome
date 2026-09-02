@@ -4,11 +4,15 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { SectionHeader } from "@workspace-welcome/ui/components/section-header";
 
 import { PageShell } from "../../components/page-shell";
+import { seoHead } from "../../seo";
 
 export const Route = createFileRoute("/docs/settings")({
   component: SettingsDocsPage,
-  head: () => ({
-    meta: [{ title: "Settings — welcome-workspace" }],
+  head: seoHead({
+    title: "Settings — welcome-workspace",
+    description:
+      "Settings knobs and on-disk paths for welcome-workspace. Nothing leaves the machine that runs the app.",
+    path: "/docs/settings",
   }),
 });
 

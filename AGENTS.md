@@ -19,7 +19,7 @@ pnpm workspaces monorepo.
 
 Dev: `pnpm dev` or `pnpm dev:web` (dashboard — Vite on port 37420); docs site: `pnpm dev:docs` (port 8005)
 Build & typecheck: `pnpm build`, `pnpm run check-types`
-Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, pushes `dist/client` to `gh-pages`)
+Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, force-pushes `dist/client` to `gh-pages` as a single fresh commit)
 Per package: `pnpm --filter <name> <script>` — e.g. `pnpm --filter web build`; across packages: `pnpm -r <script>`
 The api package also ships the AGENTS.md generator: `pnpm --filter @workspace-welcome/api agents-md --bts-jsonc <path/to/bts.jsonc>`
 
