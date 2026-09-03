@@ -105,7 +105,9 @@ function SettingsComponent() {
                   variant="ghost"
                   size="sm"
                   disabled={reportRun.isPending}
-                  onClick={() => reportRun.run("scan", r.path)}
+                  onClick={() =>
+                    reportRun.run({ kind: "scan", path: r.path })
+                  }
                 >
                   {reportRun.isPending ? (
                     <Loader2 className="size-3.5 animate-spin" />

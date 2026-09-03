@@ -476,7 +476,7 @@ function ProjectPage() {
                 // Force: the button has always meant "fresh report", per-
                 // project runs are cheap, and there is no refresh toggle
                 // here — cache-or-run is the workspace sheet's flow.
-                onClick={() => runReport("repo", path, true)}
+                onClick={() => runReport({ kind: "repo", path, force: true })}
               >
                 {reportPending ? (
                   <Loader2 className="size-3.5 animate-spin" />
