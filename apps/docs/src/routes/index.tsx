@@ -83,7 +83,7 @@ function HomePage() {
 
       <section className="mt-14 flex flex-col gap-4 border-t border-foreground/10 pt-10 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-xl text-base text-muted-foreground">
-          Node 22+, pnpm, and git. Optional <code className="text-foreground">gio</code> for trash. First IDE open
+          Node 22+ and git — one curl command installs the rest. Optional <code className="text-foreground">gio</code> for trash. First IDE open
           downloads code-server once.
         </p>
         <div className="flex flex-wrap gap-2">

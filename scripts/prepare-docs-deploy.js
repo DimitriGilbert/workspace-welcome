@@ -1,4 +1,4 @@
-import { stat, writeFile } from "node:fs/promises";
+import { chmod, copyFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -6,6 +6,14 @@ const defaultDeployOutputDirectory = "apps/docs/dist/client";
 
 /** Shared with deploy-docs-gh-pages.js — the published GitHub Pages domain. */
 export const customDomain = "welcome-workspace.dbuild.dev";
+
+/**
+ * The repo-root installer, served from the deploy output as /install.sh. The
+ * repo copy is the single source of truth; the served copy is a fresh mirror
+ * of it on every prepare run.
+ */
+const installerSourcePath = "scripts/install.sh";
+const installerDestinationName = "install.sh";
 
 function currentRootDirectory() {
   return resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -63,6 +71,37 @@ export async function assertDirectoryExists(directoryPath) {
   }
 }
 
+/**
+ * Copies the repo-root installer into the deploy output so the /install.sh the
+ * site serves can never drift from scripts/install.sh.
+ */
+async function copyInstallerIntoDeployOutput(rootDirectory, outputDirectory) {
+  const sourcePath = resolve(rootDirectory, installerSourcePath);
+  try {
+    const sourceStats = await stat(sourcePath);
+    if (!sourceStats.isFile()) {
+      throw new Error(`Installer source path exists but is not a regular file: ${sourcePath}`);
+    }
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      throw new Error(
+        `Installer script does not exist: ${sourcePath}. The docs deploy serves it as /${installerDestinationName}, so the repo copy must exist before preparing deploy output.`,
+      );
+    }
+
+    throw error;
+  }
+
+  const destinationPath = resolve(outputDirectory, installerDestinationName);
+  // copyFile replaces the destination outright, so each prepare run mirrors the
+  // current installer instead of merging with a previously served one.
+  await copyFile(sourcePath, destinationPath);
+  // The installer is a runnable script, not just a page asset — keep the mode executable.
+  await chmod(destinationPath, 0o755);
+
+  return destinationPath;
+}
+
 export async function prepareDocsDeploy(options = {}) {
   const rootDirectory = resolve(options.rootDirectory ?? currentRootDirectory());
   const outputDirectory = resolve(
@@ -73,6 +112,7 @@ export async function prepareDocsDeploy(options = {}) {
   await assertDirectoryExists(outputDirectory);
   await writeFile(resolve(outputDirectory, ".nojekyll"), "", "utf8");
   await writeFile(resolve(outputDirectory, "CNAME"), `${customDomain}\n`, "utf8");
+  await copyInstallerIntoDeployOutput(rootDirectory, outputDirectory);
 
   return outputDirectory;
 }
