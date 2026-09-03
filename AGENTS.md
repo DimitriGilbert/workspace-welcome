@@ -19,7 +19,9 @@ pnpm workspaces monorepo.
 
 Dev: `pnpm dev` or `pnpm dev:web` (dashboard — Vite on port 37420); docs site: `pnpm dev:docs` (port 8005)
 Build & typecheck: `pnpm build`, `pnpm run check-types`
-Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, force-pushes `dist/client` to `gh-pages` as a single fresh commit)
+Release: `pnpm run release <version>` (requires a clean tree; builds, boot-tests, packs a per-platform tarball + SHA256SUMS, publishes the GitHub release; `--dry-run` packages without uploading)
+Install E2E: `pnpm run test:install` (installs the published release inside a systemd container and asserts service, HTTP, upgrade, uninstall, purge; `--local` tests an unreleased build)
+Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, copies `scripts/install.sh` in as the site's `/install.sh`, force-pushes `dist/client` to `gh-pages` as a single fresh commit — deploy after cutting a release so the one-liner serves the new version)
 Per package: `pnpm --filter <name> <script>` — e.g. `pnpm --filter web build`; across packages: `pnpm -r <script>`
 The api package also ships the AGENTS.md generator: `pnpm --filter @workspace-welcome/api agents-md --bts-jsonc <path/to/bts.jsonc>`
 
@@ -42,3 +44,4 @@ Only run scripts that exist in a package.json — inspect before inventing, and 
 - Domain vocabulary (Root, Project, Scan, Report, IDE server): `CONTEXT.md`
 - Architecture map for implementers — routes, scan cache, spawn patterns, quality gates: `docs/research/workspace-welcome-architecture.md`
 - Design decisions (snitch invocation, file-browser confinement, web IDE): `docs/adr/`
+- Install & release design — tarball layout, installer conventions, systemd user unit: `docs/research/install-distribution-patterns.md`; the scripts themselves are `scripts/release.sh` and `scripts/install.sh`

@@ -48,16 +48,26 @@ The **Needs attention** panel rolls up everything at warn/error, sorted by last 
 
 ## Run it
 
-Needs Node 22+, pnpm, and `git` on your PATH. `gio` is optional — the file browser falls back to permanent delete without it. The first "Open IDE" downloads code-server (~100–200 MB, once).
+Needs Node 22+, `curl` (or `wget`), and `tar`. Keep `git` on PATH — the scaffolder and reports use it. `gio` is optional — the file browser falls back to permanent delete without it. The first "Open IDE" downloads code-server (~100–200 MB, once).
+
+```bash
+curl -fsSL https://welcome-workspace.dbuild.dev/install.sh | sh
+```
+
+That installs the latest release to `~/.local/share/workspace-welcome/app`, starts it as a systemd user service on port **37420**, and prints the management commands. Open `http://localhost:37420`, add a directory from the gear icon (top-right) — projects appear as the scan runs.
+
+Re-running the installer upgrades in place; your config (`~/.config/workspace-welcome/`) is never touched, and the previous version stays one `rm -rf` away as `app.bak`. `--uninstall` removes the app, `--purge --yes` also wipes config and cache. On macOS or a machine without systemd, add `--no-service` and run `node serve-prod.mjs` from the install dir. Service management, manual install, and troubleshooting: [docs/getting-started](https://welcome-workspace.dbuild.dev/docs/getting-started).
+
+### From source
+
+Clone, then:
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:37420`. Add a directory from Settings (the gear icon, top-right). That's it — projects appear as the scan runs.
-
-The dev server defaults to port **37420** (set in `apps/web/vite.config.ts`).
+Same port **37420** (set in `apps/web/vite.config.ts`), but from your working tree instead of a release.
 
 ### Docs / marketing site
 
@@ -67,7 +77,18 @@ Static TanStack Start app in `apps/docs` (same UI kit). Dev: `pnpm dev:docs` →
 pnpm run deploy:docs
 ```
 
-That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, and force-pushes the output as a single fresh commit with `gh-pages --dotfiles --no-history` (the branch is always exactly `dist/client` — stale files, including dotfiles, never survive a deploy).
+That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, copies `scripts/install.sh` in as the site's `/install.sh`, and force-pushes the output as a single fresh commit with `gh-pages --dotfiles --no-history` (the branch is always exactly `dist/client` — stale files, including dotfiles, never survive a deploy).
+
+### Releases and the installer
+
+Releases are GitHub Releases carrying a self-contained tarball plus a `SHA256SUMS.txt` — the app ships with its production `node_modules` included, so the target machine needs Node but no clone and no pnpm:
+
+```bash
+pnpm run release 0.2.0     # clean tree required; --dry-run packages without uploading
+pnpm run deploy:docs       # publish docs + the updated /install.sh
+```
+
+`scripts/release.sh` builds all workspaces, boot-tests the packaged tree before packing, and publishes `workspace-welcome-<version>-linux-<arch>.tar.gz` with `gh` (per-platform naming, since the scaffolder ships native bindings). `scripts/install.sh` is the installer behind the docs one-liner — it picks the right asset, verifies the checksum, installs under `~/.local/share/workspace-welcome/app`, and sets up a systemd user service. `pnpm run test:install` keeps the pair honest: it boots a systemd container, installs the published release from GitHub for real, and asserts service, HTTP, upgrade, uninstall, and purge (`--local` tests an unreleased build instead). Design rationale and the survey behind these choices: `docs/research/install-distribution-patterns.md`.
 
 ### Terminal quick-open
 
