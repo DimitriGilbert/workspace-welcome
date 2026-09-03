@@ -44,6 +44,9 @@ lerna-debug.log*
 .alchemy
 .vercel
 
+# Release packaging output
+/release/
+
 # Testing
 coverage
 .nyc_output

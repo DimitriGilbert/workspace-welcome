@@ -14,7 +14,8 @@
     "dev:docs": "pnpm --filter docs dev",
     "build:docs": "pnpm --filter docs build",
     "prepare:docs-pages": "node scripts/prepare-docs-deploy.js",
-    "deploy:docs": "pnpm run build:docs && pnpm run prepare:docs-pages && node scripts/deploy-docs-gh-pages.js"
+    "deploy:docs": "pnpm run build:docs && pnpm run prepare:docs-pages && node scripts/deploy-docs-gh-pages.js",
+    "release": "bash scripts/release.sh"
   },
   "dependencies": {
     "@workspace-welcome/env": "workspace:*",
