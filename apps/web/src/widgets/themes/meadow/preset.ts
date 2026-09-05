@@ -1,6 +1,6 @@
 /**
  * Meadow's theme preset (master plan §5 T1-meadow shell, populated at
- * T2-meadow).
+ * T2-meadow; the project page at T3-meadow).
  *
  * The dashboard ports the design route's surfaces widget-for-widget:
  * the masthead row (greeting + counts + search) and the attention band are
@@ -72,8 +72,33 @@ export const meadowPreset: ThemePreset = {
     context: "project",
     columns: { ...COLUMNS },
     cell: { ...CELL },
-    // Same shell; meadow's project kinds land at T3.
-    regions: [{ kind: "stack", id: "project", widgets: [] }],
+    // The design project page (`routes/designs/meadow/project.$.tsx`) as
+    // three stacked full-width rows: the identity header, the report
+    // stat strip, and the soft tabbed sections (12 rows tall — the 104px
+    // desktop unit keeps the cadence chart and file browser definite).
+    regions: [
+      {
+        kind: "stack",
+        id: "identity",
+        widgets: [
+          { id: "meadow-project-header", widget: "meadow-project-header", size: "12x1" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "report-glance",
+        widgets: [
+          { id: "meadow-project-stats", widget: "meadow-project-stats", size: "12x1" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "sections",
+        widgets: [
+          { id: "meadow-project-sections", widget: "meadow-project-sections", size: "12x6" },
+        ],
+      },
+    ],
   },
 };
 
