@@ -1,0 +1,396 @@
+/*
+ * Mission Control scope -----------------------------------------------------
+ * The console forces its own cold, near-black terminal palette regardless of
+ * the app theme (the shell is always `.dark`; the doubled `.mc.mc` class
+ * out-specifies it). Every shared component rendered inside the `.mc` scope —
+ * buttons, menus, inputs — resolves these tokens, so the palette stays
+ * coherent without touching globals. Severity hues keep their semantic vars
+ * (--sev-*) so reused components like AlertIcons tint correctly.
+ *
+ * Contrast: foreground oklch(0.93) on oklch(0.13) ≈ 13:1; muted-foreground
+ * oklch(0.65) ≈ 5.5:1 — both past WCAG AA at body sizes. Accents clear 4.5:1.
+ */
+
+.mc.mc {
+  color-scheme: dark;
+
+  --background: oklch(0.13 0.007 250);
+  --foreground: oklch(0.93 0.005 250);
+  --card: oklch(0.155 0.008 250);
+  --card-foreground: oklch(0.93 0.005 250);
+  --popover: oklch(0.17 0.009 250);
+  --popover-foreground: oklch(0.93 0.005 250);
+  --primary: oklch(0.83 0.15 160);
+  --primary-foreground: oklch(0.17 0.03 160);
+  --secondary: oklch(0.21 0.009 250);
+  --secondary-foreground: oklch(0.93 0.005 250);
+  --muted: oklch(0.195 0.009 250);
+  --muted-foreground: oklch(0.65 0.012 250);
+  --accent: oklch(0.22 0.01 250);
+  --accent-foreground: oklch(0.95 0.004 250);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.83 0.15 160);
+
+  --recency-fresh: oklch(0.82 0.15 160);
+  --recency-stale: oklch(1 0 0 / 12%);
+  --recency-fresh-wash: oklch(0.82 0.15 160 / 0.1);
+
+  --pinned-accent: oklch(0.82 0.13 90);
+  --pinned-accent-wash: oklch(0.82 0.13 90 / 0.1);
+
+  --sev-info: oklch(0.72 0.07 240);
+  --sev-warn: oklch(0.81 0.13 85);
+  --sev-error: oklch(0.72 0.17 25);
+  --state-positive: oklch(0.82 0.15 160);
+
+  /* Console-specific structure tokens. */
+  --mc-accent: oklch(0.82 0.15 160);
+  --mc-panel: oklch(0.155 0.008 250);
+  --mc-bg-raise: oklch(0.145 0.008 250);
+  --mc-line: oklch(1 0 0 / 7%);
+  --mc-line-strong: oklch(1 0 0 / 14%);
+
+  /* Categorical chart palette (donuts, bars): muted terminal hues that read
+     against the near-black panel background. */
+  --chart-1: oklch(0.82 0.15 160);
+  --chart-2: oklch(0.81 0.13 85);
+  --chart-3: oklch(0.72 0.09 240);
+  --chart-4: oklch(0.75 0.12 300);
+  --chart-5: oklch(0.78 0.1 190);
+  --chart-6: oklch(0.65 0.02 250);
+
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+.mc ::selection {
+  background: color-mix(in oklch, var(--mc-accent) 30%, transparent);
+}
+
+/* Console scrollbars: thin, square, dark. */
+.mc-scroll,
+.mc .mc-scroll-x {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mc-line-strong) transparent;
+}
+.mc-scroll::-webkit-scrollbar,
+.mc .mc-scroll-x::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.mc-scroll::-webkit-scrollbar-thumb,
+.mc .mc-scroll-x::-webkit-scrollbar-thumb {
+  background: var(--mc-line-strong);
+  border-radius: 0;
+}
+.mc-scroll::-webkit-scrollbar-track,
+.mc .mc-scroll-x::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/*
+ * Component classes live in the components layer so Tailwind utilities
+ * (spacing, widths) can still override them per element. The token scope
+ * above stays unlayered: it must out-rank the unlayered `.dark` block in
+ * the app's globals to force the console palette.
+ */
+@layer components {
+  /* Filter field: terminal input, mono glyphs, surgical focus. */
+  .mc-input {
+    border: 1px solid var(--mc-line-strong);
+    background: var(--mc-panel);
+    color: var(--foreground);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+  .mc-input::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 75%, transparent);
+  }
+  .mc-input:focus {
+    border-color: color-mix(in oklch, var(--mc-accent) 55%, transparent);
+  }
+
+  .mc-kbd {
+    border: 1px solid var(--mc-line);
+    background: var(--mc-panel);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Panels: flat raised surfaces, hairline borders, no shadows, no radius. */
+  .mc-panel {
+    background: var(--mc-panel);
+    border: 1px solid var(--mc-line);
+  }
+
+  /* Ledger headers: micro mono caps. */
+  .mc-th {
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 0 0.75rem 0.5rem 0;
+    white-space: nowrap;
+    vertical-align: bottom;
+  }
+
+  /* Section labels: same micro mono caps, standalone above stage sections. */
+  .mc-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+/* Interactive rows: quiet hover wash, hard focus rectangle. */
+.mc-row {
+  cursor: pointer;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+.mc-row:hover {
+  background: color-mix(in oklch, var(--foreground) 3.5%, transparent);
+}
+
+/* Faint zebra on the ledger: aids horizontal tracking on ultrawide rows. */
+.mc-table tbody tr:nth-child(even) {
+  background: color-mix(in oklch, var(--foreground) 1.5%, transparent);
+}
+.mc-table tbody tr:nth-child(even):hover {
+  background: color-mix(in oklch, var(--foreground) 3.5%, transparent);
+}
+
+  .mc-pulse-cell {
+    transition: background-color 240ms ease;
+  }
+
+  /*
+   * Panel separators (react-resizable-panels v4): a hairline that widens to a
+   * grip on hover/active. Two orientation variants are applied by our own
+   * markup so the styling never depends on the library's DOM attributes.
+   */
+  .mc-separator {
+    position: relative;
+    background: transparent;
+    transition: background-color 140ms ease;
+  }
+  .mc-separator::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    background: var(--mc-line);
+    transition: background-color 140ms ease;
+  }
+  /* Inside a horizontal group the separator is a vertical grip. */
+  .mc-separator-v::before {
+    width: 1px;
+    height: 100%;
+  }
+  .mc-separator-v::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 3px;
+    height: 34px;
+    background: transparent;
+    transition: background-color 140ms ease;
+  }
+  /* Inside a vertical group (mobile/tablet stacks) the separator is a
+     horizontal grip; rows stay tappable. */
+  .mc-separator-h::before {
+    width: 100%;
+    height: 1px;
+  }
+  .mc-separator-h::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 34px;
+    height: 3px;
+    background: transparent;
+    transition: background-color 140ms ease;
+  }
+  .mc-separator:hover::before,
+  .mc-separator[data-active]::before,
+  .mc-separator:focus-visible::before {
+    background: color-mix(in oklch, var(--mc-accent) 45%, transparent);
+  }
+  .mc-separator:hover::after,
+  .mc-separator[data-active]::after {
+    background: color-mix(in oklch, var(--mc-accent) 65%, transparent);
+  }
+  .mc-separator:focus-visible {
+    outline: 1px solid var(--mc-accent);
+    outline-offset: -1px;
+  }
+
+  /* Fleet ledger drag handles: invisible until the header row is hovered,
+     then a 4px grab gutter on each th's right edge. */
+  .mc-resize-handle {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    bottom: 0;
+    width: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+  }
+  .mc-resize-handle::after {
+    content: "";
+    position: absolute;
+    inset: 25% 3px;
+    background: transparent;
+    transition: background-color 120ms ease;
+  }
+  th:hover > .mc-resize-handle::after,
+  .mc-resize-handle:hover::after,
+  .mc-resize-handle[data-resizing]::after {
+    background: color-mix(in oklch, var(--mc-accent) 55%, transparent);
+  }
+
+  /* Sort direction ticks next to sortable ledger headers. */
+  .mc-sort-tick {
+    display: inline-block;
+    margin-left: 4px;
+    color: var(--mc-accent);
+    font-size: 8px;
+    line-height: 1;
+    transition: transform 140ms ease;
+  }
+
+  /* Recharts surfaces inside the console: kill default focus outlines on
+     clickable bars, keep text mono. */
+  .mc-chart text {
+    font-family: var(--font-mono);
+  }
+  .mc-chart .recharts-wrapper:focus,
+  .mc-chart .recharts-surface:focus {
+    outline: none;
+  }
+  .mc-chart-bar {
+    cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+  .mc-chart-bar:hover {
+    opacity: 0.8;
+  }
+
+  /* Widget tabs (report widget + project page sections). */
+  .mc-tabs {
+    display: flex;
+    gap: 1px;
+    background: var(--mc-line);
+  }
+  .mc-tab {
+    flex: 1;
+    padding: 5px 8px 4px;
+    background: var(--mc-panel);
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    outline: none;
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+  .mc-tab:hover {
+    color: var(--foreground);
+  }
+  .mc-tab[aria-selected="true"] {
+    color: var(--mc-accent);
+    background: color-mix(in oklch, var(--mc-accent) 8%, var(--mc-panel));
+    box-shadow: inset 0 -1px 0 var(--mc-accent);
+  }
+  .mc-tab:focus-visible {
+    outline: 1px solid var(--mc-accent);
+    outline-offset: -1px;
+  }
+
+  /* Report staleness badge: pulsing dot invites the regenerate click. */
+  .mc-stale-dot {
+    animation: mc-stale-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes mc-stale-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mc-stale-dot {
+      animation: none;
+    }
+  }
+
+  /* Console dialog (forms container): chrome-free flows live in a flat,
+     hairline popup that inherits the mc palette through the portal's .mc
+     class. */
+  .mc-dialog {
+    background: var(--popover);
+    border: 1px solid var(--mc-line-strong);
+    color: var(--popover-foreground);
+  }
+
+}
+
+/* Keyboard focus for interactive rows stays unlayered: it must always win. */
+.mc-row:focus-visible {
+  outline: 1px solid var(--mc-accent);
+  outline-offset: -1px;
+}
+
+/*
+ * The shared file browser hard-wires its split panes to 70vh — on the
+ * project page that renders a full-screen "Select a file" void. Inside
+ * .mc-files the panes get a working height instead; tree and viewer scroll
+ * internally and the preview grows only once a file is chosen. Unlayered so
+ * it beats the utility in Tailwind's utilities layer.
+ */
+.mc-files [class*="h-[70vh]"] {
+  height: 24rem;
+}
+
+/*
+ * Ultrawide (2200px+) overrides, unlayered so they beat utilities. Arbitrary
+ * `min-[2200px]:` variants sort before the named breakpoints in the
+ * utilities layer, so any same-property conflict (e.g. `2xl:w-96`) would
+ * win there — these four are exactly those cases.
+ */
+@media (width >= 2200px) {
+  .mc-input {
+    width: 28rem;
+  }
+  .mc-stage-pad {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+  .mc-aside {
+    width: 27rem;
+  }
+  .mc-pinned-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

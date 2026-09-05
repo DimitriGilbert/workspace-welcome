@@ -1,0 +1,534 @@
+/*
+ * Bento concept styles — scoped entirely under .bento-root so the rest of
+ * the app keeps the Kiln theme. (.bento-dialog / .bento-overlay re-declare
+ * the same tokens for dialog portals, which land outside .bento-root.)
+ *
+ * Design language: Linear/Vercel-register dark mosaic. Cool neutral ramp
+ * (the app default is warm umber; this concept deliberately re-derives the
+ * shared tokens inside its subtree), one electric-blue accent, semantic
+ * severity hues, 20px tile radius, glazed 1px-lit surfaces.
+ *
+ * Grids: bands (vitals / signals / pulse) pack a 12-column grid where every
+ * row's spans sum to 12 and all tiles in a band share one height — no half
+ * rows, no ragged bottoms. The project mosaic is a separate grid with fixed
+ * row units so tile SIZES carry meaning (placements come from the shared
+ * mosaic-layout algorithm; see .b-cell).
+ */
+
+.bento-root {
+  /* Cool neutral ramp — replaces the warm tokens inside this subtree. */
+  --background: oklch(0.135 0.007 265);
+  --foreground: oklch(0.965 0.004 260);
+  --card: oklch(0.19 0.009 265);
+  --card-foreground: oklch(0.965 0.004 260);
+  --popover: oklch(0.22 0.01 265);
+  --popover-foreground: oklch(0.965 0.004 260);
+  --primary: oklch(0.72 0.125 235);
+  --primary-foreground: oklch(0.14 0.02 260);
+  --secondary: oklch(0.25 0.01 265);
+  --secondary-foreground: oklch(0.96 0.004 260);
+  --muted: oklch(0.245 0.01 265);
+  --muted-foreground: oklch(0.715 0.014 260);
+  --accent: oklch(0.28 0.012 265);
+  --accent-foreground: oklch(0.97 0.004 260);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.72 0.125 235);
+
+  /* Semantic states stay recognisable, tuned for the cooler base. */
+  --sev-error: oklch(0.72 0.17 25);
+  --sev-warn: oklch(0.82 0.13 85);
+  --sev-info: oklch(0.72 0.09 240);
+  --state-positive: oklch(0.79 0.12 155);
+  --pinned-accent: oklch(0.82 0.13 85);
+  --recency-fresh: oklch(0.79 0.12 155);
+  --eyebrow: oklch(0.62 0.02 265);
+
+  /* Concept-local tokens. */
+  --bento-radius: 20px;
+  --bento-c1: oklch(0.74 0.125 235);
+  --bento-c2: oklch(0.78 0.1 195);
+  --bento-c3: oklch(0.76 0.09 300);
+  --bento-c4: oklch(0.82 0.12 90);
+  --bento-c5: oklch(0.72 0.1 15);
+  --bento-c6: oklch(0.68 0.02 265);
+  --bento-lift: 0 18px 44px -20px oklch(0 0 0 / 0.75);
+  --bento-glow-blue: 0 0 0 1px oklch(0.72 0.125 235 / 0.22),
+    0 0 32px -8px oklch(0.72 0.125 235 / 0.28);
+  /* Recency tones: ring + age chip colors, one per size tier. */
+  --tone-live: oklch(0.79 0.12 155);
+  --tone-warm: oklch(0.74 0.125 235);
+  --tone-cooling: oklch(0.78 0.1 195);
+  --tone-cold: oklch(0.55 0.015 265);
+
+  background:
+    radial-gradient(1100px 480px at 18% -8%, oklch(0.72 0.125 235 / 0.07), transparent 70%),
+    radial-gradient(900px 420px at 85% -12%, oklch(0.76 0.09 300 / 0.05), transparent 72%),
+    var(--background);
+  color: var(--foreground);
+  min-height: 100svh;
+  padding: 20px clamp(16px, 1.4vw, 48px) 56px;
+}
+
+/* Radii: the app chrome is squared; this concept is soft. Scope the shared
+   components that render inside the mosaic. */
+.bento-root [data-slot="button"] {
+  border-radius: 10px;
+}
+.bento-root [data-slot="input"] {
+  border-radius: 10px;
+}
+
+/* ---------------------------------------------------------------- grid */
+
+/*
+ * Band grid: 12 columns from 1536px, 6 columns from 1024px, 2 below.
+ * Band rows are designed to sum exactly: vitals 3+6+3, signals 8+4,
+ * pulse 12, so no band ever ends in a ragged gap, and every tile in a
+ * band shares the band height via .b-band-h.
+ */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (min-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (min-width: 1536px) {
+  .bento-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* Span roles. Full width by default. */
+.sp-band,
+.sp-health,
+.sp-activity,
+.sp-stack,
+.sp-attention,
+.sp-severity,
+.sp-pulse,
+.sp-id,
+.sp-state,
+.sp-summary {
+  grid-column: 1 / -1;
+}
+@media (min-width: 1024px) {
+  .sp-health { grid-column: span 2; }
+  .sp-activity { grid-column: span 4; }
+  .sp-attention { grid-column: span 4; }
+  .sp-severity { grid-column: span 2; }
+  /* Project-page band: identity + state + pulse summary. */
+  .sp-id { grid-column: span 2; }
+  .sp-state { grid-column: span 2; }
+  .sp-summary { grid-column: span 2; }
+}
+@media (min-width: 1536px) {
+  .sp-health { grid-column: span 3; }
+  .sp-activity { grid-column: span 6; }
+  .sp-stack { grid-column: span 3; }
+  .sp-attention { grid-column: span 8; }
+  .sp-severity { grid-column: span 4; }
+  /* Project-page band: identity 3 + state 5 + pulse summary 4. */
+  .sp-id { grid-column: span 3; }
+  .sp-state { grid-column: span 5; }
+  .sp-summary { grid-column: span 4; }
+}
+
+/*
+ * Band height: every tile in the vitals/signals band gets the same box so
+ * the top rows align edge-to-edge (round-1's ragged hero row is gone).
+ * Heights track the viewport a little — tall enough for the charts, never
+ * taller than the fold allows.
+ */
+.b-band-h { min-height: 300px; }
+@media (min-width: 1024px) {
+  .b-band-h { height: 320px; min-height: 320px; }
+}
+@media (min-width: 1536px) {
+  .b-band-h { height: 300px; min-height: 300px; }
+}
+.b-pulse-h { min-height: 340px; }
+@media (min-width: 1024px) {
+  .b-pulse-h { height: 360px; min-height: 360px; }
+}
+/* Project-page pulse: full-bleed width earns chart height. */
+.b-pulse-xl { min-height: 400px; }
+@media (min-width: 1024px) {
+  .b-pulse-xl { height: 480px; min-height: 480px; }
+}
+
+/* -------------------------------------------------------- project mosaic */
+
+/*
+ * The recency-sized mosaic, packed by the shared algorithm
+ * (`@/lib/mosaic-layout`) on a 12-column grid with fixed row units. Tiles
+ * carry their placement as custom properties (--x, --y, --cols, --rows)
+ * and the CSS turns them into explicit grid lines, so a re-scan moves and
+ * resizes blocks and the motion layer animates between the boxes.
+ * Below 768px the same reading order stacks full-width.
+ */
+.bento-mosaic {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 92px;
+  gap: 14px;
+}
+@media (min-width: 1024px) {
+  .bento-mosaic {
+    grid-auto-rows: 96px;
+    gap: 16px;
+  }
+}
+
+.b-cell {
+  min-width: 0;
+  min-height: 0;
+  grid-column: 1 / -1;
+  grid-row: span var(--rows);
+}
+@media (min-width: 768px) {
+  .b-cell {
+    grid-column: var(--x) / span var(--cols);
+    grid-row: var(--y) / span var(--rows);
+  }
+}
+
+/* Mosaic cells fill their (animated) box; motion.div owns the box. */
+.b-cell > * {
+  height: 100%;
+}
+
+/* ---------------------------------------------------------------- tile */
+
+.b-tile {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--bento-radius);
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.04), oklch(1 0 0 / 0) 34%),
+    var(--card);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.09),
+    0 14px 36px -22px oklch(0 0 0 / 0.8);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-tile--action {
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      transform 180ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+}
+
+/* Interactive tile: whole tile opens the project. */
+.b-tile--action {
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-tile--action:hover {
+    transform: translateY(-2px);
+  }
+}
+.b-tile--action:hover,
+.b-tile--action:focus-visible {
+  border-color: oklch(1 0 0 / 0.2);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.1),
+    var(--bento-lift);
+}
+.b-tile--action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Pinned tiles carry a warm hairline. */
+.b-tile--pinned {
+  border-color: oklch(0.82 0.13 85 / 0.22);
+}
+
+/* ---------------------------------------------------------------- type */
+
+.b-num {
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.b-label {
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.b-kbd {
+  pointer-events: none;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid oklch(1 0 0 / 0.14);
+  background: oklch(1 0 0 / 0.06);
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted-foreground);
+}
+
+/* ------------------------------------------------------------ glyphs */
+
+/* Crisp mono glyph chips: ↑ ahead · ↓ behind · ~ dirty · ✓ clean. */
+.b-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid oklch(1 0 0 / 0.12);
+  background: oklch(1 0 0 / 0.05);
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 550;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Age chip inside the recency ring. */
+.b-age {
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 9.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ legend */
+
+/* Size legend in the mosaic header: the four cell shapes, to scale. */
+.b-legend {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.b-legend-item {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+.b-legend-cell {
+  display: inline-flex;
+  gap: 2px;
+}
+.b-legend-cell > i {
+  display: block;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+}
+/* Shape key: hero 3×3, feature 2×3, large 2×2, medium 2×1, compact 1×1. */
+.b-legend-cell > i.hero { width: 13.5px; height: 13.5px; }
+.b-legend-cell > i.feature { width: 9px; height: 13.5px; }
+.b-legend-cell > i.large { width: 9px; height: 9px; }
+.b-legend-cell > i.medium { width: 9px; height: 4.5px; }
+.b-legend-cell > i.compact { width: 4.5px; height: 4.5px; }
+
+/* ------------------------------------------------------------ skeleton */
+
+.b-skel {
+  border-radius: var(--bento-radius);
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    100deg,
+    oklch(0.21 0.009 265) 40%,
+    oklch(0.26 0.01 265) 50%,
+    oklch(0.21 0.009 265) 60%
+  );
+  background-size: 240% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-skel {
+    animation: b-shimmer 1.6s ease-in-out infinite;
+  }
+}
+@keyframes b-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+/* ------------------------------------------------------- severity bars */
+
+.b-segbar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 3px;
+}
+.b-segbar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  min-width: 8px;
+}
+
+.b-dirtybar {
+  height: 6px;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.07);
+  overflow: hidden;
+}
+.b-dirtybar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, oklch(0.78 0.1 195 / 0.7), var(--bento-c2));
+}
+
+/* Health tile: side-by-side gauge + stats only where the tile is truly wide
+   (12-col band); below that the stats wrap under the gauge at full width so
+   the 2x2 grid never overflows a narrow tile. */
+@media (max-width: 1535.98px) {
+  .sp-health .b-health-body {
+    flex-direction: column;
+    align-items: center;
+  }
+  .sp-health .b-health-body dl {
+    width: 100%;
+    max-width: 440px;
+  }
+}
+
+/* ------------------------------------------------------ data carousel */
+
+/* The ui-package CarouselContent merges classes onto the inner embla track,
+   not the scroll viewport, so the stretch lives here: the viewport grows to
+   the carousel's remaining height and every slide fills it. */
+.b-data-carousel [data-slot="carousel-content"] {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+.b-data-carousel [data-slot="carousel-content"] > div {
+  height: 100%;
+}
+.b-data-carousel [data-slot="carousel-item"] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.b-data-carousel [data-slot="carousel-item"] > div {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------- chat */
+
+/* Tabbed report widget tabs: quiet mono pills. */
+.b-tabs [data-slot="tabs-list"] {
+  border-radius: 12px;
+}
+.b-tabs [data-slot="tabs-trigger"] {
+  border-radius: 9px;
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------- dialog */
+
+/*
+ * Dialog chrome for portals (outside .bento-root): same cool ramp and
+ * glazed surface, re-declared locally. Applied via the .bento-dialog class.
+ */
+.bento-dialog,
+.bento-dialog[data-slot="dialog-content"] {
+  --background: oklch(0.135 0.007 265);
+  --foreground: oklch(0.965 0.004 260);
+  --card: oklch(0.19 0.009 265);
+  --card-foreground: oklch(0.965 0.004 260);
+  --popover: oklch(0.22 0.01 265);
+  --popover-foreground: oklch(0.965 0.004 260);
+  --primary: oklch(0.72 0.125 235);
+  --primary-foreground: oklch(0.14 0.02 260);
+  --secondary: oklch(0.25 0.01 265);
+  --secondary-foreground: oklch(0.96 0.004 260);
+  --muted: oklch(0.245 0.01 265);
+  --muted-foreground: oklch(0.715 0.014 260);
+  --accent: oklch(0.28 0.012 265);
+  --accent-foreground: oklch(0.97 0.004 260);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.72 0.125 235);
+  --state-positive: oklch(0.79 0.12 155);
+
+  border-radius: 20px;
+  border: 1px solid oklch(1 0 0 / 0.12);
+  background:
+    linear-gradient(180deg, oklch(1 0 0 / 0.05), oklch(1 0 0 / 0) 30%),
+    oklch(0.19 0.009 265);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.1),
+    0 30px 80px -20px oklch(0 0 0 / 0.85);
+  overflow: hidden;
+}
+.bento-dialog [data-slot="button"] {
+  border-radius: 10px;
+}
+.bento-dialog [data-slot="input"],
+.bento-dialog [data-slot="textarea"],
+.bento-dialog [data-slot="select-trigger"] {
+  border-radius: 10px;
+}
+
+/* ---------------------------------------------------------------- chart */
+
+/* recharts renders SVG text/attrs; styling via CSS keeps colors tokenized. */
+.bento-root .recharts-cartesian-axis-tick text,
+.bento-dialog .recharts-cartesian-axis-tick text {
+  fill: var(--muted-foreground);
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  font-size: 10px;
+}
+.bento-root .recharts-tooltip-cursor,
+.bento-dialog .recharts-tooltip-cursor {
+  fill: oklch(1 0 0 / 0.05);
+}
+.bento-root .recharts-surface,
+.bento-dialog .recharts-surface {
+  overflow: visible;
+}
+
+/* Everything that moves in this concept is feedback-level; reduce collapses
+   it to static, including the fetch spinner inherited from Tailwind. */
+@media (prefers-reduced-motion: reduce) {
+  .bento-root *,
+  .bento-root *::before,
+  .bento-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

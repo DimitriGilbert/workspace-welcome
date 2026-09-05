@@ -9,6 +9,7 @@ import {
   deregisterExitCleanup,
   registerExitCleanup,
 } from "./exit-cleanup";
+import { ensureReportJson, unlinkReportJson } from "./report-export";
 import type { Settings } from "./types";
 import { reportsDir } from "./xdg";
 
@@ -67,6 +68,9 @@ function expandHome(p: string): string {
   return p;
 }
 
+/** How the snitch CLI was resolved, mirroring the ADR-0001 decision order. */
+export type SnitchSource = "configured" | "local" | "npx";
+
 /**
  * Resolve the git-snitch invocation (ADR-0001): a configured CLI path wins —
  * it is a FILE PATH run as `node <path>` (leading `~` expanded) and must
@@ -77,6 +81,7 @@ function expandHome(p: string): string {
 export function resolveSnitchCommand(settings: Settings): {
   command: string;
   baseArgs: string[];
+  source: SnitchSource;
 } {
   const configured = settings.snitchPath?.trim();
   if (configured) {
@@ -88,20 +93,80 @@ export function resolveSnitchCommand(settings: Settings): {
       // Missing path — the throw below carries the message.
     }
     if (!isFile) throw new Error(`gitsnitch CLI path not found: ${entry}`);
-    return { command: "node", baseArgs: [entry] };
+    return { command: "node", baseArgs: [entry], source: "configured" };
   }
   try {
     if (statSync(LOCAL_SNITCH_ENTRY).isFile()) {
-      return { command: "node", baseArgs: [LOCAL_SNITCH_ENTRY] };
+      return {
+        command: "node",
+        baseArgs: [LOCAL_SNITCH_ENTRY],
+        source: "local",
+      };
     }
   } catch {
     // No checkout / not built — fall through to npx.
   }
-  return { command: "npx", baseArgs: ["-y", "@git-snitch/cli"] };
+  return { command: "npx", baseArgs: ["-y", "@git-snitch/cli"], source: "npx" };
+}
+
+/**
+ * Quote one argv element for pasting into a POSIX shell: bare when it is
+ * made only of shell-safe characters, else single-quoted (with the standard
+ * `'\''` escape for embedded quotes).
+ */
+function shellQuote(arg: string): string {
+  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg)) return arg;
+  return `'${arg.replace(/'/g, `'\\''`)}'`;
+}
+
+/** Everything a widget needs to show the manual path for one report. */
+export interface ReportCommandSpec {
+  key: string;
+  /**
+   * The exact CLI invocation the app would spawn for this report, with every
+   * flag and quoted for a POSIX shell. Reproduces the HTML; the JSON export
+   * at jsonPath is written by the app right after such a run (the CLI's
+   * --json flag replaces rather than accompanies the HTML).
+   */
+  command: string;
+  /** How the CLI was resolved (ADR-0001). */
+  source: SnitchSource;
+  /** Where the run's HTML lands — also inside `command` after --output. */
+  htmlPath: string;
+}
+
+/**
+ * The prebuilt command for one report: same resolution, same flags, same
+ * output path as startReportRun spawns — a displayable twin of the real run,
+ * not a separate code path. Throws only where resolveSnitchCommand throws
+ * (a configured-but-missing CLI path); callers decide whether that surfaces.
+ */
+export function buildReportCommand(
+  settings: Settings,
+  kind: ReportKind,
+  targetPath: string,
+  period?: string,
+): ReportCommandSpec {
+  const key = reportKey(kind, targetPath, period);
+  const { command, baseArgs, source } = resolveSnitchCommand(settings);
+  const htmlPath = reportHtmlPath(key);
+  const argv = [
+    command,
+    ...baseArgs,
+    kind,
+    targetPath,
+    ...(period ? ["--period", period] : []),
+    "--output",
+    htmlPath,
+    // Keep in lockstep with startReportRun's spawn args.
+    "--ai-usage",
+    "--verbose",
+  ];
+  return { key, command: argv.map(shellQuote).join(" "), source, htmlPath };
 }
 
 /** File a finished report lands in: reportsDir/<key>.html. */
-function reportPath(key: string): string {
+export function reportHtmlPath(key: string): string {
   return join(reportsDir(), `${key}.html`);
 }
 
@@ -109,7 +174,7 @@ function reportPath(key: string): string {
 export function reportFileExists(key: string): boolean {
   if (!REPORT_KEY_RE.test(key)) return false;
   try {
-    return statSync(reportPath(key)).isFile();
+    return statSync(reportHtmlPath(key)).isFile();
   } catch {
     return false;
   }
@@ -129,7 +194,7 @@ export function cachedReportJob(
   const key = reportKey(kind, absPath, period);
   let finishedAt = new Date().toISOString();
   try {
-    finishedAt = statSync(reportPath(key)).mtime.toISOString();
+    finishedAt = statSync(reportHtmlPath(key)).mtime.toISOString();
   } catch {
     // Raced away between the caller's existence check and here; the cache is
     // disposable and the tab will land on the waiting page instead.
@@ -189,7 +254,7 @@ export function startReportRun(
   const existing = jobs.get(key);
   if (existing?.status === "running") return existing;
 
-  const output = reportPath(key);
+  const output = reportHtmlPath(key);
   let command: string;
   let baseArgs: string[];
   try {
@@ -245,7 +310,7 @@ export function startReportRun(
   // Last state wins: a fresh run for a finished key replaces the old job.
   jobs.set(key, job);
 
-  // A fresh run voids the previous file immediately: the cache is disposable
+  // A fresh run voids the previous files immediately: the cache is disposable
   // and the browser's waiting page must not race a stale report on reload.
   // Sync unlink so the dedupe-before-spawn guarantee above stays intact.
   try {
@@ -253,6 +318,7 @@ export function startReportRun(
   } catch {
     // ENOENT is the normal first-run case.
   }
+  unlinkReportJson(key);
 
   let tail = "";
   const appendTail = (chunk: Buffer): void => {
@@ -308,6 +374,18 @@ export function startReportRun(
         : "exited 0 but wrote no report";
       return;
     }
+    // Persist the structured JSON export before the run counts as done, so
+    // the polling UI never sees a report without its export. Supplementary:
+    // ensureReportJson never throws and a missing export doesn't fail the
+    // run — the HTML contract above is untouched.
+    await ensureReportJson({
+      key,
+      kind,
+      targetPath,
+      period,
+      htmlPath: output,
+      overwrite: true,
+    });
     job.status = "done";
   };
 
