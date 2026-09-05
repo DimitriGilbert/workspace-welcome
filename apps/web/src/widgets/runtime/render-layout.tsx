@@ -176,11 +176,16 @@ function applyTemplate(
 
 /** Resolve every region of a preset into canvas-ready placed regions. Flow
  * generators run HERE — inside the provider stack — on the workspace's
- * structural `{ projects, now }` shape. Missing generators yield an empty
+ * structural `{ projects, now, filter? }` shape (the header filter rides
+ * along for generators that narrow by it). Missing generators yield an empty
  * region plus an honest error string (rendered + console-errored in dev). */
 export function resolveRegions(
   preset: PageLayout,
-  workspace: { projects: ReturnType<typeof useWorkspace>["projects"]; now: number },
+  workspace: {
+    projects: ReturnType<typeof useWorkspace>["projects"];
+    now: number;
+    filter?: string;
+  },
 ): { regions: PlacedRegion[]; flowErrors: string[] } {
   const regions: PlacedRegion[] = [];
   const flowErrors: string[] = [];
@@ -199,9 +204,11 @@ export function resolveRegions(
     }
     regions.push({
       id: region.id,
-      nodes: generator({ projects: workspace.projects, now: workspace.now }).map((node) =>
-        applyTemplate(node, region.template),
-      ),
+      nodes: generator({
+        projects: workspace.projects,
+        now: workspace.now,
+        filter: workspace.filter,
+      }).map((node) => applyTemplate(node, region.template)),
     });
   }
   return { regions, flowErrors };

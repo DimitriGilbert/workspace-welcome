@@ -6,17 +6,18 @@
  * `WidgetNode` per input item, in reading order — the order the grid packer
  * (`@/lib/grid-layout/pack-grid`) will serve them in.
  *
- * The generator input is STRUCTURAL — `{ projects: Project[]; now: number }`.
- * The provider stack's `WorkspaceContextValue` satisfies it as-is, so flows
- * run INSIDE the provider stack at render time without knowing about it.
- * `now` is always injected by the caller: generators never read `Date.now`
- * (SSR-safe, deterministic). Flows never call tRPC — data arrives through the
- * provider stack, never fetched here.
+ * The generator input is STRUCTURAL — `{ projects: Project[]; now: number;
+ * filter?: string }`. The provider stack's `WorkspaceContextValue` satisfies
+ * it as-is, so flows run INSIDE the provider stack at render time without
+ * knowing about it. `now` is always injected by the caller: generators never
+ * read `Date.now` (SSR-safe, deterministic). Flows never call tRPC — data
+ * arrives through the provider stack, never fetched here.
  */
 
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { scoreProjects } from "@/lib/grid-layout/score-projects";
+import { matchProject } from "@/lib/search";
 import type { WidgetNode } from "./layout-types";
 import type { SizeClass } from "./size-class";
 import { SIZE_LADDER } from "./size-class";
@@ -25,6 +26,15 @@ import { SIZE_LADDER } from "./size-class";
 export interface FlowInput {
   projects: Project[];
   now: number;
+  /**
+   * The shared header filter text, for generators that narrow their item set.
+   * Empty/undefined means no narrowing — callers may omit it. Generators that
+   * honor it must use the canonical matcher (`@/lib/search` `matchProject`:
+   * AND-joined substring terms across name, path, stack label, git branch,
+   * git remote host, and note — the legacy /designs behavior), applied BEFORE
+   * scoring so tiers are computed over the narrowed set.
+   */
+  filter?: string;
 }
 
 /** A flow generator: input items in, placed-ready widget nodes out. */
@@ -52,11 +62,20 @@ function slugifyPath(path: string): string {
  * score is passed to the tile as the `weight` prop (rings/gauges render from
  * it). Nodes come out in reading order — pinned first, then freshest first,
  * ties by path — matching the packer's expectations.
+ *
+ * Honors `filter`: when non-empty, projects are narrowed with the canonical
+ * `matchProject` matcher (the legacy /designs search — AND terms across
+ * name/path/stack/branch/remote/note) before scoring, so tiers and packing
+ * see only the matching set. Empty/undefined filter = no narrowing.
  */
-const projectsFlow: FlowGenerator = ({ projects, now }) => {
-  if (projects.length === 0) return [];
-  const scored = scoreProjects(projects, { now, tierCount: TIER_LADDER.length });
-  return [...projects]
+const projectsFlow: FlowGenerator = ({ projects, now, filter }) => {
+  const visible =
+    filter === undefined || filter.trim().length === 0
+      ? projects
+      : projects.filter((project) => matchProject(project, filter));
+  if (visible.length === 0) return [];
+  const scored = scoreProjects(visible, { now, tierCount: TIER_LADDER.length });
+  return [...visible]
     .map((project, i) => ({
       project,
       score: scored[i]?.score ?? 0,
