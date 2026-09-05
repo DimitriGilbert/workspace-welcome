@@ -190,7 +190,7 @@ export function FileBrowser({ project }: { project: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {listing.isError ? (
-          <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+          <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
             {listing.error.message}
           </p>
         ) : null}

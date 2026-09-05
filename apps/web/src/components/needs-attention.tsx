@@ -25,7 +25,7 @@ export function NeedsAttention({ projects }: NeedsAttentionProps) {
 
   const flagged = projects
     .filter((p) =>
-      p.alerts.some((a) => a.severity === "error" || a.severity === "warn"),
+      p.alerts.some((a) => a.severity === "critical" || a.severity === "warning"),
     )
     .sort(
       (a, b) =>
@@ -35,16 +35,16 @@ export function NeedsAttention({ projects }: NeedsAttentionProps) {
   if (flagged.length === 0) return null;
 
   const errorCount = flagged.filter((p) =>
-    p.alerts.some((a) => a.severity === "error"),
+    p.alerts.some((a) => a.severity === "critical"),
   ).length;
 
   return (
     <section
       className="flex flex-col border"
       style={{
-        borderColor: "color-mix(in oklch, var(--sev-warn) 25%, transparent)",
+        borderColor: "color-mix(in oklch, var(--sev-warning) 25%, transparent)",
         background:
-          "color-mix(in oklch, var(--sev-warn) 5%, transparent)",
+          "color-mix(in oklch, var(--sev-warning) 5%, transparent)",
       }}
     >
       <button
@@ -60,21 +60,21 @@ export function NeedsAttention({ projects }: NeedsAttentionProps) {
         )}
         <AlertTriangle
           className="size-3.5"
-          style={{ color: "var(--sev-warn)" }}
+          style={{ color: "var(--sev-warning)" }}
         />
         <span className="text-[0.8rem] font-medium tracking-tight">
           Needs attention
         </span>
         <span
           className="font-mono text-[0.7rem] tabular-nums"
-          style={{ color: "var(--sev-warn)" }}
+          style={{ color: "var(--sev-warning)" }}
         >
           {flagged.length}
         </span>
         {errorCount > 0 ? (
           <span
             className="ml-1 px-1.5 py-px font-mono text-[0.6rem] font-medium uppercase tracking-wider"
-            style={{ color: "var(--sev-error)" }}
+            style={{ color: "var(--sev-critical)" }}
           >
             {errorCount} {errorCount === 1 ? "error" : "errors"}
           </span>

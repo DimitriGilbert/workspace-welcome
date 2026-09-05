@@ -78,8 +78,8 @@ export interface ReportPanelProps {
 }
 
 const SEVERITY_COLOR = {
-  critical: "var(--sev-error)",
-  warning: "var(--sev-warn)",
+  critical: "var(--sev-critical)",
+  warning: "var(--sev-warning)",
   info: "var(--sev-info)",
 } as const;
 
@@ -197,9 +197,9 @@ export function ReportPanel({
                 disabled={generating}
                 className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[0.68rem] transition-colors disabled:opacity-60"
                 style={{
-                  color: "var(--sev-warn)",
-                  borderColor: "color-mix(in oklch, var(--sev-warn) 45%, transparent)",
-                  background: "color-mix(in oklch, var(--sev-warn) 10%, transparent)",
+                  color: "var(--sev-warning)",
+                  borderColor: "color-mix(in oklch, var(--sev-warning) 45%, transparent)",
+                  background: "color-mix(in oklch, var(--sev-warning) 10%, transparent)",
                 }}
                 title="The project moved on after this report was generated — regenerate to catch up"
               >

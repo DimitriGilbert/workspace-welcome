@@ -237,19 +237,19 @@ function AlertsPie({ projects }: { projects: Project[] }) {
                 aria-hidden
                 className={cn(
                   "size-1.5 self-center",
-                  row.severity === "error" && "bg-[var(--sev-error)]",
-                  row.severity === "warn" && "bg-[var(--sev-warn)]",
+                  row.severity === "critical" && "bg-[var(--sev-critical)]",
+                  row.severity === "warning" && "bg-[var(--sev-warning)]",
                   row.severity === "info" && "bg-[var(--sev-info)]",
                 )}
               />
               <span className="w-8 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                {row.severity === "warn" ? "wrn" : row.severity === "error" ? "err" : "inf"}
+                {row.severity === "warning" ? "wrn" : row.severity === "critical" ? "err" : "inf"}
               </span>
               <span
                 className={cn(
                   "font-mono text-base leading-none tabular-nums",
-                  row.severity === "error" && "text-[var(--sev-error)]",
-                  row.severity === "warn" && "text-[var(--sev-warn)]",
+                  row.severity === "critical" && "text-[var(--sev-critical)]",
+                  row.severity === "warning" && "text-[var(--sev-warning)]",
                   row.severity === "info" && "text-[var(--sev-info)]",
                 )}
               >
@@ -378,7 +378,7 @@ function RootsTable({
         empty={<span className="mc-label">no roots registered</span>}
       />
       {rootErrors.map((e) => (
-        <p key={e.rootId} className="font-mono text-[10px] leading-relaxed text-[var(--sev-error)]">
+        <p key={e.rootId} className="font-mono text-[10px] leading-relaxed text-[var(--sev-critical)]">
           Unreadable <span className="break-all">{e.path}</span>: {e.message}
         </p>
       ))}
@@ -412,7 +412,7 @@ function RootsPanel({
       }
     >
       {error ? (
-        <p className="font-mono text-[10px] leading-relaxed text-[var(--sev-error)]">{error}</p>
+        <p className="font-mono text-[10px] leading-relaxed text-[var(--sev-critical)]">{error}</p>
       ) : (
         <RootsTable roots={roots} projects={projects} rootErrors={rootErrors} />
       )}
@@ -518,7 +518,7 @@ function DirtyLeadersNav({
               }}
             >
               {data.map((d) => (
-                <Cell key={d.path} style={{ fill: "var(--sev-warn)" }} />
+                <Cell key={d.path} style={{ fill: "var(--sev-warning)" }} />
               ))}
             </Bar>
           </BarChart>

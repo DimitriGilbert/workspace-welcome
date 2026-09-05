@@ -44,10 +44,10 @@ export function ErrorConsole({
   onRetry: () => void;
 }) {
   return (
-    <div role="alert" className="mc-panel mt-6 flex flex-col items-start gap-3 border-l-2 border-l-[var(--sev-error)] p-6">
+    <div role="alert" className="mc-panel mt-6 flex flex-col items-start gap-3 border-l-2 border-l-[var(--sev-critical)] p-6">
       <div className="flex items-center gap-2.5">
-        <CloudOff aria-hidden className="size-4 text-[var(--sev-error)]" />
-        <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sev-error)]">
+        <CloudOff aria-hidden className="size-4 text-[var(--sev-critical)]" />
+        <h2 className="font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--sev-critical)]">
           Scan failed
         </h2>
       </div>

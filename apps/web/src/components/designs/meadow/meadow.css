@@ -54,8 +54,8 @@
   --pinned-accent-wash: oklch(0.5 0.095 85 / 0.12);
 
   --sev-info: oklch(0.47 0.085 250);
-  --sev-warn: oklch(0.47 0.09 80);
-  --sev-error: oklch(0.48 0.15 27);
+  --sev-warning: oklch(0.47 0.09 80);
+  --sev-critical: oklch(0.48 0.15 27);
 
   --state-positive: oklch(0.45 0.095 155);
 
@@ -272,8 +272,8 @@ body:has(.meadow) [data-slot="popover-content"] {
   --recency-fresh: oklch(0.47 0.1 152);
   --pinned-accent: oklch(0.5 0.095 85);
   --sev-info: oklch(0.47 0.085 250);
-  --sev-warn: oklch(0.47 0.09 80);
-  --sev-error: oklch(0.48 0.15 27);
+  --sev-warning: oklch(0.47 0.09 80);
+  --sev-critical: oklch(0.48 0.15 27);
   --state-positive: oklch(0.45 0.095 155);
   color-scheme: light;
 }

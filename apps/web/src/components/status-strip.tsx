@@ -33,7 +33,7 @@ export function StatusStrip({ items }: { items: (StripItem | null)[] }) {
               item.accent === "positive"
                 ? { color: "var(--state-positive)" }
                 : item.accent === "warn"
-                  ? { color: "var(--sev-warn)" }
+                  ? { color: "var(--sev-warning)" }
                   : { color: "var(--foreground)" }
             }
           >

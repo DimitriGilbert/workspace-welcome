@@ -41,8 +41,8 @@
   --ring: oklch(0.83 0.16 158);
 
   --sev-info: oklch(0.72 0.08 240);
-  --sev-warn: oklch(0.81 0.14 85);
-  --sev-error: oklch(0.7 0.18 25);
+  --sev-warning: oklch(0.81 0.14 85);
+  --sev-critical: oklch(0.7 0.18 25);
   --state-positive: oklch(0.8 0.14 158);
   --recency-fresh: oklch(0.83 0.16 158);
   --recency-stale: oklch(1 0 0 / 12%);

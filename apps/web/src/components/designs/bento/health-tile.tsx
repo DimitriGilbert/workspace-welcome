@@ -13,8 +13,8 @@ const ARC_LENGTH = 293.2; // 240 degrees of a r=70 circle
 
 const BAND_COLOR = {
   positive: "var(--state-positive)",
-  warn: "var(--sev-warn)",
-  error: "var(--sev-error)",
+  warn: "var(--sev-warning)",
+  error: "var(--sev-critical)",
 } as const;
 
 /**
@@ -114,7 +114,7 @@ function HealthStat({
     tone === "positive"
       ? "var(--state-positive)"
       : tone === "warn"
-        ? "var(--sev-warn)"
+        ? "var(--sev-warning)"
         : tone === "info"
           ? "var(--bento-c1)"
           : "var(--muted-foreground)";

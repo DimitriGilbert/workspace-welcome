@@ -47,8 +47,8 @@ interface ProjectReportProps {
 
 const SEVERITY_COLOR: Record<"info" | "warning" | "critical", string> = {
   info: "var(--sev-info)",
-  warning: "var(--sev-warn)",
-  critical: "var(--sev-error)",
+  warning: "var(--sev-warning)",
+  critical: "var(--sev-critical)",
 };
 
 /** Soft pastel ramp for distribution slices (top-N + "other"). */
@@ -148,7 +148,7 @@ function ProjectReportRequire({
           {command}
         </pre>
       ) : commandError ? (
-        <p className="w-full text-[10px]" style={{ color: "var(--sev-error)" }}>
+        <p className="w-full text-[10px]" style={{ color: "var(--sev-critical)" }}>
           Command unavailable: {commandError}
         </p>
       ) : null}

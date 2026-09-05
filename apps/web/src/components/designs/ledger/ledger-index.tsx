@@ -227,7 +227,7 @@ function LedgerRow({
           </span>
         ) : null}
         {behind > 0 ? (
-          <span className="inline-flex items-center gap-0.5 text-sev-warn">
+          <span className="inline-flex items-center gap-0.5 text-sev-warning">
             <ArrowDown className="size-3" aria-hidden />
             {behind}
           </span>

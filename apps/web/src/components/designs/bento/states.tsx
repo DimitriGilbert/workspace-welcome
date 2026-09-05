@@ -72,7 +72,7 @@ export function ErrorTile({ message, onRetry }: ErrorTileProps) {
       className="flex flex-col items-center justify-center gap-3 p-14 text-center"
       role="alert"
     >
-      <TriangleAlert className="size-6" style={{ color: "var(--sev-error)" }} />
+      <TriangleAlert className="size-6" style={{ color: "var(--sev-critical)" }} />
       <div className="flex flex-col gap-1">
         <p className="text-base font-semibold tracking-tight">Scan failed</p>
         <p className="text-sm text-muted-foreground">{message}</p>
@@ -155,14 +155,14 @@ export function RootErrors({ errors }: RootErrorsProps) {
     <div
       className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3.5 py-2 text-xs"
       style={{
-        borderColor: "color-mix(in oklch, var(--sev-error) 30%, transparent)",
-        background: "color-mix(in oklch, var(--sev-error) 7%, transparent)",
+        borderColor: "color-mix(in oklch, var(--sev-critical) 30%, transparent)",
+        background: "color-mix(in oklch, var(--sev-critical) 7%, transparent)",
       }}
       role="alert"
     >
-      <CircleAlert className="size-3.5 shrink-0" style={{ color: "var(--sev-error)" }} />
+      <CircleAlert className="size-3.5 shrink-0" style={{ color: "var(--sev-critical)" }} />
       {errors.map((e) => (
-        <span key={e.rootId} style={{ color: "var(--sev-error)" }}>
+        <span key={e.rootId} style={{ color: "var(--sev-critical)" }}>
           Couldn&rsquo;t read <span className="font-mono">{e.path}</span>
           {e.message ? `: ${e.message}` : null}
         </span>

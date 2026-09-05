@@ -630,7 +630,7 @@ export function BentoProjectPage({
                       <span className="b-num text-sm">{git.dirtyCount ?? 0}</span>
                     </div>
                     {diverged ? (
-                      <p className="text-xs leading-relaxed" style={{ color: "var(--sev-error)" }}>
+                      <p className="text-xs leading-relaxed" style={{ color: "var(--sev-critical)" }}>
                         Diverged from upstream — a fast-forward pull isn&rsquo;t
                         possible. Reconcile the branches from a terminal.
                       </p>
@@ -708,7 +708,7 @@ export function BentoProjectPage({
                 <h2 className="b-label">pulse</h2>
                 {report ? (
                   reportStale ? (
-                    <span className="font-mono text-[0.64rem]" style={{ color: "var(--sev-warn)" }}>
+                    <span className="font-mono text-[0.64rem]" style={{ color: "var(--sev-warning)" }}>
                       stale
                     </span>
                   ) : (
@@ -757,9 +757,9 @@ export function BentoProjectPage({
                         style={{
                           color:
                             report.alerts[0].severity === "critical"
-                              ? "var(--sev-error)"
+                              ? "var(--sev-critical)"
                               : report.alerts[0].severity === "warning"
-                                ? "var(--sev-warn)"
+                                ? "var(--sev-warning)"
                                 : "var(--sev-info)",
                         }}
                       >

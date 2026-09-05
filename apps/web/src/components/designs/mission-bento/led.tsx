@@ -22,10 +22,10 @@ export const LED_TAG: Record<LedTone, string> = {
  */
 export function projectLed(p: Project, now: number): { tone: LedTone; label: string } {
   const worst = worstSeverity(p);
-  if (worst === "error") {
+  if (worst === "critical") {
     return { tone: "error", label: "Error alert open" };
   }
-  if (worst === "warn") {
+  if (worst === "warning") {
     return { tone: "warn", label: "Warning alert open" };
   }
   if (worst === "info") {

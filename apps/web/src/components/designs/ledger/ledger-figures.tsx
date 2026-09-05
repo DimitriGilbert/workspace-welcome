@@ -8,7 +8,7 @@ interface LedgerFiguresProps {
   /** Entries touched per week, oldest first, 12 buckets. */
   weekly: number[];
   stacks: { label: string; count: number }[];
-  severity: { error: number; warn: number; info: number };
+  severity: { critical: number; warning: number; info: number };
 }
 
 /**
@@ -99,8 +99,8 @@ export function LedgerFigures({
         role="group"
         aria-label="Alert tally"
       >
-        <SeverityFigure count={severity.error} label="errors" tone="text-sev-error" />
-        <SeverityFigure count={severity.warn} label="warnings" tone="text-sev-warn" />
+        <SeverityFigure count={severity.critical} label="errors" tone="text-sev-critical" />
+        <SeverityFigure count={severity.warning} label="warnings" tone="text-sev-warning" />
         <SeverityFigure count={severity.info} label="notes" tone="text-sev-info" />
       </div>
     </section>

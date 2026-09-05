@@ -179,8 +179,8 @@ export function MeadowReport({ scope, title, updatedAts }: MeadowReportProps) {
         <div
           className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-2.5 py-1.5 text-[10px]"
           style={{
-            color: "var(--sev-warn)",
-            background: "color-mix(in oklch, var(--sev-warn) 7%, transparent)",
+            color: "var(--sev-warning)",
+            background: "color-mix(in oklch, var(--sev-warning) 7%, transparent)",
           }}
         >
           Snapshot predates the latest work — charts show the existing report.
@@ -191,7 +191,7 @@ export function MeadowReport({ scope, title, updatedAts }: MeadowReportProps) {
             className="meadow-focus inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold transition-colors disabled:opacity-50"
             style={{
               borderColor:
-                "color-mix(in oklch, var(--sev-warn) 45%, var(--border))",
+                "color-mix(in oklch, var(--sev-warning) 45%, var(--border))",
             }}
             title="Run the snitch again for a fresh read"
           >
@@ -263,9 +263,9 @@ function GeneratedBadge({
       style={
         stale
           ? {
-              color: "var(--sev-warn)",
+              color: "var(--sev-warning)",
               background:
-                "color-mix(in oklch, var(--sev-warn) 12%, transparent)",
+                "color-mix(in oklch, var(--sev-warning) 12%, transparent)",
             }
           : {
               color: "var(--recency-fresh)",
@@ -338,7 +338,7 @@ function MissingState({
           {command}
         </pre>
       ) : commandError ? (
-        <p className="text-[10px]" style={{ color: "var(--sev-error)" }}>
+        <p className="text-[10px]" style={{ color: "var(--sev-critical)" }}>
           Command unavailable: {commandError}
         </p>
       ) : null}
@@ -348,8 +348,8 @@ function MissingState({
 
 const SEVERITY_BAR: Record<"info" | "warning" | "critical", string> = {
   info: "var(--sev-info)",
-  warning: "var(--sev-warn)",
-  critical: "var(--sev-error)",
+  warning: "var(--sev-warning)",
+  critical: "var(--sev-critical)",
 };
 
 function ReportCharts({ view, tab }: { view: ReportView; tab: ReportTab }) {

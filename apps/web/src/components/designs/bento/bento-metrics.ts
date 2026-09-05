@@ -6,7 +6,7 @@
 
 import type { ReportExport } from "@workspace-welcome/api/lib/report-export";
 import type { ReportExportProject } from "@workspace-welcome/api/lib/report-export";
-import type { Project } from "@workspace-welcome/api/lib/types";
+import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
 
 import { computeMosaicLayout } from "@/lib/mosaic-layout";
 
@@ -53,9 +53,9 @@ export function buildMosaic(
   const byPath = new Map(layout.placements.map((p) => [p.path, p]));
 
   const severityWeight = (p: Project) =>
-    p.alerts.some((a) => a.severity === "error")
+    p.alerts.some((a) => a.severity === "critical")
       ? 2
-      : p.alerts.some((a) => a.severity === "warn")
+      : p.alerts.some((a) => a.severity === "warning")
         ? 1
         : 0;
   const attention = projects
@@ -158,13 +158,13 @@ export function healthSummary(projects: Project[], now: number = Date.now()): He
   for (const p of projects) {
     let projectPenalty = 0;
     for (const a of p.alerts) {
-      if (a.severity === "error") projectPenalty += 14;
-      else if (a.severity === "warn") projectPenalty += 6;
+      if (a.severity === "critical") projectPenalty += 14;
+      else if (a.severity === "warning") projectPenalty += 6;
       else projectPenalty += 1.5;
     }
     penalty += Math.min(projectPenalty, 20);
     const hasBlocking = p.alerts.some(
-      (a) => a.severity === "error" || a.severity === "warn",
+      (a) => a.severity === "critical" || a.severity === "warning",
     );
     if (hasBlocking) flagged++;
     else clean++;
@@ -226,11 +226,11 @@ function startOfWeek(ms: number): number {
 
 /* ------------------------------------------------------------ severity */
 
-export type SeverityCounts = { error: number; warn: number; info: number };
+export type SeverityCounts = { critical: number; warning: number; info: number };
 
 /** Alert counts by severity across all visible projects. */
 export function severityCounts(projects: Project[]): SeverityCounts {
-  const counts: SeverityCounts = { error: 0, warn: 0, info: 0 };
+  const counts: SeverityCounts = { critical: 0, warning: 0, info: 0 };
   for (const p of projects) {
     for (const a of p.alerts) counts[a.severity]++;
   }
@@ -240,9 +240,9 @@ export function severityCounts(projects: Project[]): SeverityCounts {
 /** The worst alert severity a project carries, or null when clean. */
 export function worstSeverity(
   p: Project,
-): "error" | "warn" | "info" | null {
-  if (p.alerts.some((a) => a.severity === "error")) return "error";
-  if (p.alerts.some((a) => a.severity === "warn")) return "warn";
+): AlertSeverity | null {
+  if (p.alerts.some((a) => a.severity === "critical")) return "critical";
+  if (p.alerts.some((a) => a.severity === "warning")) return "warning";
   if (p.alerts.some((a) => a.severity === "info")) return "info";
   return null;
 }

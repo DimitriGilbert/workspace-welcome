@@ -556,7 +556,7 @@ function ProjectPage() {
                     </span>
                     <span
                       className="inline-flex items-center gap-1"
-                      style={{ color: "var(--sev-warn)" }}
+                      style={{ color: "var(--sev-warning)" }}
                     >
                       <ArrowDown className="size-3" />
                       {git.behind ?? 0}
@@ -572,7 +572,7 @@ function ProjectPage() {
                   </Row>
                 ) : null}
                 {diverged ? (
-                  <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+                  <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
                     Diverged from upstream — a fast-forward pull isn&rsquo;t
                     possible. Reconcile the branches from a terminal.
                   </p>

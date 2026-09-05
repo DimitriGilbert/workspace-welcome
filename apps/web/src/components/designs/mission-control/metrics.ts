@@ -15,8 +15,8 @@ export type SortId = "recent" | "severity" | "name";
 
 /** Worst alert severity carried by a project, or null when clean. */
 export function worstSeverity(p: Project): AlertSeverity | null {
-  if (p.alerts.some((a) => a.severity === "error")) return "error";
-  if (p.alerts.some((a) => a.severity === "warn")) return "warn";
+  if (p.alerts.some((a) => a.severity === "critical")) return "critical";
+  if (p.alerts.some((a) => a.severity === "warning")) return "warning";
   if (p.alerts.some((a) => a.severity === "info")) return "info";
   return null;
 }
@@ -24,8 +24,8 @@ export function worstSeverity(p: Project): AlertSeverity | null {
 /** Sort key for triage: errors surface first, clean projects sink. */
 export function severityRank(p: Project): number {
   const worst = worstSeverity(p);
-  if (worst === "error") return 0;
-  if (worst === "warn") return 1;
+  if (worst === "critical") return 0;
+  if (worst === "warning") return 1;
   if (worst === "info") return 2;
   return 3;
 }
@@ -124,7 +124,7 @@ export function partitionFleet(projects: Project[]): FleetPartition {
     archive: [],
   };
   for (const p of projects) {
-    if (p.alerts.some((a) => a.severity === "error" || a.severity === "warn")) {
+    if (p.alerts.some((a) => a.severity === "critical" || a.severity === "warning")) {
       partition.flagged.push(p);
     }
     if (p.pinned) {
@@ -164,7 +164,7 @@ export function fleetVitals(projects: Project[], now: number = Date.now()): Flee
   };
   for (const p of projects) {
     if (now - activityInstantMs(p, now) < 7 * 24 * 60 * 60 * 1000) vitals.activeWeek++;
-    if (p.alerts.some((a) => a.severity === "error" || a.severity === "warn")) {
+    if (p.alerts.some((a) => a.severity === "critical" || a.severity === "warning")) {
       vitals.attention++;
     }
     if (p.pinned) vitals.pinned++;
@@ -269,8 +269,8 @@ export interface SeverityRow {
 
 export function severityLedger(projects: Project[]): SeverityRow[] {
   const rows: SeverityRow[] = [
-    { severity: "error", count: 0, codes: [] },
-    { severity: "warn", count: 0, codes: [] },
+    { severity: "critical", count: 0, codes: [] },
+    { severity: "warning", count: 0, codes: [] },
     { severity: "info", count: 0, codes: [] },
   ];
   const codes = new Map<string, number>();

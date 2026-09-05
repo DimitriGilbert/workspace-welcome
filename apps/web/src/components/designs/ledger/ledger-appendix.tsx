@@ -86,7 +86,7 @@ export function LedgerAppendix({
                 <li
                   key={e.rootId}
                   className="ledger-marginalia-row"
-                  style={{ borderLeftColor: "var(--sev-error)" }}
+                  style={{ borderLeftColor: "var(--sev-critical)" }}
                 >
                   <p className="font-mono text-[0.68rem] leading-relaxed text-muted-foreground">
                     Couldn&rsquo;t read{" "}

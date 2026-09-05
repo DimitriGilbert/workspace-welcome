@@ -44,8 +44,8 @@ export function isHot(p: Project, now: number = Date.now()): boolean {
 
 /** Worst alert severity carried by a project, or null when clean. */
 export function worstSeverity(p: Project): AlertSeverity | null {
-  if (p.alerts.some((a) => a.severity === "error")) return "error";
-  if (p.alerts.some((a) => a.severity === "warn")) return "warn";
+  if (p.alerts.some((a) => a.severity === "critical")) return "critical";
+  if (p.alerts.some((a) => a.severity === "warning")) return "warning";
   if (p.alerts.some((a) => a.severity === "info")) return "info";
   return null;
 }
@@ -53,8 +53,8 @@ export function worstSeverity(p: Project): AlertSeverity | null {
 /** Sort key for triage: errors first, clean projects last. */
 export function severityRank(p: Project): number {
   const worst = worstSeverity(p);
-  if (worst === "error") return 0;
-  if (worst === "warn") return 1;
+  if (worst === "critical") return 0;
+  if (worst === "warning") return 1;
   if (worst === "info") return 2;
   return 3;
 }
@@ -81,7 +81,7 @@ export function fleetVitals(projects: Project[], now: number = Date.now()): Flee
   };
   for (const p of projects) {
     if (now - activityInstantMs(p, now) < 7 * 24 * 60 * 60 * 1000) vitals.liveWeek++;
-    if (p.alerts.some((a) => a.severity === "error" || a.severity === "warn")) {
+    if (p.alerts.some((a) => a.severity === "critical" || a.severity === "warning")) {
       vitals.triage++;
     }
     vitals.dirty += p.git.dirtyCount ?? 0;
@@ -188,7 +188,7 @@ export function channelCounts(
     cold: 0,
   };
   for (const p of projects) {
-    if (p.alerts.some((a) => a.severity === "error" || a.severity === "warn")) {
+    if (p.alerts.some((a) => a.severity === "critical" || a.severity === "warning")) {
       counts.triage++;
     }
     if (p.pinned) counts.pins++;

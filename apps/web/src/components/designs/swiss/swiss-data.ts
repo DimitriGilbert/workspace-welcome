@@ -52,7 +52,7 @@ export function computeSwissStats(projects: Project[]): SwissStats {
 
 /** Warn-or-worse — the threshold the needs-attention surface keys off. */
 export function hasAttention(p: Project): boolean {
-  return p.alerts.some((a) => a.severity === "error" || a.severity === "warn");
+  return p.alerts.some((a) => a.severity === "critical" || a.severity === "warning");
 }
 
 /** Projects carrying at least one alert of the given severity. */
@@ -121,9 +121,9 @@ export function stackBreakdown(projects: Project[]): StackCount[] {
   return top;
 }
 
-const SEVERITY_RANK: Record<AlertSeverity, number> = { error: 0, warn: 1, info: 2 };
+const SEVERITY_RANK: Record<AlertSeverity, number> = { critical: 0, warning: 1, info: 2 };
 
-/** Alerts ordered error → warn → info so the table's health marks read with
+/** Alerts ordered critical → warning → info so the table's health marks read with
  * a consistent rhythm regardless of scanner order. */
 export function sortedAlerts(alerts: Project["alerts"]): Project["alerts"] {
   return [...alerts].sort(

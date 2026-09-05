@@ -53,8 +53,8 @@ export function GitGlyphs({
         <span
           className="b-glyph"
           style={{
-            color: "var(--sev-warn)",
-            borderColor: "color-mix(in oklch, var(--sev-warn) 35%, transparent)",
+            color: "var(--sev-warning)",
+            borderColor: "color-mix(in oklch, var(--sev-warning) 35%, transparent)",
             ...(large ? { fontSize: 12, height: 24, padding: "0 8px" } : {}),
           }}
           title={`${behind} commit${behind === 1 ? "" : "s"} behind upstream`}

@@ -2,16 +2,16 @@ import { ArrowRight, Pin } from "lucide-react";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
 import { dateTooltip, relativeTime } from "@/lib/format";
-import type { Project } from "@workspace-welcome/api/lib/types";
+import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
 
 import { severityRank, worstSeverity } from "./metrics";
 import { ProjectActions } from "./project-actions";
 import { PulseStrip } from "./pulse-strip";
 import { useOpenDesignProject } from "./use-open-design-project";
 
-const SEV_LABEL: Record<"error" | "warn" | "info", string> = {
-  error: "ERR",
-  warn: "WRN",
+const SEV_LABEL: Record<AlertSeverity, string> = {
+  critical: "ERR",
+  warning: "WRN",
   info: "INF",
 };
 
@@ -38,17 +38,17 @@ export function AttentionBoard({
   const PREVIEW = 6;
   const preview = triaged.slice(0, PREVIEW);
   const overflow = triaged.length - preview.length;
-  const errors = triaged.filter((p) => worstSeverity(p) === "error").length;
+  const errors = triaged.filter((p) => worstSeverity(p) === "critical").length;
   const warns = triaged.length - errors;
 
   return (
     <section aria-label="Needs attention" className="mc-panel">
       <header className="flex items-center gap-3 border-b border-[var(--mc-line-strong)] px-4 py-2">
-        <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sev-warn)]">
+        <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--sev-warning)]">
           Triage
         </h2>
         <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-          {errors > 0 ? <span className="text-[var(--sev-error)]">{errors} err</span> : null}
+          {errors > 0 ? <span className="text-[var(--sev-critical)]">{errors} err</span> : null}
           {errors > 0 && warns > 0 ? <span className="mx-1.5 text-muted-foreground/40">/</span> : null}
           {warns > 0 ? <span>{warns} warn</span> : null}
         </span>
@@ -74,8 +74,8 @@ export function AttentionBoard({
                 aria-hidden
                 className={cn(
                   "w-7 shrink-0 font-mono text-[9px] tracking-[0.1em]",
-                  worst === "error" && "text-[var(--sev-error)]",
-                  worst === "warn" && "text-[var(--sev-warn)]",
+                  worst === "critical" && "text-[var(--sev-critical)]",
+                  worst === "warning" && "text-[var(--sev-warning)]",
                   worst === "info" && "text-[var(--sev-info)]",
                 )}
               >

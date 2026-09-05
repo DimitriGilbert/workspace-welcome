@@ -159,8 +159,8 @@ function LedgerPage() {
 
   const severity = useMemo(
     () => ({
-      error: visible.filter((p) => p.alerts.some((a) => a.severity === "error")).length,
-      warn: visible.filter((p) => p.alerts.some((a) => a.severity === "warn")).length,
+      critical: visible.filter((p) => p.alerts.some((a) => a.severity === "critical")).length,
+      warning: visible.filter((p) => p.alerts.some((a) => a.severity === "warning")).length,
       info: visible.filter((p) => p.alerts.some((a) => a.severity === "info")).length,
     }),
     [visible],
@@ -171,7 +171,7 @@ function LedgerPage() {
     const entries: AttentionEntry[] = [];
     for (const project of visible) {
       for (const alert of project.alerts) {
-        if (alert.severity === "error" || alert.severity === "warn") {
+        if (alert.severity === "critical" || alert.severity === "warning") {
           entries.push({
             project,
             code: alert.code,
@@ -181,7 +181,7 @@ function LedgerPage() {
         }
       }
     }
-    const severityRank = (s: AttentionEntry["severity"]) => (s === "error" ? 0 : 1);
+    const severityRank = (s: AttentionEntry["severity"]) => (s === "critical" ? 0 : 1);
     entries.sort((a, b) => {
       const bySeverity = severityRank(a.severity) - severityRank(b.severity);
       if (bySeverity !== 0) return bySeverity;

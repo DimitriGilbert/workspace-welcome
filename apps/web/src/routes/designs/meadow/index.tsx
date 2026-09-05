@@ -311,8 +311,8 @@ function ScanErrorPanel({
         aria-hidden
         className="flex size-12 items-center justify-center rounded-full"
         style={{
-          color: "var(--sev-error)",
-          background: "color-mix(in oklch, var(--sev-error) 9%, transparent)",
+          color: "var(--sev-critical)",
+          background: "color-mix(in oklch, var(--sev-critical) 9%, transparent)",
         }}
       >
         <CloudOff className="size-5" />

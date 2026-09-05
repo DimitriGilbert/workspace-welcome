@@ -313,9 +313,9 @@ function HomeComponent() {
 
           {/* Root errors (missing dirs etc.) */}
           {scan.data?.rootErrors.length ? (
-            <div className="flex flex-col gap-1 border-l-2 p-3 text-xs" style={{ borderColor: "var(--sev-error)" }}>
+            <div className="flex flex-col gap-1 border-l-2 p-3 text-xs" style={{ borderColor: "var(--sev-critical)" }}>
               {scan.data.rootErrors.map((e) => (
-                <span key={e.rootId} style={{ color: "var(--sev-error)" }}>
+                <span key={e.rootId} style={{ color: "var(--sev-critical)" }}>
                   Couldn&rsquo;t read <span className="font-mono">{e.path}</span>:{" "}
                   {e.message}
                 </span>

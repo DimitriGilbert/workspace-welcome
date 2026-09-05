@@ -139,7 +139,7 @@ export function ArtifactsPanel({ project }: { project: string }) {
         {config.isLoading ? (
           <Skeleton className="h-40" />
         ) : listing.isError ? (
-          <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+          <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
             {listing.error.message}
           </p>
         ) : (
@@ -147,13 +147,13 @@ export function ArtifactsPanel({ project }: { project: string }) {
             {(listing.data?.skippedDirs.length ?? 0) > 0 ? (
               <div
                 className="flex flex-col gap-0.5 border border-dashed px-2 py-1.5"
-                style={{ borderColor: "var(--sev-warn)" }}
+                style={{ borderColor: "var(--sev-warning)" }}
               >
                 {listing.data?.skippedDirs.map((skipped) => (
                   <p
                     key={skipped.dir}
                     className="font-mono text-[0.65rem]"
-                    style={{ color: "var(--sev-warn)" }}
+                    style={{ color: "var(--sev-warning)" }}
                   >
                     {skipped.dir} — {skipped.reason}
                   </p>

@@ -41,8 +41,8 @@
   --pinned-accent-wash: oklch(0.82 0.13 90 / 0.1);
 
   --sev-info: oklch(0.72 0.07 240);
-  --sev-warn: oklch(0.81 0.13 85);
-  --sev-error: oklch(0.72 0.17 25);
+  --sev-warning: oklch(0.81 0.13 85);
+  --sev-critical: oklch(0.72 0.17 25);
   --state-positive: oklch(0.82 0.15 160);
 
   /* Console-specific structure tokens. */

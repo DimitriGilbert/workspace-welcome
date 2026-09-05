@@ -464,7 +464,7 @@ function DesignProjectPage() {
                   <ArrowUp aria-hidden className="size-3" />
                   {git.ahead ?? 0}
                 </span>
-                <span className="inline-flex items-center gap-1 text-[var(--sev-warn)]">
+                <span className="inline-flex items-center gap-1 text-[var(--sev-warning)]">
                   <ArrowDown aria-hidden className="size-3" />
                   {git.behind ?? 0}
                 </span>
@@ -472,7 +472,7 @@ function DesignProjectPage() {
                 <span
                   className={
                     (git.dirtyCount ?? 0) > 0
-                      ? "text-[var(--sev-warn)]"
+                      ? "text-[var(--sev-warning)]"
                       : "text-muted-foreground"
                   }
                 >
@@ -486,7 +486,7 @@ function DesignProjectPage() {
               </Row>
             ) : null}
             {diverged ? (
-              <p className="text-[11px] leading-relaxed text-[var(--sev-error)]">
+              <p className="text-[11px] leading-relaxed text-[var(--sev-critical)]">
                 Diverged — fast-forward pull impossible.
               </p>
             ) : null}
@@ -510,7 +510,7 @@ function DesignProjectPage() {
           <span
             className={
               project.alerts.length > 0
-                ? "text-[var(--sev-warn)]"
+                ? "text-[var(--sev-warning)]"
                 : "text-[var(--state-positive)]"
             }
           >

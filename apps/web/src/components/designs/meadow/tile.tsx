@@ -650,9 +650,9 @@ function FactsTable({
 function severityColor(severity: "info" | "warning" | "critical"): string {
   switch (severity) {
     case "critical":
-      return "var(--sev-error)";
+      return "var(--sev-critical)";
     case "warning":
-      return "var(--sev-warn)";
+      return "var(--sev-warning)";
     default:
       return "var(--sev-info)";
   }

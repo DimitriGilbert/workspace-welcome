@@ -18,7 +18,7 @@ interface SeverityTileProps {
  * size — no stranded half-empty block.
  */
 export function SeverityTile({ projects, counts }: SeverityTileProps) {
-  const total = counts.error + counts.warn + counts.info;
+  const total = counts.critical + counts.warning + counts.info;
   const leaders = dirtyLeaders(projects, 6);
   const maxDirty = leaders[0]?.dirty ?? 1;
 
@@ -47,21 +47,21 @@ export function SeverityTile({ projects, counts }: SeverityTileProps) {
           <div
             className="b-segbar"
             role="img"
-            aria-label={`${counts.error} errors, ${counts.warn} warnings, ${counts.info} info alerts`}
+            aria-label={`${counts.critical} errors, ${counts.warning} warnings, ${counts.info} info alerts`}
           >
-            {counts.error > 0 ? (
+            {counts.critical > 0 ? (
               <span
                 style={{
-                  flexGrow: counts.error,
-                  background: "var(--sev-error)",
+                  flexGrow: counts.critical,
+                  background: "var(--sev-critical)",
                 }}
               />
             ) : null}
-            {counts.warn > 0 ? (
+            {counts.warning > 0 ? (
               <span
                 style={{
-                  flexGrow: counts.warn,
-                  background: "var(--sev-warn)",
+                  flexGrow: counts.warning,
+                  background: "var(--sev-warning)",
                 }}
               />
             ) : null}
@@ -76,8 +76,8 @@ export function SeverityTile({ projects, counts }: SeverityTileProps) {
           </div>
 
           <dl className="grid grid-cols-3 gap-2">
-            <SeverityStat icon={OctagonAlert} label="Errors" count={counts.error} color="var(--sev-error)" />
-            <SeverityStat icon={TriangleAlert} label="Warnings" count={counts.warn} color="var(--sev-warn)" />
+            <SeverityStat icon={OctagonAlert} label="Errors" count={counts.critical} color="var(--sev-critical)" />
+            <SeverityStat icon={TriangleAlert} label="Warnings" count={counts.warning} color="var(--sev-warning)" />
             <SeverityStat icon={CircleAlert} label="Info" count={counts.info} color="var(--sev-info)" />
           </dl>
         </>

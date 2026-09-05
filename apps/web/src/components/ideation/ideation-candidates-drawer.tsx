@@ -70,7 +70,7 @@ function CandidateRow({ candidate, project }: {
         </p>
       ) : null}
       {candidate.error !== undefined ? (
-        <p className="text-[0.7rem] leading-relaxed" style={{ color: "var(--sev-error)" }}>
+        <p className="text-[0.7rem] leading-relaxed" style={{ color: "var(--sev-critical)" }}>
           {candidate.error}
         </p>
       ) : null}
@@ -122,7 +122,7 @@ export function IdeationCandidatesDrawer({
               <Skeleton className="h-14" />
             </div>
           ) : candidatesQuery.isError ? (
-            <p className="text-xs leading-relaxed" style={{ color: "var(--sev-error)" }}>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--sev-critical)" }}>
               {candidatesQuery.error.message}
             </p>
           ) : stepGroups.length === 0 ? (

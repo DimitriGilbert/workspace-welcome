@@ -54,8 +54,8 @@
   --recency-fresh-wash: rgb(22 22 20 / 0.05);
   --pinned-accent: var(--swiss-ink);
   --pinned-accent-wash: rgb(22 22 20 / 0.04);
-  --sev-error: var(--swiss-red);
-  --sev-warn: var(--swiss-red);
+  --sev-critical: var(--swiss-red);
+  --sev-warning: var(--swiss-red);
   --sev-info: #8f8f84;
   --state-positive: var(--swiss-ink);
   --eyebrow: var(--swiss-dim);

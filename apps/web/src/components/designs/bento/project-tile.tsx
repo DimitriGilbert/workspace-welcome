@@ -68,8 +68,8 @@ export function formatCost(cost: number): string {
 }
 
 const SEVERITY_COLOR = {
-  critical: "var(--sev-error)",
-  warning: "var(--sev-warn)",
+  critical: "var(--sev-critical)",
+  warning: "var(--sev-warning)",
   info: "var(--sev-info)",
 } as const;
 
@@ -463,7 +463,7 @@ function HeroTile({
             {reportStale ? (
               <span
                 className="font-mono text-[0.6rem]"
-                style={{ color: "var(--sev-warn)" }}
+                style={{ color: "var(--sev-warning)" }}
                 title="The project moved on after this snapshot was generated"
               >
                 · data stale

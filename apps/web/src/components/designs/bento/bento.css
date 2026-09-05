@@ -37,8 +37,8 @@
   --ring: oklch(0.72 0.125 235);
 
   /* Semantic states stay recognisable, tuned for the cooler base. */
-  --sev-error: oklch(0.72 0.17 25);
-  --sev-warn: oklch(0.82 0.13 85);
+  --sev-critical: oklch(0.72 0.17 25);
+  --sev-warning: oklch(0.82 0.13 85);
   --sev-info: oklch(0.72 0.09 240);
   --state-positive: oklch(0.79 0.12 155);
   --pinned-accent: oklch(0.82 0.13 85);

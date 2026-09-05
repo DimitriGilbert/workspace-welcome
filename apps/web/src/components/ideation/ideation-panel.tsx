@@ -361,7 +361,7 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
           ) : sessionsQuery.isError ? (
             <p
               className="mt-2 text-[0.7rem] leading-relaxed"
-              style={{ color: "var(--sev-error)" }}
+              style={{ color: "var(--sev-critical)" }}
             >
               {sessionsQuery.error.message}
             </p>
@@ -393,7 +393,7 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
         </div>
       ) : sessionQuery.isError ? (
         <div className="mt-2 flex flex-col gap-2">
-          <p className="text-[0.7rem] leading-relaxed" style={{ color: "var(--sev-error)" }}>
+          <p className="text-[0.7rem] leading-relaxed" style={{ color: "var(--sev-critical)" }}>
             {sessionQuery.error.message}
           </p>
           <div>

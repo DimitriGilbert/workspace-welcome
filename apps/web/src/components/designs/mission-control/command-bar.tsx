@@ -31,7 +31,7 @@ function AnimatedNumeral({
     <motion.dd
       className={cn(
         "font-mono text-[28px] leading-none font-medium tracking-tighter tabular-nums min-[2200px]:text-[34px]",
-        tone === "warn" && "text-[var(--sev-warn)]",
+        tone === "warn" && "text-[var(--sev-warning)]",
         tone === "accent" && "text-[var(--mc-accent)]",
         !tone && "text-foreground",
       )}

@@ -115,7 +115,7 @@ export interface StackInfo {
   manifest: string;
 }
 
-export type AlertSeverity = "error" | "warn" | "info";
+export type AlertSeverity = "critical" | "warning" | "info";
 
 export type AlertCode =
   | "no-remote"

@@ -23,8 +23,8 @@ type ReportTabId = "graph" | "table";
 
 const SEV_FILL: Record<string, string> = {
   info: "var(--sev-info)",
-  warning: "var(--sev-warn)",
-  critical: "var(--sev-error)",
+  warning: "var(--sev-warning)",
+  critical: "var(--sev-critical)",
 };
 
 const SEV_RANK: Record<string, number> = { critical: 0, warning: 1, info: 2 };
@@ -246,10 +246,10 @@ function ReportStatusLine({
         <button
           type="button"
           onClick={onGenerate}
-          className="flex items-center gap-1.5 border border-[color-mix(in_oklch,var(--sev-warn)_45%,transparent)] px-1.5 py-0.5 text-[var(--sev-warn)] outline-none transition-colors hover:bg-[color-mix(in_oklch,var(--sev-warn)_12%,transparent)] focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex items-center gap-1.5 border border-[color-mix(in_oklch,var(--sev-warning)_45%,transparent)] px-1.5 py-0.5 text-[var(--sev-warning)] outline-none transition-colors hover:bg-[color-mix(in_oklch,var(--sev-warning)_12%,transparent)] focus-visible:ring-1 focus-visible:ring-ring"
           title={`Data is stale — click to regenerate.`}
         >
-          <span aria-hidden className="mc-stale-dot size-1.5 bg-[var(--sev-warn)]" />
+          <span aria-hidden className="mc-stale-dot size-1.5 bg-[var(--sev-warning)]" />
           stale · regenerate
         </button>
       ) : generatedAt !== null ? (
@@ -309,7 +309,7 @@ function ReportMissing({
         </button>
         {command !== null ? <CopyButton text={command} /> : null}
         {commandError ? (
-          <span className="font-mono text-[10px] text-[var(--sev-error)]">
+          <span className="font-mono text-[10px] text-[var(--sev-critical)]">
             {commandError}
           </span>
         ) : null}
@@ -410,7 +410,7 @@ const unitColumns = unitHelper.columns([
         <span
           className={cn(
             "block text-right font-mono text-[10.5px] tabular-nums",
-            v > 0 ? "text-[var(--sev-warn)]" : "text-muted-foreground/30",
+            v > 0 ? "text-[var(--sev-warning)]" : "text-muted-foreground/30",
           )}
         >
           {v > 0 ? v : "·"}

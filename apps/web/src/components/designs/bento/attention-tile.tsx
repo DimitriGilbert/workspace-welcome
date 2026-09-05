@@ -19,8 +19,8 @@ interface AttentionTileProps {
 const PREVIEW = 6;
 
 const SEVERITY_ICON: Record<Exclude<AlertSeverity, "info">, LucideIcon> = {
-  error: OctagonAlert,
-  warn: TriangleAlert,
+  critical: OctagonAlert,
+  warning: TriangleAlert,
 };
 
 /**
@@ -34,7 +34,7 @@ export function AttentionTile({ attention, totalProjects }: AttentionTileProps) 
   const [expanded, setExpanded] = useState(false);
 
   const errors = attention.filter((p) =>
-    p.alerts.some((a) => a.severity === "error"),
+    p.alerts.some((a) => a.severity === "critical"),
   ).length;
   const warns = attention.length - errors;
   const visible = expanded ? attention : attention.slice(0, PREVIEW);
@@ -48,17 +48,17 @@ export function AttentionTile({ attention, totalProjects }: AttentionTileProps) 
             value={attention.length}
             label={`${attention.length} projects need attention`}
             className="b-num text-[30px]"
-            style={{ color: attention.length > 0 ? "var(--sev-warn)" : "var(--state-positive)" }}
+            style={{ color: attention.length > 0 ? "var(--sev-warning)" : "var(--state-positive)" }}
           />
           {attention.length > 0 ? (
             <span className="flex items-center gap-2 font-mono text-[0.68rem]">
               {errors > 0 ? (
-                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-error)" }}>
+                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-critical)" }}>
                   <OctagonAlert className="size-3" /> {errors} {errors === 1 ? "error" : "errors"}
                 </span>
               ) : null}
               {warns > 0 ? (
-                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-warn)" }}>
+                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-warning)" }}>
                   <TriangleAlert className="size-3" /> {warns} {warns === 1 ? "warning" : "warnings"}
                 </span>
               ) : null}
@@ -83,11 +83,11 @@ export function AttentionTile({ attention, totalProjects }: AttentionTileProps) 
           <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {visible.map((p) => {
               const blocking = p.alerts.filter(
-                (a) => a.severity === "error" || a.severity === "warn",
+                (a) => a.severity === "critical" || a.severity === "warning",
               );
-              const worst = blocking.some((a) => a.severity === "error")
-                ? "error"
-                : "warn";
+              const worst = blocking.some((a) => a.severity === "critical")
+                ? "critical"
+                : "warning";
               const Icon = SEVERITY_ICON[worst];
               return (
                 <li key={p.path} className="flex min-h-10 flex-1">
@@ -98,7 +98,7 @@ export function AttentionTile({ attention, totalProjects }: AttentionTileProps) 
                   >
                     <Icon
                       className="size-4 shrink-0"
-                      style={{ color: worst === "error" ? "var(--sev-error)" : "var(--sev-warn)" }}
+                      style={{ color: worst === "critical" ? "var(--sev-critical)" : "var(--sev-warning)" }}
                     />
                     <span className="w-32 shrink-0 truncate text-[0.82rem] font-semibold tracking-tight sm:w-64">
                       {p.name}
@@ -109,16 +109,16 @@ export function AttentionTile({ attention, totalProjects }: AttentionTileProps) 
                           key={a.code}
                           className="inline-flex max-w-full items-center truncate rounded-md px-2 py-0.5 text-[0.7rem] font-medium"
                           style={
-                            a.severity === "error"
+                            a.severity === "critical"
                               ? {
                                   background:
-                                    "color-mix(in oklch, var(--sev-error) 13%, transparent)",
-                                  color: "var(--sev-error)",
+                                    "color-mix(in oklch, var(--sev-critical) 13%, transparent)",
+                                  color: "var(--sev-critical)",
                                 }
                               : {
                                   background:
-                                    "color-mix(in oklch, var(--sev-warn) 12%, transparent)",
-                                  color: "var(--sev-warn)",
+                                    "color-mix(in oklch, var(--sev-warning) 12%, transparent)",
+                                  color: "var(--sev-warning)",
                                 }
                           }
                         >

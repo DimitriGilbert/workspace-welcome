@@ -19,8 +19,8 @@ import { compactAge } from "@/components/designs/meadow/derive";
 const PREVIEW_CHIPS = 8;
 
 const CHIP_TONE = {
-  error: "var(--sev-error)",
-  warn: "var(--sev-warn)",
+  critical: "var(--sev-critical)",
+  warning: "var(--sev-warning)",
 } as const;
 
 export function AttentionBand({ projects }: { projects: Project[] }) {
@@ -29,7 +29,7 @@ export function AttentionBand({ projects }: { projects: Project[] }) {
   if (projects.length === 0) return null;
 
   const errorCount = projects.filter((p) =>
-    p.alerts.some((a) => a.severity === "error"),
+    p.alerts.some((a) => a.severity === "critical"),
   ).length;
   const warnCount = projects.length - errorCount;
   const visible = expanded ? projects : projects.slice(0, PREVIEW_CHIPS);
@@ -41,16 +41,16 @@ export function AttentionBand({ projects }: { projects: Project[] }) {
       aria-label="Projects that need care"
       className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 rounded-full border px-4 py-2"
       style={{
-        borderColor: "color-mix(in oklch, var(--sev-warn) 24%, var(--border))",
-        background: "color-mix(in oklch, var(--sev-warn) 5%, var(--card))",
+        borderColor: "color-mix(in oklch, var(--sev-warning) 24%, var(--border))",
+        background: "color-mix(in oklch, var(--sev-warning) 5%, var(--card))",
       }}
     >
       <span
         aria-hidden
         className="flex size-5 shrink-0 items-center justify-center rounded-full"
         style={{
-          color: "var(--sev-warn)",
-          background: "color-mix(in oklch, var(--sev-warn) 14%, transparent)",
+          color: "var(--sev-warning)",
+          background: "color-mix(in oklch, var(--sev-warning) 14%, transparent)",
         }}
       >
         <Bell className="size-3" />
@@ -63,7 +63,7 @@ export function AttentionBand({ projects }: { projects: Project[] }) {
               <SoftNumber
                 value={errorCount}
                 className="tabular-nums"
-                style={{ color: "var(--sev-error)" }}
+                style={{ color: "var(--sev-critical)" }}
               />{" "}
               {errorCount === 1 ? "error" : "errors"}
             </>
@@ -74,7 +74,7 @@ export function AttentionBand({ projects }: { projects: Project[] }) {
               <SoftNumber
                 value={warnCount}
                 className="tabular-nums"
-                style={{ color: "var(--sev-warn)" }}
+                style={{ color: "var(--sev-warning)" }}
               />{" "}
               {warnCount === 1 ? "warning" : "warnings"}
             </>
@@ -84,9 +84,9 @@ export function AttentionBand({ projects }: { projects: Project[] }) {
 
       <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
         {visible.map((p) => {
-          const worst = p.alerts.find((a) => a.severity === "error")
-            ? "error"
-            : "warn";
+          const worst = p.alerts.find((a) => a.severity === "critical")
+            ? "critical"
+            : "warning";
           const message =
             p.alerts.find((a) => a.severity === worst)?.message ?? "";
           return (

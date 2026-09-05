@@ -29,14 +29,14 @@ export function freshnessCounts(projects: Project[]): FreshnessCounts {
 }
 
 export interface SeverityCounts {
-  error: number;
-  warn: number;
+  critical: number;
+  warning: number;
   info: number;
 }
 
 /** Total alert signals by severity across all projects. */
 export function severityCounts(projects: Project[]): SeverityCounts {
-  const counts: SeverityCounts = { error: 0, warn: 0, info: 0 };
+  const counts: SeverityCounts = { critical: 0, warning: 0, info: 0 };
   for (const p of projects) {
     for (const a of p.alerts) counts[a.severity]++;
   }
@@ -49,10 +49,10 @@ export function severityCounts(projects: Project[]): SeverityCounts {
  */
 export function flaggedProjects(projects: Project[]): Project[] {
   const errorRank = (p: Project) =>
-    p.alerts.some((a) => a.severity === "error") ? 0 : 1;
+    p.alerts.some((a) => a.severity === "critical") ? 0 : 1;
   return projects
     .filter((p) =>
-      p.alerts.some((a) => a.severity === "error" || a.severity === "warn"),
+      p.alerts.some((a) => a.severity === "critical" || a.severity === "warning"),
     )
     .sort(
       (a, b) =>

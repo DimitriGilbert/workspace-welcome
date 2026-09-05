@@ -44,8 +44,8 @@ import { useOpenDesignProject } from "./use-open-design-project";
 // ---------------------------------------------------------------------------
 
 function severityRankOf(p: Project): number {
-  if (p.alerts.some((a) => a.severity === "error")) return 0;
-  if (p.alerts.some((a) => a.severity === "warn")) return 1;
+  if (p.alerts.some((a) => a.severity === "critical")) return 0;
+  if (p.alerts.some((a) => a.severity === "warning")) return 1;
   if (p.alerts.some((a) => a.severity === "info")) return 2;
   return 3;
 }
@@ -423,10 +423,10 @@ function SortHeaderLabel({
 
 function StatusLed({ project, now }: { project: Project; now: number }) {
   const worst =
-    project.alerts.some((a) => a.severity === "error")
-      ? "error"
-      : project.alerts.some((a) => a.severity === "warn")
-        ? "warn"
+    project.alerts.some((a) => a.severity === "critical")
+      ? "critical"
+      : project.alerts.some((a) => a.severity === "warning")
+        ? "warning"
         : project.alerts.some((a) => a.severity === "info")
           ? "info"
           : null;
@@ -440,8 +440,8 @@ function StatusLed({ project, now }: { project: Project; now: number }) {
       title={label}
       className={cn(
         "inline-block size-1.5",
-        tone === "error" && "bg-[var(--sev-error)]",
-        tone === "warn" && "bg-[var(--sev-warn)]",
+        tone === "critical" && "bg-[var(--sev-critical)]",
+        tone === "warning" && "bg-[var(--sev-warning)]",
         tone === "fresh" && "bg-[var(--mc-accent)]",
         tone === "info" && "bg-[var(--sev-info)]",
         !tone && "border border-[var(--mc-line-strong)]",
@@ -522,7 +522,7 @@ function N({ value, tone }: { value: number | null; tone?: "up" | "warn" }) {
       className={cn(
         "tabular-nums",
         tone === "up" && "text-[var(--mc-accent)]",
-        tone === "warn" && "text-[var(--sev-warn)]",
+        tone === "warn" && "text-[var(--sev-warning)]",
       )}
     >
       {value}

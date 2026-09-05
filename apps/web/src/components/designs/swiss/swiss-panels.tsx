@@ -137,8 +137,8 @@ export function ChartBand({ projects }: { projects: Project[] }) {
   const maxBucket = Math.max(1, ...buckets.map((b) => b.count));
   const stacks = stackBreakdown(projects);
   const maxStack = Math.max(1, ...stacks.map((s) => s.count));
-  const errors = bySeverity(projects, "error");
-  const warns = bySeverity(projects, "warn");
+  const errors = bySeverity(projects, "critical");
+  const warns = bySeverity(projects, "warning");
   const infos = bySeverity(projects, "info");
   const flaggedCount = errors.length + warns.length + infos.length;
 
@@ -249,8 +249,8 @@ export function ChartBand({ projects }: { projects: Project[] }) {
           </div>
         ) : (
           <div>
-            {severityRow("error", "Error", errors, "swiss-dot-error")}
-            {severityRow("warn", "Warn", warns, "swiss-dot-warn")}
+            {severityRow("critical", "Error", errors, "swiss-dot-error")}
+            {severityRow("warning", "Warn", warns, "swiss-dot-warn")}
             {severityRow("info", "Info", infos, "swiss-dot-info")}
           </div>
         )}

@@ -47,8 +47,8 @@ html:has(.ledger-scope) {
   --pinned-accent: oklch(0.38 0.09 85);
   --pinned-accent-wash: oklch(0.38 0.09 85 / 0.08);
   --sev-info: oklch(0.42 0.08 250);
-  --sev-warn: oklch(0.38 0.09 85);
-  --sev-error: oklch(0.45 0.19 27);
+  --sev-warning: oklch(0.38 0.09 85);
+  --sev-critical: oklch(0.45 0.19 27);
   --state-positive: oklch(0.37 0.07 150);
   --eyebrow: oklch(0.42 0.02 65);
 

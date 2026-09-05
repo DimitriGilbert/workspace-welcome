@@ -132,7 +132,7 @@ export function NavRail({
                     "absolute font-mono text-[9px] leading-none tabular-nums",
                     vertical ? "right-0.5 top-0.5" : "right-1 top-1",
                     item.hot
-                      ? "text-[var(--sev-warn)]"
+                      ? "text-[var(--sev-warning)]"
                       : active
                         ? "text-[var(--mc-accent)]"
                         : "text-muted-foreground",

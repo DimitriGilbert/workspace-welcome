@@ -280,7 +280,7 @@ function DirectoriesCard({
               className="size-1.5 shrink-0 rounded-full"
               style={{
                 backgroundColor: errorRootIds.has(r.id)
-                  ? "var(--sev-error)"
+                  ? "var(--sev-critical)"
                   : "var(--recency-fresh)",
               }}
             />
@@ -297,7 +297,7 @@ function DirectoriesCard({
             key={`err-${e.rootId}`}
             className="truncate text-[10px]"
             title={`${e.path}: ${e.message}`}
-            style={{ color: "var(--sev-error)" }}
+            style={{ color: "var(--sev-critical)" }}
           >
             couldn&rsquo;t read {pathBasename(e.path)}
           </li>

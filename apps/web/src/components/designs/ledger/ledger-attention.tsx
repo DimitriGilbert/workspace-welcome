@@ -6,7 +6,7 @@ import { useOpenProject } from "@/lib/open-project";
 export interface AttentionEntry {
   project: Project;
   code: AlertCode;
-  severity: "error" | "warn";
+  severity: "critical" | "warning";
   message: string;
 }
 
@@ -39,9 +39,9 @@ export function LedgerAttention({ entries }: { entries: AttentionEntry[] }) {
               className="ledger-attention-row"
               style={{
                 borderLeftColor:
-                  entry.severity === "error"
-                    ? "var(--sev-error)"
-                    : "var(--sev-warn)",
+                  entry.severity === "critical"
+                    ? "var(--sev-critical)"
+                    : "var(--sev-warning)",
               }}
             >
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -55,12 +55,12 @@ export function LedgerAttention({ entries }: { entries: AttentionEntry[] }) {
                 <span
                   className={
                     "ledger-cap " +
-                    (entry.severity === "error"
-                      ? "text-sev-error"
-                      : "text-sev-warn")
+                    (entry.severity === "critical"
+                      ? "text-sev-critical"
+                      : "text-sev-warning")
                   }
                 >
-                  {entry.severity === "error" ? "error" : "warning"}
+                  {entry.severity === "critical" ? "critical" : "warning"}
                 </span>
                 <span className="font-mono text-xs text-muted-foreground">
                   {entry.message}

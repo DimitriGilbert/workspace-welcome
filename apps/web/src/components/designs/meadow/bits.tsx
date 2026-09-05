@@ -80,8 +80,8 @@ export function SectionIntro({
 }
 
 const SEVERITY_COLOR: Record<AlertSeverity, string> = {
-  error: "var(--sev-error)",
-  warn: "var(--sev-warn)",
+  critical: "var(--sev-critical)",
+  warning: "var(--sev-warning)",
   info: "var(--sev-info)",
 };
 
