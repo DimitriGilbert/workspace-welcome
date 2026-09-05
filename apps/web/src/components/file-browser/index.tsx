@@ -38,7 +38,16 @@ const TREE_MAX_RATIO = 0.6;
  * Every mutation refreshes the affected directory, and the server confines
  * all of it to the project subtree regardless of what the client asks for.
  */
-export function FileBrowser({ project }: { project: string }) {
+export function FileBrowser({
+  project,
+  height = "70vh",
+}: {
+  project: string;
+  /** Shared height of the tree/viewer split panes. A prop (not a utility
+   * class) so containers can size it without `[class*="h-[70vh]"]`
+   * CSS-override hacks. */
+  height?: string;
+}) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const treeApi = useRef<FileTreeApi | null>(null);
@@ -196,7 +205,11 @@ export function FileBrowser({ project }: { project: string }) {
         ) : null}
         {/* Fixed shared height so both panes are equal and scroll
             independently; the resize handle stretches the full height. */}
-        <div ref={splitRef} className="flex h-[70vh] min-w-0 items-stretch gap-0">
+        <div
+          ref={splitRef}
+          className="flex min-w-0 items-stretch gap-0"
+          style={{ height }}
+        >
           <div
             className="shrink-0 overflow-y-auto"
             style={{ width: `${treeWidth}px` }}
