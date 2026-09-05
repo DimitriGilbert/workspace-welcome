@@ -1,0 +1,118 @@
+/*
+ * Meadow custom skin (master plan §5 T2-meadow) — additive chrome only,
+ * loaded by the /app route head (stripped by ?bare=1). This file composes
+ * the scope tokens declared in tokens.css; it never declares palette
+ * values itself.
+ *
+ * Ported from `components/designs/meadow/meadow.css`: the morning-light
+ * glows, the soft panel shells with their layered low-chroma shadows and
+ * hover lift, pill controls, the active-tab register, and the warm
+ * drag-separator of the context panel's two-panel split.
+ */
+
+/* Morning light: two soft warm glows pinned to the viewport top. */
+[data-ww-theme="meadow"][data-theme-scope] {
+  min-height: 100svh;
+  background:
+    radial-gradient(
+      1100px 420px at 15% -8%,
+      color-mix(in oklch, var(--accent) 55%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      950px 400px at 85% -10%,
+      color-mix(in oklch, var(--pinned-accent) 22%, transparent),
+      transparent 70%
+    ),
+    var(--background);
+  background-attachment: fixed;
+}
+
+/* Soft panel shell for every widget — the design's `.meadow-panel`. */
+[data-ww-theme="meadow"] [data-slot="widget-shell"] {
+  border: 1px solid var(--chrome-hairline);
+  border-radius: var(--chrome-radius);
+  background: var(--chrome-panel-bg);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--foreground) 4%, transparent),
+    0 14px 36px -22px color-mix(in oklch, var(--foreground) 24%, transparent);
+}
+
+/* The design's `.meadow-lift`, on draggable widgets only. */
+[data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"] {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+[data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"]:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--recency-fresh) 30%, var(--border));
+  box-shadow:
+    0 2px 4px color-mix(in oklch, var(--foreground) 5%, transparent),
+    0 22px 48px -22px color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+/* Rounded geometry: buttons relax to pills inside the meadow scope. */
+[data-ww-theme="meadow"] [data-slot="button"] {
+  border-radius: 999px;
+}
+
+/* Digest cards inside the context panel — the design's soft inner block. */
+[data-ww-theme="meadow"] [data-slot="meadow-card"] {
+  border: 1px solid var(--chrome-hairline);
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in oklch, var(--muted) 30%, var(--card));
+}
+
+/* In-content tabs render as the design's pill tabs; activation is the
+   primary's register (`.meadow-tab-active`). */
+[data-ww-theme="meadow"] [data-slot="widget-tabs"] [role="tab"] {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+[data-ww-theme="meadow"] [data-slot="widget-tabs"] [role="tab"][data-active] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+
+/* The drag grip between the report panel and the digest panel: a hairline
+   that warms on hover (`.meadow-separator`). */
+[data-ww-theme="meadow"] .meadow-context-separator {
+  position: relative;
+  cursor: col-resize;
+}
+[data-ww-theme="meadow"] .meadow-context-separator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1px;
+  height: 100%;
+  background: var(--border);
+  transition: background-color 140ms ease;
+}
+[data-ww-theme="meadow"] .meadow-context-separator:hover::before {
+  background: color-mix(in oklch, var(--recency-fresh) 35%, var(--border));
+}
+[data-ww-theme="meadow"] .meadow-context-separator:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Keyboard focus ring for the theme-local pill controls. */
+[data-ww-theme="meadow"] .meadow-focus:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"],
+  [data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"]:hover {
+    transform: none;
+    transition: none;
+  }
+}
