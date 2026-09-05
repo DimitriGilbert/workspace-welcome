@@ -1,0 +1,10 @@
+{
+  "description": "CLOSED grandfather allowlist of legacy packages/ui files containing color literals (invariant 2). Regenerate with: node scripts/widget-check/grep-invariants.mjs --update-baseline. Files on this list are legacy code slated for deletion at K1-K4: their literal count is an UPPER BOUND (edits must shrink it, growth fails). New files and everything under apps/web/src/widgets/** are never allowlisted — any color literal there fails.",
+  "updated": "2026-09-05T19:03:41.496Z",
+  "files": {
+    "packages/ui/src/components/bubble.tsx": 4,
+    "packages/ui/src/components/formedible/fields/color-picker-field.tsx": 18,
+    "packages/ui/src/components/formedible/fields/rating-field.tsx": 6,
+    "packages/ui/src/components/formedible/lib/types.ts": 2
+  }
+}
