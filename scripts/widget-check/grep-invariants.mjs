@@ -15,6 +15,8 @@
  *                         grow); files NOT on the list must be literal-free.
  *                         widgets/** is never allowlisted.
  *   3. theme-css          color literals in theme stylesheets (widgets/themes)
+ *                         (invariant 2 exempts custom-property DECLARATION
+ *                          lines in theme tokens.css files — that is their job)
  *                         only on custom-property declaration lines (--x: ...).
  *   4. severity-vocab     zero old severity vocabulary (`"error"`/`"warn"`
  *                         comparisons/assignments against severity) and zero
@@ -169,7 +171,16 @@ function scanColorLiterals() {
     ...walkFiles(UI_COMPONENTS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file)) || file.endsWith(".css")),
   ];
   for (const file of files) {
-    const hits = countColorLiterals(readLines(file));
+    // Theme tokens.css files declare the preset's token VALUES — literals on
+    // custom-property declaration lines are their purpose (§3.6.1/invariant 3).
+    // Consumption sites (property: var/color literals) stay zero-tolerance.
+    const isThemeTokens =
+      file.includes(`${path.sep}themes${path.sep}`) && file.endsWith("tokens.css");
+    const lines = readLines(file);
+    const scanned = isThemeTokens
+      ? lines.filter((line) => !/^\s*--[a-z0-9-]+\s*:/i.test(line))
+      : lines;
+    const hits = countColorLiterals(scanned);
     if (hits.length > 0) perFile.set(relToRepo(file), { path: file, hits });
   }
   return perFile;
