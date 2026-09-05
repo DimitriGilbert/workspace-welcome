@@ -13,6 +13,7 @@
  * routes already handle both worlds.
  */
 import type { PageLayout } from "../runtime/layout-types";
+import type { ConsoleView } from "../runtime/render-layout";
 
 /**
  * The contract every `<slug>/preset.ts` must default-export. A theme authors
@@ -24,6 +25,14 @@ export interface ThemePreset {
   label: string;
   dashboard: PageLayout;
   project: PageLayout;
+  /**
+   * The dashboard's digit-switchable console views (keys 1..N, `Escape`
+   * restores the first). `ConsoleView.regions` names `dashboard` regions the
+   * view shows — a view without `regions` shows the whole board. Omit when
+   * the theme declares no views; the routes pass this straight to
+   * `RenderLayout`.
+   */
+  consoleViews?: readonly ConsoleView[];
 }
 
 const presetModules = import.meta.glob<{ default: ThemePreset }>(

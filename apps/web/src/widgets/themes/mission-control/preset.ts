@@ -24,15 +24,35 @@
  */
 import "./tokens.css";
 
+import type { ConsoleView } from "@/widgets/runtime/render-layout";
 import type { ThemePreset } from "@/widgets/themes";
 
 const COLUMNS = { desktop: 12, tablet: 8, phone: 4 } as const;
 
 const CELL = { h: 96 } as const;
 
+/**
+ * The console's digit-switchable views — exactly the fleet views the design
+ * declares (`ViewId` in `components/designs/mission-control/metrics.ts`,
+ * labeled per its nav rail). Overview is the full console and the `Escape`
+ * default; the three fleet views narrow the board to the console stage —
+ * triage (the design's one attention surface), the ledger, the context zone
+ * and analytics — dropping the command band. Per-view project filtering is a
+ * nav-level concern, NOT re-invented as board content: region visibility is
+ * the board's honest view contract, so attention/pinned/archive share the
+ * stage region and differ by declared id/tab state.
+ */
+const CONSOLE_VIEWS: readonly ConsoleView[] = [
+  { id: "overview", label: "Overview" },
+  { id: "attention", label: "Attention", regions: ["console"] },
+  { id: "pinned", label: "Pinned", regions: ["console"] },
+  { id: "archive", label: "Archive", regions: ["console"] },
+];
+
 export const missionControlPreset: ThemePreset = {
   id: "mission-control",
   label: "Mission Control",
+  consoleViews: CONSOLE_VIEWS,
   dashboard: {
     version: 1,
     context: "workspace",
