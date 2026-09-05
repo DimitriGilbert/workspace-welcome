@@ -27,3 +27,5 @@ export type {
 } from "./create-project";
 export { useAddRoot } from "./add-root";
 export type { UseAddRootOptions, UseAddRootResult } from "./add-root";
+export { useCloneScript } from "./clone-script";
+export type { UseCloneScriptOptions, UseCloneScriptResult } from "./clone-script";
