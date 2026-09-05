@@ -320,6 +320,10 @@ const body = async () => {
   {
     const themeWidgetFiles = walkFiles(path.join(WIDGETS_DIR, "themes"), (file) => {
       if (!CODE_EXTENSIONS.has(path.extname(file))) return false;
+      // Scope: theme WIDGET-KIND files (themes/<slug>/widgets/*, minus the
+      // index.ts barrel — an export surface, not a kind; the plan lets it
+      // start empty-ish). Presets + token stylesheets are layout data.
+      if (path.basename(file) === "index.ts") return false;
       const rel = relToRepo(file);
       return /widgets[\\/]themes[\\/][^\\/]+[\\/]widgets[\\/].+/.test(rel);
     });
@@ -344,7 +348,10 @@ const body = async () => {
     const collisions = [];
     const pathDataFlags = [];
     for (const file of themeWidgetFiles) {
-      const content = readFileSync(file).join("\n");
+      // utf8 matters: with no encoding readFileSync returns a Buffer whose
+      // inherited Uint8Array.join("\n") concatenates byte NUMBERS — the
+      // includes() checks below would never match any import.
+      const content = readFileSync(file, "utf8");
       const importsSystem =
         content.includes("@/widgets/parts") ||
         content.includes("@/widgets/runtime") ||
