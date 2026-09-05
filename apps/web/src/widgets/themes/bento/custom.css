@@ -1,0 +1,41 @@
+/*
+ * Bento's optional chrome skin (master plan §3.6.4, T2-bento) — the glazed
+ * tile surface from `components/designs/bento/bento.css` applied to the
+ * shared widget shell. ADDITIVE SKIN ONLY: no layout, no visibility, and
+ * the full harness suite must pass with `?bare=1`, which drops this file.
+ * Zero color literals (grep-invariant #2 exempts only tokens.css
+ * declaration lines): every tint is a color-mix over a scope token.
+ */
+
+[data-ww-theme="bento"] {
+  --bento-sheen: linear-gradient(
+    180deg,
+    color-mix(in oklch, var(--foreground) 4%, transparent),
+    transparent 34%
+  );
+  --bento-lift: 0 14px 36px -22px color-mix(in oklch, var(--background) 82%, transparent);
+  --bento-inset: inset 0 1px 0 color-mix(in oklch, var(--foreground) 9%, transparent);
+  --bento-hover-border: color-mix(in oklch, var(--foreground) 20%, transparent);
+}
+
+/* Glazed tile: soft radius, hairline, sheen over the panel, inner light. */
+[data-ww-theme="bento"] [data-slot="widget-shell"] {
+  border: 1px solid var(--chrome-hairline);
+  border-radius: var(--chrome-radius);
+  background: var(--bento-sheen), var(--chrome-panel-bg);
+  box-shadow: var(--bento-inset), var(--bento-lift);
+}
+
+/* Feedback is hover-only and cosmetic (no transform — the shell is a
+   container-query root and must not become a containing block). */
+[data-ww-theme="bento"] [data-slot="widget-shell"]:hover {
+  border-color: var(--bento-hover-border);
+}
+
+/* The design's mono-caps `b-label` register for shell headings. */
+[data-ww-theme="bento"] [data-slot="widget-shell-title"] {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

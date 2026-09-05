@@ -1,18 +1,28 @@
 /**
- * Bento's theme preset (master plan §5 T1-bento).
+ * Bento's theme preset (master plan §5 T1-bento + T2-bento).
  *
- * T1 ships the shells only: the grids and density are bento's real constants,
- * both pages are empty-region `PageLayout`s — one empty stack region each
- * (empty is honest, because bento's widgets land at T2 dashboard-side and T3
- * project-side). The scope tokens ship as the real ported values
- * (`./tokens.css`, loaded from this module — the one per-theme module the
- * preset glob always evaluates).
+ * The dashboard ports the design route's four sections onto the system:
  *
- * Grid constants ported from `components/designs/bento/bento.css`:
- * the band grid steps 2 → 6 → 12 columns (≥1024 / ≥1536) and the project
- * mosaic is a fixed 12-column grid; the mosaic row unit is 92px below 1024px
- * and 96px above — 96 is the desktop density. The runtime's three breakpoint
- * buckets carry bento's three grid widths in order.
+ * - **vitals** — health gauge, activity trend, stack donut, one aligned
+ *   3-row band (the design's 3+6+12 desktop spans);
+ * - **signals** — needs-attention (8 cols) + signal mix (4 cols);
+ * - **pulse** — the tabbed snitch-report band, full width;
+ * - **projects** — the mosaic: a flow region over the shared "projects"
+ *   flow, so tile sizes come from the canonical recency scoring
+ *   (`scoreProjects` tiers = the design's hero 3×3 → compact 1×1 ladder)
+ *   rendered as the `bento-project-tile` kind.
+ *
+ * Placements are reading order (no authored anchors) — the line-filling
+ * packer lands the desktop spans exactly and re-packs the narrower
+ * breakpoints without fixed-anchor collisions.
+ *
+ * Grid constants ported from `components/designs/bento/bento.css`: the band
+ * grid steps 2 → 6 → 12 columns (≥1024 / ≥1536) and the project mosaic is a
+ * fixed 12-column grid; the mosaic row unit is 92px below 1024px and 96px
+ * above — 96 is the desktop density. The scope tokens ship as the real
+ * ported values (`./tokens.css`, loaded from this module — the one
+ * per-theme module the preset glob always evaluates); the glazed tile skin
+ * rides the optional `./custom.css`.
  */
 import "./tokens.css";
 
@@ -30,8 +40,36 @@ export const bentoPreset: ThemePreset = {
     context: "workspace",
     columns: { ...COLUMNS },
     cell: { ...CELL },
-    // One empty stack region: a real grid for the board, zero widgets until T2.
-    regions: [{ kind: "stack", id: "dashboard", widgets: [] }],
+    regions: [
+      {
+        kind: "stack",
+        id: "vitals",
+        widgets: [
+          { id: "vitals-health", widget: "bento-health", size: "3x3" },
+          { id: "vitals-activity", widget: "bento-activity", size: "6x3" },
+          { id: "vitals-stacks", widget: "bento-stacks", size: "3x3" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "signals",
+        widgets: [
+          { id: "signals-attention", widget: "bento-attention", size: "8x3" },
+          { id: "signals-mix", widget: "bento-signals", size: "4x3" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "pulse",
+        widgets: [{ id: "workspace-pulse", widget: "bento-pulse", size: "12x3" }],
+      },
+      {
+        kind: "flow",
+        id: "projects",
+        from: "projects",
+        template: { widget: "bento-project-tile" },
+      },
+    ],
   },
   project: {
     version: 1,
