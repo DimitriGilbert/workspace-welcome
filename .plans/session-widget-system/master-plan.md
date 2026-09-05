@@ -989,6 +989,18 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 
 ## 11. Success criteria
 
+## 12. Execution status (orchestrator-maintained — updates at each phase gate)
+
+- [x] **D1** canonical severity — implemented, gates green, committed at gate. Deviations: `--sev-*` base tokens ALSO lived in `packages/ui/src/styles/globals.css` (plan's "declared only in six design stylesheets" was wrong) — renamed in scope; mission-bento's local `LedTone` union kept as presentation with boundary mapping at `worstSeverity` (route retires at cleanup) — flagged for G1 review.
+- [~] **P1** ThemeScope — running
+- [~] **W1** runtime contracts — running
+- [~] **W2** packing generalization — dispatched
+- [ ] **D3** format unification — queued
+- [ ] **D2** scan-metrics — blocked on D1 (unblocking now)
+- [ ] **D4** queries — blocked on D1
+- [ ] **M1** /app scaffold — blocked on P1
+- [ ] Remaining: W3, W4, P2–P5, D5–D8, M2, M3 gate, T1–T3 waves + V1–V3, C1, G1 (owner), K1–K4
+
 The migration is done when ALL of the following hold:
 
 1. **Green gates everywhere:** `pnpm run check-types` and `pnpm run build` pass from the repo root
