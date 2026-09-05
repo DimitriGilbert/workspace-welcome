@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { XIcon } from "lucide-react"
 
 import { Button } from "@workspace-welcome/ui/components/button"
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope"
 import { cn } from "@workspace-welcome/ui/lib/utils"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -20,7 +21,13 @@ function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
 }
 
 function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  return (
+    <DialogPrimitive.Portal
+      data-slot="dialog-portal"
+      container={useThemePortal() ?? undefined}
+      {...props}
+    />
+  )
 }
 
 function DialogOverlay({ className, ...props }: DialogPrimitive.Backdrop.Props) {

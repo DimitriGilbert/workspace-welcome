@@ -4,6 +4,7 @@ import * as React from "react"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
 import { cn } from "@workspace-welcome/ui/lib/utils"
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope"
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
@@ -26,7 +27,7 @@ function PopoverContent({
     "align" | "alignOffset" | "side" | "sideOffset"
   >) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={useThemePortal() ?? undefined}>
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

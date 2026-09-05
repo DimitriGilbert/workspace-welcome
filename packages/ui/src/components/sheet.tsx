@@ -4,6 +4,7 @@ import * as React from "react"
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@workspace-welcome/ui/lib/utils"
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope"
 import { Button } from "@workspace-welcome/ui/components/button"
 import { XIcon } from "lucide-react"
 
@@ -20,7 +21,13 @@ function SheetClose({ ...props }: SheetPrimitive.Close.Props) {
 }
 
 function SheetPortal({ ...props }: SheetPrimitive.Portal.Props) {
-  return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+  return (
+    <SheetPrimitive.Portal
+      data-slot="sheet-portal"
+      container={useThemePortal() ?? undefined}
+      {...props}
+    />
+  )
 }
 
 function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {

@@ -2,6 +2,7 @@
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
 import { cn } from "@workspace-welcome/ui/lib/utils";
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope";
 
 function TooltipProvider({ delay = 0, ...props }: TooltipPrimitive.Provider.Props) {
   return <TooltipPrimitive.Provider data-slot="tooltip-provider" delay={delay} {...props} />;
@@ -26,7 +27,7 @@ function TooltipContent({
 }: TooltipPrimitive.Popup.Props &
   Pick<TooltipPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">) {
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={useThemePortal() ?? undefined}>
       <TooltipPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

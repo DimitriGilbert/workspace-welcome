@@ -3,6 +3,7 @@
 import { ContextMenu as ContextMenuPrimitive } from "@base-ui/react/context-menu"
 
 import { cn } from "@workspace-welcome/ui/lib/utils"
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope"
 
 function ContextMenu({ ...props }: ContextMenuPrimitive.Root.Props) {
   return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
@@ -26,7 +27,7 @@ function ContextMenuContent({
   ...props
 }: ContextMenuPrimitive.Popup.Props) {
   return (
-    <ContextMenuPrimitive.Portal>
+    <ContextMenuPrimitive.Portal container={useThemePortal() ?? undefined}>
       <ContextMenuPrimitive.Positioner className="isolate z-50 outline-none">
         <ContextMenuPrimitive.Popup
           data-slot="context-menu-content"
