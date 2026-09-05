@@ -80,7 +80,7 @@ const signalColumns = signalHelper.columns([
   }),
 ]);
 
-export function McReportHealth(_props: RegisteredWidgetProps) {
+export function McReportHealth(props: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
 
@@ -112,6 +112,7 @@ export function McReportHealth(_props: RegisteredWidgetProps) {
       <McReportGate>
         <WidgetShell
           className="h-full w-full"
+          size={{ cols: props.size.cols, rows: props.size.rows }}
           sizes={{
             "1x1": (
               <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">

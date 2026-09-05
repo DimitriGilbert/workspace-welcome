@@ -19,7 +19,7 @@ import { McReportGate, ReportGeneratedMeta } from "./report-shared";
 const TOKEN_IN_COLOR = "var(--chart-5)";
 const TOKEN_OUT_COLOR = "var(--chart-1)";
 
-export function McReportAi(_props: RegisteredWidgetProps) {
+export function McReportAi(props: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
   const ai = view?.aiUsage ?? null;
@@ -34,6 +34,7 @@ export function McReportAi(_props: RegisteredWidgetProps) {
       <McReportGate>
         <WidgetShell
           className="h-full w-full"
+          size={{ cols: props.size.cols, rows: props.size.rows }}
           sizes={{
             "1x1": (
               <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">

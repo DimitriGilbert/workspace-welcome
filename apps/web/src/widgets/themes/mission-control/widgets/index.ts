@@ -8,13 +8,23 @@
  * T2 dashboard port (widget-for-widget from `components/designs/
  * mission-control/` + `routes/designs/mission-control/index.tsx`): ids are
  * prefixed `mc-` so parallel theme waves can never collide in the merged
- * registry. Project-page kinds land at T3.
+ * registry.
+ *
+ * T3 project-page port: the state band (git controls + facts + last commit
+ * + history), the commit pulse, the note, and the files/artifacts/ideation
+ * console — ported from `routes/designs/mission-control/project.$.tsx`.
+ * The report channels (`mc-report-*`, T2) are reused on the project page:
+ * they read `ReportContext`, which the project stack provides per-project
+ * (`{ kind: "repo", path }`).
  */
 import type { WidgetDef } from "@/widgets/registry";
 
 import { McActivityHeatmap, McAlertsDonut, McDirtyLeaders, McStackMix } from "./analytics";
 import { McCommandBar } from "./command-bar";
 import { McFleetLedger } from "./fleet-ledger";
+import { McProjectConsole, McProjectNote } from "./project-console";
+import { McProjectPulse } from "./project-pulse";
+import { McProjectStateBand } from "./project-state-band";
 import { McReportActivity } from "./report-activity";
 import { McReportAi } from "./report-ai";
 import { McReportCode } from "./report-code";
@@ -140,5 +150,41 @@ export const widgetDefs: readonly WidgetDef[] = [
     defaultSize: "2x1",
     min: "1x1",
     hosts: ["kv-list"],
+  },
+  {
+    id: "mc-project-state-band",
+    title: "State band",
+    component: McProjectStateBand,
+    requires: ["project"],
+    defaultSize: "4x4",
+    min: "1x1",
+    hosts: ["git-actions-toolbar", "branch-switcher", "commits-list", "chip"],
+  },
+  {
+    id: "mc-project-pulse",
+    title: "Commit pulse",
+    component: McProjectPulse,
+    requires: ["project"],
+    defaultSize: "3x4",
+    min: "1x1",
+    hosts: ["heatmap", "stat"],
+  },
+  {
+    id: "mc-project-note",
+    title: "Note",
+    component: McProjectNote,
+    requires: ["project"],
+    defaultSize: "4x3",
+    min: "1x1",
+    hosts: ["note-editor"],
+  },
+  {
+    id: "mc-project-console",
+    title: "Working surface",
+    component: McProjectConsole,
+    requires: ["project"],
+    defaultSize: "6x6",
+    min: "1x1",
+    hosts: ["files-list", "artifacts-list"],
   },
 ];

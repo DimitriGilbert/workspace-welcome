@@ -21,7 +21,7 @@ import { McReportGate, ReportGeneratedMeta } from "./report-shared";
 
 const LANGUAGE_LIMIT = 6;
 
-export function McReportCode(_props: RegisteredWidgetProps) {
+export function McReportCode(props: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
 
@@ -50,6 +50,7 @@ export function McReportCode(_props: RegisteredWidgetProps) {
       <McReportGate>
         <WidgetShell
           className="h-full w-full"
+          size={{ cols: props.size.cols, rows: props.size.rows }}
           sizes={{
             "1x1": (
               <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">

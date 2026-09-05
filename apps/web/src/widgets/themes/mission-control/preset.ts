@@ -15,8 +15,16 @@
  * rows) rides the ledger, and the console's panels-percentage geometry
  * (56/24/20) maps to the 7/3/2 column zones.
  *
- * The project page stays an empty shell (valid `PageLayout`, zero regions)
- * until T3.
+ * The project page (T3) ports the design project readout
+ * (`routes/designs/mission-control/project.$.tsx`) onto the same grid: the
+ * full-width state band (git controls, project facts, last commit, history,
+ * alerts strip), the readout zone (commit pulse beside the four report
+ * channels — the T2 `mc-report-*` kinds reused on the per-project
+ * `ReportContext` scope the page stack mounts), then the working surface
+ * (the note beside the files/artifacts/ideation console, whose shell tabs
+ * are the design's console tabs). Reading-order packing again — the
+ * console's 56/24/20 percentage geometry maps to the 3/5/4 and 4/4/4
+ * column bands.
  *
  * The scope tokens ship as real mc values (`./tokens.css`, loaded from this
  * module — the one per-theme module the preset glob always evaluates); the
@@ -97,7 +105,36 @@ export const missionControlPreset: ThemePreset = {
     context: "project",
     columns: { ...COLUMNS },
     cell: { ...CELL },
-    regions: [],
+    regions: [
+      {
+        kind: "stack",
+        id: "state",
+        widgets: [
+          { id: "state-band", widget: "mc-project-state-band", size: "12x4" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "readout",
+        widgets: [
+          // The commit pulse rides the design's overview rhythm; the report
+          // channels re-run against this project's repo-scope report.
+          { id: "commit-pulse", widget: "mc-project-pulse", size: "3x4" },
+          { id: "report-activity", widget: "mc-report-activity", size: "5x6" },
+          { id: "report-ai", widget: "mc-report-ai", size: "4x4" },
+          { id: "report-health", widget: "mc-report-health", size: "4x4" },
+          { id: "report-code", widget: "mc-report-code", size: "4x4" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "console",
+        widgets: [
+          { id: "note", widget: "mc-project-note", size: "4x3" },
+          { id: "working-surface", widget: "mc-project-console", size: "12x7" },
+        ],
+      },
+    ],
   },
 };
 
