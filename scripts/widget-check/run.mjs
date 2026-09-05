@@ -15,9 +15,9 @@
  * Behavior: settles the page (waits for `[data-ready]`, then double rAF),
  * runs the probes serially, prints `PASS|FAIL|WARN <check> <detail>` lines
  * and exits non-zero on any FAIL. `--suite self-test` targets the known-bad
- * panel on /app/__check and INVERTS the contract: the run is only OK when
- * every probe reported FAIL on it (expected failures prove detection); a
- * probe that passes there is itself a FAIL.
+ * panel (folded into the lab at W4: `/app/__lab?self-test=1`) and INVERTS
+ * the contract: the run is only OK when every probe reported FAIL on it
+ * (expected failures prove detection); a probe that passes there is a FAIL.
  *
  * `theme`/`lab`/`parts-preview` map to the surviving routes (§3.2); `lab`
  * and `parts-preview` only exist from W4/P5 on and FAIL honestly until then.
@@ -114,7 +114,7 @@ function targetUrl(baseUrl, suiteName, options) {
     case "parts-preview":
       return `${baseUrl}/parts-preview`;
     case "self-test":
-      return `${baseUrl}/app/__check`;
+      return `${baseUrl}/app/__lab?self-test=1`;
     default:
       throw new Error(`unknown suite target: ${suite.target}`);
   }
@@ -198,7 +198,7 @@ const body = async () => {
         if (outcome.ok) {
           report.fail(
             "self-test",
-            `probe ${probe.name} did NOT detect any known-bad element on /app/__check — detection is broken`,
+            `probe ${probe.name} did NOT detect any known-bad element on /app/__lab?self-test=1 — detection is broken`,
           );
         } else {
           report.pass("self-test", `probe ${probe.name} correctly reported failures (detection proven)`);

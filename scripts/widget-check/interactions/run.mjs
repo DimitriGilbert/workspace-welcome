@@ -1,11 +1,14 @@
 #!/usr/bin/env node
 /**
  * interactions/run.mjs — the keyboard-first interaction matrix runner
- * (master plan §3.8). Runs each script serially against `/app/<theme>`,
- * fresh page per script, same output contract as run.mjs.
+ * (master plan §3.8). Runs each script serially, fresh page per script,
+ * same output contract as run.mjs.
  *
- * Flags: --theme <slug> --viewport <WxH> --base-url <url> --script <name>
- *        (repeatable filter) --out <path>
+ * Flags: --theme <slug> --path <pathname> --viewport <WxH> --base-url <url>
+ *        --script <name> (repeatable filter) --out <path>
+ *
+ * The target page is `--path` when given (e.g. /app/__lab for the W4 lab
+ * scripts), else `/app/<theme>`.
  *
  * Script contract: `export const name` + `export async function run(page,
  * report, ctx)` reporting `interaction:<name>` findings. Affordances that
@@ -16,12 +19,14 @@ import { fileURLToPath } from "node:url";
 
 import { Browser } from "../lib/cdp.mjs";
 import { Report, runEntry, writeJsonOut } from "../lib/report.mjs";
+import * as consoleKeys from "./console-keys.mjs";
+import * as dragResize from "./drag-resize.mjs";
 import * as filter from "./filter.mjs";
 import * as navigation from "./navigation.mjs";
 import * as sort from "./sort.mjs";
 import * as tabs from "./tabs.mjs";
 
-const SCRIPTS = [filter, sort, tabs, navigation];
+const SCRIPTS = [filter, sort, tabs, navigation, consoleKeys, dragResize];
 
 const DEFAULT_BASE_URL = process.env.WW_CHECK_BASE_URL ?? "http://127.0.0.1:37420";
 const DEFAULT_THEME = "mission-control";
@@ -30,6 +35,7 @@ const DEFAULT_VIEWPORT = "1440x900";
 function parseArgs(argv) {
   const options = {
     theme: DEFAULT_THEME,
+    path: undefined,
     viewport: DEFAULT_VIEWPORT,
     baseUrl: DEFAULT_BASE_URL,
     out: undefined,
@@ -44,6 +50,7 @@ function parseArgs(argv) {
     };
     switch (flag) {
       case "--theme": options.theme = value(); break;
+      case "--path": options.path = value(); break;
       case "--viewport": options.viewport = value(); break;
       case "--base-url": options.baseUrl = value().replace(/\/$/, ""); break;
       case "--out": options.out = value(); break;
@@ -66,9 +73,15 @@ const body = async () => {
   const match = options.viewport.match(/^(\d{2,5})x(\d{2,5})$/);
   if (match === null) throw new Error(`--viewport must be WxH (got "${options.viewport}")`);
 
+  const targetPath = options.path ?? `/app/${options.theme}`;
   const report = new Report({
     suite: "interactions",
-    meta: { theme: options.theme, viewport: options.viewport, scripts: scripts.map((s) => s.name) },
+    meta: {
+      theme: options.theme,
+      path: targetPath,
+      viewport: options.viewport,
+      scripts: scripts.map((s) => s.name),
+    },
   });
 
   const browser = await Browser.launch();
@@ -77,9 +90,9 @@ const body = async () => {
       const page = await browser.newPage();
       try {
         await page.setViewport(Number(match[1]), Number(match[2]));
-        await page.goto(`${options.baseUrl}/app/${options.theme}`);
+        await page.goto(`${options.baseUrl}${targetPath}`);
         await page.settle();
-        await script.run(page, report, { baseUrl: options.baseUrl, theme: options.theme });
+        await script.run(page, report, { baseUrl: options.baseUrl, theme: options.theme, path: targetPath });
       } catch (error) {
         report.fail(
           `interaction:${script.name}`,

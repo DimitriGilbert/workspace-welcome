@@ -1,10 +1,10 @@
 /**
  * Self-test panel — the harness's known-bad fixture (master plan §3.8, M2.8).
  *
- * Mounted on the temporary dev-only route `/app/__check` (deleted at W4 when
- * this panel folds into `/app/__lab`). It deliberately renders ONE broken
- * element per probe, so `run.mjs --suite self-test` must see EVERY probe
- * report FAIL — expected failures that prove detection:
+ * Mounted on the dev-only lab route `/app/__lab?self-test=1` (folded in at
+ * W4, replacing the temporary `/app/__check` route). It deliberately renders
+ * ONE broken element per probe, so `run.mjs --suite self-test` must see
+ * EVERY probe report FAIL — expected failures that prove detection:
  *
  *   1. token-completeness — the scope uses theme id "__check", which declares
  *      none of the required tokens.
@@ -126,10 +126,11 @@ export function SelfTestPanel() {
             Every probe on this page is supposed to FAIL
           </h1>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Temporary M2 dev route. Each element below breaks exactly one
-            harness probe; the self-test suite passes only when all six report
-            FAIL here. Deleted at W4 when this panel folds into{" "}
-            <span className="font-mono">/app/__lab</span>.
+            Negative fixture — each element below breaks exactly one harness
+            probe; the self-test suite passes only when all six report FAIL
+            here. Reachable at{" "}
+            <span className="font-mono">/app/__lab?self-test=1</span>; the lab
+            board lives at <span className="font-mono">/app/__lab</span>.
           </p>
         </header>
 
