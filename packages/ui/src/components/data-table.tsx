@@ -33,7 +33,9 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
  * NEVER SCROLLS INTERNALLY: there is no overflow-auto here — `minWidth`
  * (default 420; fleet-scale tables pass 720) is the authored floor, and
  * below it the widget's `sizes` ladder swaps to KVList instead. Rows stamp
- * `data-sort-key={row.id}` for the harness.
+ * `data-sort-key={row.id}` for the harness; sortable header buttons stamp
+ * `data-sort-key={column.id}` plus `data-sort-direction="asc"|"desc"`
+ * (absent when unsorted) as the sort interaction contract.
  */
 
 const features = tableFeatures({
@@ -133,8 +135,28 @@ export function DataTable<TData extends RowData>({
                 >
                   <button
                     type="button"
+                    data-sort-key={canSort ? header.column.id : undefined}
+                    data-sort-direction={
+                      canSort && sorted !== false ? sorted : undefined
+                    }
                     onClick={
                       canSort ? header.column.getToggleSortingHandler() : undefined
+                    }
+                    onKeyDown={
+                      canSort
+                        ? (event) => {
+                            // Synthetic (untrusted) Enter/Space doesn't trigger
+                            // native button activation, so the harness can't
+                            // rely on click — mirror the activation here.
+                            // preventDefault keeps a real keyboard press from
+                            // ALSO firing the native click (double toggle).
+                            if (event.key !== "Enter" && event.key !== " ") {
+                              return;
+                            }
+                            event.preventDefault();
+                            header.column.getToggleSortingHandler()?.(event);
+                          }
+                        : undefined
                     }
                     disabled={!canSort}
                     className={cn(
