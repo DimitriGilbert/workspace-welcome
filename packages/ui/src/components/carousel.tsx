@@ -136,13 +136,22 @@ function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       ref={carouselRef}
-      className="overflow-hidden"
+      className={cn(
+        // The height chain is owned HERE: the scroll viewport is a flex
+        // participant (stretch + min-h-0), so a sized parent flows through
+        // viewport → track → slide with no per-theme CSS. This supersedes
+        // the bento `[data-slot="carousel-content"]` stretch hack.
+        "flex min-h-0 flex-1 overflow-hidden",
+        orientation === "horizontal" ? "flex-row" : "flex-col"
+      )}
       data-slot="carousel-content"
     >
       <div
         className={cn(
-          "flex",
-          orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
+          // w-full: the track is a flex item of the viewport above and must
+          // keep filling it (slides overflow it, embla translates it).
+          "flex w-full min-w-0",
+          orientation === "horizontal" ? "-ml-4 flex-row" : "-mt-4 flex-col",
           className
         )}
         {...props}
@@ -160,6 +169,9 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
       aria-roledescription="slide"
       data-slot="carousel-item"
       className={cn(
+        // Slides own the fill: a full-height column box so nested
+        // `flex-1 min-h-0` content stretches without per-theme item CSS.
+        "flex h-full min-h-0 flex-col",
         "min-w-0 shrink-0 grow-0 basis-full",
         orientation === "horizontal" ? "pl-4" : "pt-4",
         className
