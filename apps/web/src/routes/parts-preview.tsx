@@ -416,7 +416,7 @@ function FloorCell({ part }: { part: PreviewPart }) {
       data-preview-rung="floor"
       data-part-min-w={min.w}
       data-part-min-h={min.h}
-      style={cellStyle(min)}
+      style={{ ...cellStyle(min), boxSizing: "content-box" }}
       className="overflow-hidden border border-border p-1"
     >
       {part.render(min)}
