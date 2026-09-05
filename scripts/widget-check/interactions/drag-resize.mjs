@@ -6,8 +6,11 @@
  * and the inline `gridColumn/gridRow` must change, `data-pinned` stamped),
  * resize from the SE handle, verify the shrink path STOPS at the registry
  * floor instead of passing it, and confirm Escape reverts to the session
- * start placement. Pointer-scripted drag is intentionally not the test
- * surface — the keyboard path is primary by contract.
+ * start placement. A clamped edge move is a legitimate NO-OP — the runtime
+ * announces "already at the edge" and does not commit — so `data-pinned`
+ * is asserted paired with the placement: a committed move must stamp it,
+ * a no-op must not (D4 calibration). Pointer-scripted drag is intentionally
+ * not the test surface — the keyboard path is primary by contract.
  *
  * If no draggable board exists (lab not mounted / renderer pending) this
  * WARNs — pending must not look broken, nor pass silently.
@@ -97,7 +100,8 @@ export async function run(page, report, ctx) {
   await pressKey(page, "ArrowRight", handleSelector);
   const movedRight = await readPlacement(page, target.id);
   const atRightEdge = start.x + start.cols >= target.regionTracks;
-  if (atRightEdge ? !samePlacement(movedRight, start) : movedRight.x !== start.x + 1) {
+  const moveCommitted = !samePlacement(movedRight, start);
+  if (atRightEdge ? moveCommitted : movedRight.x !== start.x + 1) {
     report.fail(
       `interaction:${name}`,
       `ArrowRight from x=${start.x} (${target.regionTracks}-col region, cols=${start.cols}) gave x=${movedRight.x} — expected ${atRightEdge ? "no change at the edge" : `x=${start.x + 1}`}`,
@@ -106,11 +110,21 @@ export async function run(page, report, ctx) {
   } else {
     report.pass(
       `interaction:${name}`,
-      `ArrowRight moved ${target.id} to x=${movedRight.x} (gridColumn "${movedRight.gridColumn}")`,
+      atRightEdge
+        ? `ArrowRight at the right edge clamps to a no-op (${target.id} stays at x=${movedRight.x})`
+        : `ArrowRight moved ${target.id} to x=${movedRight.x} (gridColumn "${movedRight.gridColumn}")`,
     );
   }
-  if (!movedRight.pinned) {
+  // D4 calibration: the runtime deliberately does NOT commit a clamped
+  // no-op move (use-grid-drag announces "already at the edge" and returns
+  // before commitPlacement), and data-pinned reflects committed placements
+  // only. So the pin stamp pairs with the move: committed ⇒ stamped,
+  // no-op ⇒ unstamped. Either pairing is correct; anything else is not.
+  if (moveCommitted && !movedRight.pinned) {
     report.fail(`interaction:${name}`, `committed move did not stamp data-pinned on ${target.id}`);
+    ok = false;
+  } else if (!moveCommitted && movedRight.pinned) {
+    report.fail(`interaction:${name}`, `clamped no-op move stamped data-pinned on ${target.id} — a no-op must not commit`);
     ok = false;
   }
 

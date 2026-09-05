@@ -8,6 +8,16 @@
  * default view; and typing while a field has focus never triggers the
  * console (the editable-target guard).
  *
+ * Digit switching is asserted ONLY against the preset-declared console
+ * views — the runtime renders the console tablist in the page header and
+ * stamps `data-console-view` solely when the preset declares
+ * `consoleViews` (render-layout). Per-widget tabs elsewhere on the board
+ * are legitimate widget chrome (see tabs.mjs), NOT console views —
+ * counting them made digit keys FAIL on themes that declare none (D3
+ * calibration). On a theme without declared consoleViews the digits are a
+ * runtime no-op: the harness asserts no crash and an intact board instead
+ * of demanding view switches.
+ *
  * If the console affordances are not mounted yet this WARNs — pending must
  * not look broken, nor pass silently.
  */
@@ -24,6 +34,23 @@ async function activeView(page) {
   }, SETTLE_MS);
 }
 
+/**
+ * The preset-declared console views as rendered: the page-header console
+ * tablist exists only when the preset declares `consoleViews`, and
+ * `data-console-view` is stamped with the active view id only then.
+ * Returns null when this page declares no console views.
+ */
+async function declaredConsoleViews(page) {
+  return page.eval(() => {
+    const stamped = document.querySelector("[data-console-view]");
+    if (stamped === null) return null;
+    return {
+      stamped: stamped.getAttribute("data-console-view"),
+      tabs: document.querySelectorAll('[data-slot="page-header"] [data-slot="widget-tabs"] [role="tab"]').length,
+    };
+  });
+}
+
 export async function run(page, report, ctx) {
   const where = ctx.path ?? `/app/${ctx.theme}`;
   if (!(await queryExists(page, CONTRACT.filterInput))) {
@@ -34,11 +61,7 @@ export async function run(page, report, ctx) {
     return { ok: true, pending: true };
   }
 
-  const views = await page.eval(() =>
-    [...document.querySelectorAll('[data-slot="widget-tabs"] [role="tab"]')].map(
-      (tab) => tab.textContent ?? "",
-    ),
-  );
+  const views = await declaredConsoleViews(page);
   let ok = true;
 
   // 1. "/" focuses the filter.
@@ -87,13 +110,39 @@ export async function run(page, report, ctx) {
     report.pass(`interaction:${name}`, "Escape clears and blurs the filter");
   }
 
-  if (views.length === 0) {
+  // 5. Digit keys — only meaningful against preset-declared console views.
+  if (views === null || views.tabs === 0) {
+    // D3 calibration: without declared consoleViews the runtime renders no
+    // console tablist and digits are a deliberate no-op. Assert no crash
+    // and an intact board instead of demanding view switches.
+    const widgetsBefore = await page.eval(
+      () => document.querySelectorAll("[data-widget-board] [data-widget]").length,
+    );
+    for (const key of ["1", "2", "9"]) {
+      await pressKey(page, key);
+    }
+    const afterDigits = await page.eval(() => ({
+      widgets: document.querySelectorAll("[data-widget-board] [data-widget]").length,
+      stamped: document.querySelector("[data-console-view]") !== null,
+    }));
+    if (afterDigits.widgets !== widgetsBefore || afterDigits.stamped) {
+      report.fail(
+        `interaction:${name}`,
+        `digit keys disturbed a board with no declared consoleViews (widgets ${widgetsBefore}→${afterDigits.widgets}, view stamp ${afterDigits.stamped ? "appeared" : "absent"})`,
+      );
+      ok = false;
+    } else {
+      report.pass(
+        `interaction:${name}`,
+        `digit keys are a no-op on a theme without declared consoleViews — board intact (${widgetsBefore} widgets, no view stamp)`,
+      );
+    }
     return { ok };
   }
 
-  // 5. Digit keys switch views 1..N.
+  // 6. Digit keys switch views 1..N.
   const initial = await activeView(page);
-  await pressKey(page, String(Math.min(3, views.length)));
+  await pressKey(page, String(Math.min(3, views.tabs)));
   const switched = await activeView(page);
   if (switched === initial) {
     report.fail(`interaction:${name}`, `digit key did not switch the view (still ${initial})`);
@@ -102,7 +151,7 @@ export async function run(page, report, ctx) {
     report.pass(`interaction:${name}`, `digit key switched the view ${initial} → ${switched}`);
   }
 
-  // 6. Keys beyond N are no-ops.
+  // 7. Keys beyond N are no-ops.
   await pressKey(page, "9");
   const afterBeyond = await activeView(page);
   if (afterBeyond !== switched) {
@@ -110,7 +159,7 @@ export async function run(page, report, ctx) {
     ok = false;
   }
 
-  // 7. Escape restores the default view (no field focused).
+  // 8. Escape restores the default view (no field focused).
   await page.eval(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
   await pressKey(page, "Escape");
   const restored = await activeView(page);
