@@ -1,5 +1,5 @@
 /**
- * Bento's theme preset (master plan §5 T1-bento + T2-bento).
+ * Bento's theme preset (master plan §5 T1-bento + T2-bento + T3-bento).
  *
  * The dashboard ports the design route's four sections onto the system:
  *
@@ -11,6 +11,18 @@
  *   flow, so tile sizes come from the canonical recency scoring
  *   (`scoreProjects` tiers = the design's hero 3×3 → compact 1×1 ladder)
  *   rendered as the `bento-project-tile` kind.
+ *
+ * The project page ports `components/designs/bento/project-page.tsx`:
+ *
+ * - **hero** — the overview band: identity tile (3 cols) + the GROUPED
+ *   state tile (5 cols — git controls and the last commit together, the
+ *   owner-mandated grouping) + the per-entry pulse-summary slice
+ *   (4 cols), the design's sp-id/sp-state/sp-summary desktop spans;
+ * - **pulse** — the full-width tabbed repo-report band (the design's
+ *   "Pulse" tab) over the page's repo-scoped ReportProvider;
+ * - **surface** — the working surface: files/artifacts/ideation as shell
+ *   tabs over the shared functional components, then the commit-history
+ *   band (the design's "History" tab) over the CommitsList part.
  *
  * Placements are reading order (no authored anchors) — the line-filling
  * packer lands the desktop spans exactly and re-packs the narrower
@@ -76,8 +88,30 @@ export const bentoPreset: ThemePreset = {
     context: "project",
     columns: { ...COLUMNS },
     cell: { ...CELL },
-    // Same shell; bento's project kinds land at T3.
-    regions: [{ kind: "stack", id: "project", widgets: [] }],
+    regions: [
+      {
+        kind: "stack",
+        id: "hero",
+        widgets: [
+          { id: "project-identity", widget: "bento-project-identity", size: "3x4" },
+          { id: "project-state", widget: "bento-project-state", size: "5x4" },
+          { id: "project-summary", widget: "bento-project-summary", size: "4x4" },
+        ],
+      },
+      {
+        kind: "stack",
+        id: "pulse",
+        widgets: [{ id: "project-pulse", widget: "bento-project-pulse", size: "12x3" }],
+      },
+      {
+        kind: "stack",
+        id: "surface",
+        widgets: [
+          { id: "project-surface", widget: "bento-project-surface", size: "12x5" },
+          { id: "project-commits", widget: "bento-project-commits", size: "12x3" },
+        ],
+      },
+    ],
   },
 };
 

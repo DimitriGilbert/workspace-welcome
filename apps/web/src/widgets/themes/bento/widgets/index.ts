@@ -1,5 +1,5 @@
 /**
- * Bento's widget kinds (master plan §3.3, §5 T2-bento).
+ * Bento's widget kinds (master plan §3.3, §5 T2-bento + T3-bento).
  *
  * The eager glob in `widgets/registry.ts` picks this module up and merges
  * its `widgetDefs` into the validated registry — theme waves never edit
@@ -10,6 +10,14 @@
  * the signals row (`bento-attention` / `bento-signals`), the tabbed
  * snitch-report band (`bento-pulse`), and the recency-sized mosaic tile
  * (`bento-project-tile`, stamped per project by the "projects" flow).
+ *
+ * Six project-page kinds port the design's project page
+ * (`components/designs/bento/project-page.tsx`): the overview band's
+ * identity tile and GROUPED state tile (git controls + last commit in one
+ * tile — the owner-mandated grouping), the per-entry pulse-summary slice
+ * and the full tabbed report band (both over the repo-scoped ReportProvider
+ * via ReportGate), the tabbed files/artifacts/ideation working surface, and
+ * the commit-history band (CommitsList part).
  */
 import type { WidgetDef } from "@/widgets/registry";
 
@@ -17,6 +25,9 @@ import { BentoActivity, BentoHealth, BentoStacks } from "./vitals";
 import { BentoAttention, BentoSignals } from "./signals";
 import { BentoPulse } from "./pulse";
 import { BentoProjectTile } from "./project-tile";
+import { BentoProjectIdentity, BentoProjectState } from "./project-hero";
+import { BentoProjectSummary, BentoProjectPulse } from "./project-report";
+import { BentoProjectSurface, BentoProjectCommits } from "./project-surface";
 
 export const widgetDefs: readonly WidgetDef[] = [
   {
@@ -100,5 +111,68 @@ export const widgetDefs: readonly WidgetDef[] = [
       "h-bars",
       "kv-list",
     ],
+  },
+  {
+    id: "bento-project-identity",
+    title: "Project identity",
+    component: BentoProjectIdentity,
+    requires: ["project", "report"],
+    defaultSize: "3x4",
+    min: "1x1",
+    hosts: ["led-project", "note-editor", "chip", "stat"],
+  },
+  {
+    id: "bento-project-state",
+    title: "Project state",
+    component: BentoProjectState,
+    requires: ["project"],
+    defaultSize: "5x4",
+    min: "1x1",
+    hosts: ["git-actions-toolbar", "branch-switcher", "git-glyphs", "chip"],
+  },
+  {
+    id: "bento-project-summary",
+    title: "Pulse summary",
+    component: BentoProjectSummary,
+    requires: ["project", "report"],
+    defaultSize: "4x4",
+    min: "1x1",
+    hosts: ["report-gate", "stat", "kv-list", "chart", "chip"],
+  },
+  {
+    id: "bento-project-pulse",
+    title: "Project pulse",
+    component: BentoProjectPulse,
+    requires: ["project", "report"],
+    defaultSize: "12x3",
+    min: "1x1",
+    hosts: [
+      "report-gate",
+      "view-carousel",
+      "chart",
+      "donut",
+      "h-bars",
+      "seg-bar",
+      "kv-list",
+      "stat",
+    ],
+  },
+  {
+    id: "bento-project-surface",
+    title: "Working surface",
+    component: BentoProjectSurface,
+    requires: ["project"],
+    defaultSize: "12x5",
+    min: "1x1",
+    hosts: ["files-list", "artifacts-list"],
+  },
+  {
+    id: "bento-project-commits",
+    title: "Commit history",
+    component: BentoProjectCommits,
+    requires: ["project"],
+    defaultSize: "12x3",
+    min: "1x1",
+    hosts: ["commits-list"],
   },
 ];

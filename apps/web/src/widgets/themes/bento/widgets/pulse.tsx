@@ -37,7 +37,7 @@ import { WidgetShell } from "@/widgets/runtime/widget-shell";
 /** The normalized report view the provider hands every consumer. */
 type PulseView = NonNullable<ReturnType<typeof useReport>["view"]>;
 
-const PULSE_TABS: readonly WidgetTab[] = [
+export const PULSE_TABS: readonly WidgetTab[] = [
   { id: "activity", label: "Activity" },
   { id: "health", label: "Health" },
   { id: "code", label: "Code" },
@@ -216,7 +216,7 @@ function AiBody({ view }: { view: PulseView }) {
   );
 }
 
-function PulseBody({ tab }: { tab: string }) {
+export function PulseBody({ tab }: { tab: string }) {
   const report = useReport();
   const view = report.view;
   // Unreachable under the gate's stale/fresh/running branches (the export is
