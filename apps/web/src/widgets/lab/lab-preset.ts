@@ -18,10 +18,18 @@ export const LAB_THEME = "__lab";
 
 export const LAB_COLUMNS = { desktop: 12, tablet: 8, phone: 4 } as const;
 
-/** One instance per (registered kind × ladder rung), unbound. */
+/**
+ * Workspace kinds: one instance per ladder rung (the resolveSizeClass
+ * workout). Project-requiring kinds are page-composite widgets (state
+ * bands, report consoles) whose interiors do not degrade to tile rungs —
+ * they are excluded here and exercised where they live: their theme
+ * presets (V3 harness runs) and validate-layout (covers requires:["project"]
+ * resolution, 37 kinds).
+ */
 function ladderCatalogNodes(): WidgetNode[] {
   const nodes: WidgetNode[] = [];
-  for (const id of widgetRegistry.keys()) {
+  for (const [id, def] of widgetRegistry) {
+    if (def.requires.includes("project")) continue;
     for (const rung of SIZE_LADDER) {
       nodes.push({ id: `lab-${id}-${rung}`, widget: id, size: rung });
     }
@@ -31,7 +39,9 @@ function ladderCatalogNodes(): WidgetNode[] {
 
 export const labPreset: PageLayout = {
   version: 1,
-  context: "workspace",
+  // Project scope: ProjectProvider nests WorkspaceProvider, so this
+  // satisfies workspace-only kinds AND honest requires:["project"] kinds.
+  context: "project",
   columns: { ...LAB_COLUMNS },
   cell: { h: 96 },
   regions: [

@@ -30,6 +30,7 @@ export function LabPage({ selfTest }: { selfTest: boolean }) {
       theme={LAB_THEME}
       preset={labPreset}
       page="lab"
+      projectPath="/lab-fixture"
       headerLabel={`Widget lab — ${labPreset.regions.length} regions, 12-col ladder`}
       consoleViews={labConsoleViews}
     />
