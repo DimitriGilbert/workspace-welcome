@@ -992,14 +992,25 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 ## 12. Execution status (orchestrator-maintained — updates at each phase gate)
 
 - [x] **D1** canonical severity — implemented, gates green, committed at gate. Deviations: `--sev-*` base tokens ALSO lived in `packages/ui/src/styles/globals.css` (plan's "declared only in six design stylesheets" was wrong) — renamed in scope; mission-bento's local `LedTone` union kept as presentation with boundary mapping at `worstSeverity` (route retires at cleanup) — flagged for G1 review.
-- [~] **P1** ThemeScope — running
-- [~] **W1** runtime contracts — running
-- [~] **W2** packing generalization — dispatched
-- [ ] **D3** format unification — queued
-- [ ] **D2** scan-metrics — blocked on D1 (unblocking now)
-- [ ] **D4** queries — blocked on D1
-- [ ] **M1** /app scaffold — blocked on P1
-- [ ] Remaining: W3, W4, P2–P5, D5–D8, M2, M3 gate, T1–T3 waves + V1–V3, C1, G1 (owner), K1–K4
+- [x] **P1** ThemeScope — gates green, committed `3e255d8`. All 8 portals patched; verified portals land in scope host only when mounted (DOM eval on /designs/bento dialog).
+- [x] **W1** runtime contracts — gates green, committed `c408af1`. Resolved ambiguities: GridItemContext defined in widget-shell (re-nulled per subtree); WidgetTabs lives in widget-shell until P3; parseSize/rankOf accept parsed shape + null; part.ts uses createElement (stays .ts).
+- [x] **W2** packing generalization — gates green, committed `dae6442`. Judgment call: legacy shim keeps the small `computeMosaicLayout` composition (score→order→pack) since the planned grid-layout file list had no barrel.
+- [x] **D3** format unification — gates green, committed `84f260c`. Interpretation: compactAge takes epoch-ms + defaulted `now` (the reading where the `now?` param is meaningful); ageMs is the ISO→compactAge bridge.
+- [x] **D2** scan-metrics — gates green, committed `9370c7a`. 7 files / 801 lines (over ~600 estimate: mandated exports + required doc blocks). Name fixed: aggregateCadence. `now` defaulted params added where the draft sketch omitted them (SSR rule); `dirtyLeaders` returns `{name,path,dirty}` per refined-data.
+- [x] **D4** queries module — gates green, committed `ea5dddd`. Notes: `useReportGenerateMutation` added as the raw delegation seam; `toReportView`/`ReportView` deliberately not absorbed (D6 owns them); design call-sites of queryOptions remain (D5–D7/P4 migration targets, read-only here).
+- [x] **M1** /app scaffold — gates green, committed `81d156d`. Routes FROZEN (later edits: M3 wiring, W4 __lab, D8 stack). Gotcha fixed: `?bare=1` needs `z.literal(1)|"1"` (router JSON-parses search). Live-verified redirect/scope/pending/not-found/bare via temporary preset (removed after).
+- [x] **P2** ui chart family — gates green, committed `20d8a3b`. Chart part is the ONE recharts engine (client-gated, reduced-motion, MIN_CONTENT 200×160); geometry parts (donut/h-bars/seg-bar/heatmap/gauge/pulse-strip) hand-SVG tokens-only. Heatmap ports dayKey/grid/heatLevel locally (ui cannot import app scan-metrics).
+- [x] **W3** grid canvas — gates green (own namespace), committed `164cc18`. Resolved: DEFAULT_GRID_GAP_PX=12 prop-overridable (v1 has no gap field); `data-size` = resolveSizeClass footprint; canvas owns the 1:1 frame (frozen W1 shell doesn't forward data-attrs); Escape re-pins at recorded baseline.
+- [x] **P3** readout/table/git/layout — gates green, committed `29e1fb9`. 13 parts + tokens.ts; carousel height chain moved in-component (supersedes bento.css workaround — that scoped CSS is now dead but harmless until K-phase); @tanstack/react-table catalog dep added to ui.
+- [ ] **P4** app parts — blocked on D2, D4–D7, P2, P3, W1
+- [x] **D5** Settings+Workspace providers — gates green, committed `c614da9`. Resolved: query results typed as ReturnType of canonical hooks (tRPC errors ≠ UseQueryResult<T>); update() tightened to the inferred router input (Partial merging would fake-succeed); refresh(force) maps to the scan fingerprint bypass; data-providers stamped per provider root.
+- [x] **D6** Report provider — gates green, committed `3315441`. Resolved: alerts rows sourced from D2 alertTally.rows (worst→severity); `staleAt` = latestUpdated verdict input (null ⇒ never stale); staleness inputs ride useScanQuery's cache entry; per-provider data-providers stamp (D8 composes the page-stack string).
+- [x] **D7** Project provider — gates green, committed `c5dc2bf`. 530 lines (est. ~300 — IDE choreography + quintet + note). Resolved: quintet = mutation-backed action objects (per-op isPending + per-call onSuccess) superseding draft's bare void fns; ide.starting added; ide.status wires settings.get queryOptions in-file (provider-singular precedent); commitLog not isRepo-gated (lib hook owns enabled).
+- [ ] **W4** registry + renderer + lab — blocked on W3, P3, D5
+- [ ] **P5** parts preview + part-min probe — blocked on P2–P4, M2
+- [x] **M2** harness v0 — self-test proves detection (6/6 probes FAIL the known-bad panel), sentinel 3/3, invariants green; committed `cab5951`. Route gotcha: pathless dev routes need bracket escape (`[__check].tsx`).
+- [ ] **M3** walking skeleton GATE — blocked on W4, D5, D6, P3, M2
+- [ ] **T1–T3** theme waves + V1–V3 → C1 → G1 (owner) → K1–K4
 
 The migration is done when ALL of the following hold:
 
