@@ -10,6 +10,8 @@ import {
   ExternalLinkIcon,
   FileText,
   Folder,
+  FolderOpen,
+  Images,
   Loader2,
   Settings,
   Terminal as TerminalIcon,
@@ -20,6 +22,7 @@ import { z } from "zod";
 import { Button } from "@workspace-welcome/ui/components/button";
 import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/components/tabs";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
 
@@ -30,6 +33,7 @@ import { useReportRun } from "@/lib/use-report";
 import { AlertBadge } from "@/components/git-badges";
 import { StatusStrip } from "@/components/status-strip";
 import { FileBrowser } from "@/components/file-browser";
+import { ArtifactsPanel } from "@/components/artifacts";
 import { IdeationPanel } from "@/components/ideation/ideation-panel";
 import { CommitHistoryCell } from "@/components/project-commit-history";
 import {
@@ -668,9 +672,28 @@ function ProjectPage() {
         </div>
       </div>
 
-      {/* Files — full-bleed: page padding only, no max-w (like the vitals band). */}
+      {/* Files & artifacts — full-bleed: page padding only, no max-w (like
+          the vitals band). One tab row over both bottom sections keeps the
+          page a single column; switching remounts the incoming panel. */}
       <div className="px-5 pb-6 pt-6 sm:px-8 lg:px-10">
-        <FileBrowser project={path} />
+        <Tabs defaultValue="files">
+          <TabsList>
+            <TabsTrigger value="files" className="px-2.5">
+              <FolderOpen data-icon="inline-start" className="size-3.5" />
+              Files
+            </TabsTrigger>
+            <TabsTrigger value="artifacts" className="px-2.5">
+              <Images data-icon="inline-start" className="size-3.5" />
+              Artifacts
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="files" className="pt-3">
+            <FileBrowser project={path} />
+          </TabsContent>
+          <TabsContent value="artifacts" className="pt-3">
+            <ArtifactsPanel project={path} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

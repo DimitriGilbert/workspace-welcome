@@ -1,3 +1,4 @@
+import { reconcileScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options";
 import type { ScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options";
 
 /**
@@ -8,13 +9,13 @@ import type { ScaffoldInput } from "@workspace-welcome/api/lib/scaffold-options"
 
 /**
  * Apply the hidden-field rules the server schema also enforces: formedible
- * unmounts conditionally hidden fields but keeps their (stale) values, so a
- * fullstack (`self`) backend must carry `runtime: "none"` and
- * `serverDeploy: "none"` no matter what was picked while they were visible.
+ * unmounts conditionally hidden fields but keeps their (stale) values, and a
+ * visible select can hold a value a dependency just invalidated — the shared
+ * reconciler re-picks every dependent option the same way the upstream CLI
+ * re-picks (or skips) its prompts.
  */
 export function normalizeScaffoldInput(values: ScaffoldInput): ScaffoldInput {
-  if (values.backend !== "self") return values;
-  return { ...values, runtime: "none", serverDeploy: "none" };
+  return reconcileScaffoldInput(values);
 }
 
 /**

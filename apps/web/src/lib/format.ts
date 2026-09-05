@@ -30,3 +30,10 @@ export function dateTooltip(iso: string | null): string {
   if (!iso) return "";
   return `${relativeTime(iso)} (${absoluteDate(iso)})`;
 }
+
+/** "3.2 MB"-style byte size for file listings. */
+export function formatBytes(size: number): string {
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}

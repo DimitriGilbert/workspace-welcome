@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@workspace-welcome/ui/components/button";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
+import { formatBytes } from "@/lib/format";
+
 /**
  * Inline file viewer pane: single-clicking a tree row shows the file here,
  * next to the tree. The kind is derived client-side from the extension, but
@@ -32,12 +34,6 @@ const WRAP_KEY = "file-browser.word-wrap";
 function extensionOf(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
-}
-
-function formatBytes(size: number): string {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 interface FileViewerProps {

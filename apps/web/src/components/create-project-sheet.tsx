@@ -19,6 +19,8 @@ import {
   addonChoices,
   addonIncompatibilityReason,
   addonsExclusivity,
+  reconciledFields,
+  reconcileScaffoldInput,
   scaffoldDefaults,
   scaffoldInputSchema,
   scaffoldOptionLists,
@@ -282,15 +284,32 @@ function ScaffoldForm({
         type: "select",
         label: "Backend",
         page: 2,
-        options: scaffoldOptionLists.backend,
+        options: (values) =>
+          scaffoldOptionLists.backend.map((value) => {
+            if (
+              value === "self" &&
+              !scaffoldOptionLists.fullstackFrontends.includes(values.frontend)
+            ) {
+              return {
+                value,
+                label: "self",
+                description: `The fullstack backend only serves these frontends: ${scaffoldOptionLists.fullstackFrontends.join(", ")}.`,
+                disabled: true,
+              };
+            }
+            return value;
+          }),
       },
+      // Runtime and server deploy are hidden (and reconciled to "none") for
+      // the backends that have no separate server; Workers exists for Hono.
       {
         name: "runtime",
         type: "select",
         label: "Runtime",
         description: "Runs the separate backend server.",
         page: 2,
-        conditional: (values) => values.backend !== "self",
+        conditional: (values) =>
+          values.backend !== "self" && values.backend !== "none",
         options: (values) => scaffoldOptionLists.runtimeByBackend[values.backend],
       },
       {
@@ -298,13 +317,15 @@ function ScaffoldForm({
         type: "select",
         label: "API",
         page: 2,
-        options: scaffoldOptionLists.api,
+        conditional: (values) => values.backend !== "none",
+        options: (values) => scaffoldOptionLists.apiByFrontend[values.frontend],
       },
       {
         name: "auth",
         type: "select",
         label: "Authentication",
         page: 2,
+        conditional: (values) => values.backend !== "none",
         options: scaffoldOptionLists.auth,
       },
       {
@@ -312,14 +333,28 @@ function ScaffoldForm({
         type: "select",
         label: "Database",
         page: 3,
-        options: scaffoldOptionLists.database,
+        conditional: (values) => values.backend !== "none",
+        options: (values) =>
+          scaffoldOptionLists.database.map((value) => {
+            if (value === "mongodb" && values.runtime === "workers") {
+              return {
+                value,
+                label: "mongodb",
+                description:
+                  "Not available with the Cloudflare Workers runtime.",
+                disabled: true,
+              };
+            }
+            return value;
+          }),
       },
       {
         name: "orm",
         type: "select",
         label: "ORM",
         page: 3,
-        options: scaffoldOptionLists.orm,
+        conditional: (values) => values.backend !== "none",
+        options: (values) => scaffoldOptionLists.ormByDatabase[values.database],
       },
       {
         name: "dbSetup",
@@ -327,6 +362,7 @@ function ScaffoldForm({
         label: "Database setup",
         description: "Allowed setups depend on the database.",
         page: 3,
+        conditional: (values) => values.backend !== "none",
         options: (values) =>
           scaffoldOptionLists.dbSetupByDatabase[values.database],
       },
@@ -343,15 +379,19 @@ function ScaffoldForm({
         label: "Server deploy",
         description: "Deploys the separate backend server.",
         page: 4,
-        conditional: (values) => values.backend !== "self",
+        conditional: (values) =>
+          values.backend !== "self" && values.backend !== "none",
         options: (values) =>
           scaffoldOptionLists.serverDeployByBackend[values.backend],
       },
+      // Upstream only offers the payments prompt for better-auth projects.
       {
         name: "payments",
         type: "select",
         label: "Payments",
         page: 4,
+        conditional: (values) =>
+          values.backend !== "none" && values.auth === "better-auth",
         options: scaffoldOptionLists.payments,
       },
       {
@@ -390,7 +430,33 @@ function ScaffoldForm({
         type: "select",
         label: "Examples",
         page: 4,
-        options: scaffoldOptionLists.examples,
+        conditional: (values) => values.backend !== "none",
+        options: (values) =>
+          scaffoldOptionLists.examples.map((value) => {
+            if (
+              value === "todo" &&
+              (values.database === "none" || values.api === "none")
+            ) {
+              return {
+                value,
+                label: "todo",
+                description: "Needs a database and an API layer.",
+                disabled: true,
+              };
+            }
+            if (
+              value === "ai" &&
+              (values.frontend === "solid" || values.frontend === "astro")
+            ) {
+              return {
+                value,
+                label: "ai",
+                description: `Not compatible with ${values.frontend}.`,
+                disabled: true,
+              };
+            }
+            return value;
+          }),
       },
       {
         name: "git",
@@ -443,53 +509,24 @@ function ScaffoldForm({
     },
   });
 
-  // Formedible unmounts hidden fields but keeps their values, so dependent
-  // selections are reconciled here rather than only at submit: switching from
-  // the self backend to a separate one applies the visible defaults to the
-  // newly visible runtime/serverDeploy, and a dbSetup left invalid by a
-  // database switch resets to "none". `form.setFieldValue` does not run
-  // formOptions.onChange, hence the mirrored setValues call.
-  const previousValuesRef = useRef(values);
+  // Formedible unmounts hidden fields but keeps their values, and a visible
+  // select can hold a value its dependency just invalidated, so dependent
+  // selections are re-picked here through the same reconcileScaffoldInput the
+  // submit path runs — a stale option can neither render invalid nor reach
+  // validation. `form.setFieldValue` does not run formOptions.onChange,
+  // hence the mirrored setValues call.
   useEffect(() => {
-    const previous = previousValuesRef.current;
-    previousValuesRef.current = values;
-    const switchedFromSelfBackend =
-      previous.backend === "self" && values.backend !== "self";
-    // Widening to the enum-union element type: the dependent maps keep their
-    // precise per-key tuple types, and `.includes` on their union misresolves.
-    const runtimeList: readonly ScaffoldFormValues["runtime"][] =
-      scaffoldOptionLists.runtimeByBackend[values.backend];
-    const serverDeployList: readonly ScaffoldFormValues["serverDeploy"][] =
-      scaffoldOptionLists.serverDeployByBackend[values.backend];
-    const dbSetupList: readonly ScaffoldFormValues["dbSetup"][] =
-      scaffoldOptionLists.dbSetupByDatabase[values.database];
-    let runtime = values.runtime;
-    let serverDeploy = values.serverDeploy;
-    let dbSetup = values.dbSetup;
-    if (switchedFromSelfBackend) {
-      runtime = scaffoldOptionLists.visibleDefaults.runtime;
-      serverDeploy = scaffoldOptionLists.visibleDefaults.serverDeploy;
+    const next = reconcileScaffoldInput(values);
+    const changed = reconciledFields.some(
+      (field) => next[field] !== values[field],
+    );
+    if (!changed) return;
+    for (const field of reconciledFields) {
+      if (next[field] !== values[field]) {
+        form.setFieldValue(field, next[field]);
+      }
     }
-    if (values.backend !== "self" && !runtimeList.includes(runtime)) {
-      runtime = scaffoldOptionLists.visibleDefaults.runtime;
-    }
-    if (values.backend !== "self" && !serverDeployList.includes(serverDeploy)) {
-      serverDeploy = scaffoldOptionLists.visibleDefaults.serverDeploy;
-    }
-    if (!dbSetupList.includes(dbSetup)) {
-      dbSetup = "none";
-    }
-    if (
-      runtime === values.runtime &&
-      serverDeploy === values.serverDeploy &&
-      dbSetup === values.dbSetup
-    ) {
-      return;
-    }
-    form.setFieldValue("runtime", runtime);
-    form.setFieldValue("serverDeploy", serverDeploy);
-    form.setFieldValue("dbSetup", dbSetup);
-    setValues({ ...values, runtime, serverDeploy, dbSetup });
+    setValues(next);
   }, [values, form]);
 
   const command = buildEquivalentCommand(normalizeScaffoldInput(values));
