@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import type { Project } from "@workspace-welcome/api/lib/types";
 import { Chip } from "@workspace-welcome/ui/components/chip";
 import { SeverityDots } from "@workspace-welcome/ui/components/severity-dots";
@@ -20,14 +21,13 @@ import { useWorkspace } from "@/widgets/contexts/workspace-context";
  * page); without it rows render non-interactive.
  */
 
-export interface AttentionListProps {
+export interface AttentionListProps extends ComponentPropsWithoutRef<"div"> {
   /** `"rows"` ledger (default) or `"strip"` chip wrap. */
   density?: "rows" | "strip";
   /** Cap on rendered projects (the count is honest: "+N more" footer). */
   max?: number;
   /** Project activation (row/chip click). */
   onOpen?: (project: Project) => void;
-  className?: string;
 }
 
 export function AttentionList({
@@ -35,6 +35,7 @@ export function AttentionList({
   max = 6,
   onOpen,
   className,
+  ...rest
 }: AttentionListProps) {
   const workspace = useWorkspace();
   const attention = attentionProjects(workspace.projects);
@@ -46,6 +47,7 @@ export function AttentionList({
       <div
         data-part="attention-list-loading"
         className={cn("flex min-h-0 min-w-0 flex-col gap-2", className)}
+        {...rest}
       >
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-4 w-1/2" />
@@ -62,6 +64,7 @@ export function AttentionList({
           "flex min-h-0 min-w-0 items-center text-xs text-muted-foreground",
           className,
         )}
+        {...rest}
       >
         All clear — no critical or warning alerts.
       </div>
@@ -72,6 +75,7 @@ export function AttentionList({
     return (
       <div
         className={cn("flex min-h-0 min-w-0 flex-wrap items-center gap-1", className)}
+        {...rest}
       >
         {shown.map((p) => {
           const worst = worstTone(p);
@@ -101,7 +105,7 @@ export function AttentionList({
   }
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-col", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-col", className)} {...rest}>
       <ul className="m-0 flex min-h-0 list-none flex-col divide-y divide-border/60 p-0">
         {shown.map((p) => (
           <li key={p.path} className="min-w-0">

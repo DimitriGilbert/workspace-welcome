@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useState } from "react";
 import {
   ArrowDownToLine,
@@ -46,7 +47,10 @@ import { useProject } from "@/widgets/contexts/project-context";
  * (The legacy `components/project-git-actions.tsx` keeps its props-driven
  * twin until K5; this is the widget-system instance.)
  */
-export function GitActionsToolbar() {
+export function GitActionsToolbar({
+  className,
+  ...rest
+}: ComponentPropsWithoutRef<"div">) {
   const project = useProject();
   const { git } = project;
   const busy = git.busy;
@@ -91,7 +95,7 @@ export function GitActionsToolbar() {
         : { warn: false, text: "Choose from the list or type a branch name." };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className={cn("flex items-center gap-1.5", className)} {...rest}>
       <Button
         size="xs"
         variant="outline"

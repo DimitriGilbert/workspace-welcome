@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useState } from "react";
 import { ChevronDown, Loader2, TriangleAlert } from "lucide-react";
 
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace-welcome/ui/components/select";
+import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { useBranchesQuery, useSwitchSafetyQuery } from "@/lib/queries/git";
 
@@ -38,7 +40,10 @@ import { useProject } from "@/widgets/contexts/project-context";
  * looking around. (The legacy `components/project-git-actions.tsx` keeps its
  * props-driven twin until K5; this is the widget-system instance.)
  */
-export function BranchSwitcher() {
+export function BranchSwitcher({
+  className,
+  ...rest
+}: ComponentPropsWithoutRef<"button">) {
   const project = useProject();
   const branch = project.project?.git.branch ?? null;
   const busy = project.git.busy;
@@ -124,7 +129,11 @@ export function BranchSwitcher() {
         onClick={() => handleOpenChange(true)}
         disabled={busy}
         title="Switch branch"
-        className="inline-flex items-center gap-0.5 font-mono text-xs transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+        className={cn(
+          "inline-flex items-center gap-0.5 font-mono text-xs transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50",
+          className,
+        )}
+        {...rest}
       >
         {branch ?? <span className="text-muted-foreground">detached</span>}
         <ChevronDown className="size-3 text-muted-foreground" aria-hidden />

@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useState } from "react";
 
 import { CommitGraph } from "@workspace-welcome/ui/components/commit-graph";
@@ -31,12 +32,11 @@ import { useProject } from "@/widgets/contexts/project-context";
 
 export type CommitsView = "table" | "graph" | "list";
 
-export interface CommitsListProps {
+export interface CommitsListProps extends ComponentPropsWithoutRef<"div"> {
   /** Commit cap; default 200 — the provider's cached entry. */
   limit?: number;
   /** Fixed view; omitted → internal tab switcher over all three. */
   view?: CommitsView;
-  className?: string;
 }
 
 const VIEW_TABS: { id: CommitsView; label: string }[] = [
@@ -90,6 +90,7 @@ export function CommitsList({
   limit = 200,
   view,
   className,
+  ...rest
 }: CommitsListProps) {
   const path = useProject().path;
   const commitLog = useCommitLogQuery(path, limit);
@@ -98,7 +99,7 @@ export function CommitsList({
   const commits = commitLog.data ?? [];
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-col gap-2", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-col gap-2", className)} {...rest}>
       {view === undefined ? (
         <WidgetTabs
           tabs={VIEW_TABS}

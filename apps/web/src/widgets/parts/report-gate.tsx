@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { useState } from "react";
 import { Copy, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@workspace-welcome/ui/components/button";
 import { Chip } from "@workspace-welcome/ui/components/chip";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { relativeTime } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
@@ -41,7 +42,7 @@ import type { ReportStatus } from "@/widgets/contexts/report-context";
 
 export type ReportGateMode = "gate" | "banner" | "line";
 
-export interface ReportGateProps {
+export interface ReportGateProps extends ComponentPropsWithoutRef<"div"> {
   /** Rendered for stale AND fresh (and under running, behind the strip). */
   children?: ReactNode;
   /** Project path inside a scan-scope export; default = the scope itself. */
@@ -66,6 +67,7 @@ export function ReportGate({
   missing,
   running,
   loading,
+  ...rest
 }: ReportGateProps) {
   const report = useReport();
 
@@ -81,11 +83,11 @@ export function ReportGate({
   if (status === "no-scope") return null;
 
   if (status === "loading") {
-    if (loading !== undefined) return <GateRoot status={status}>{loading}</GateRoot>;
+    if (loading !== undefined) return <GateRoot status={status} {...rest}>{loading}</GateRoot>;
     if (quiet) return null;
     if (mode === "line") {
       return (
-        <GateRoot status={status}>
+        <GateRoot status={status} {...rest}>
           <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
             Report loading…
           </span>
@@ -93,17 +95,17 @@ export function ReportGate({
       );
     }
     return (
-      <GateRoot status={status}>
+      <GateRoot status={status} {...rest}>
         <Skeleton className="h-full w-full" />
       </GateRoot>
     );
   }
 
   if (status === "missing") {
-    if (missing !== undefined) return <GateRoot status={status}>{missing}</GateRoot>;
+    if (missing !== undefined) return <GateRoot status={status} {...rest}>{missing}</GateRoot>;
     if (mode === "line") {
       return (
-        <GateRoot status={status}>
+        <GateRoot status={status} {...rest}>
           <span className="flex items-center gap-2">
             <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
               No report
@@ -114,7 +116,7 @@ export function ReportGate({
       );
     }
     return (
-      <GateRoot status={status}>
+      <GateRoot status={status} {...rest}>
         <div className="flex flex-col items-start gap-2 rounded-none border border-dashed border-border p-3">
           <span className="text-xs text-muted-foreground">
             No report for this scope yet — generate one to see commit cadence,
@@ -130,7 +132,7 @@ export function ReportGate({
   }
 
   if (status === "running") {
-    if (running !== undefined) return <GateRoot status={status}>{running}</GateRoot>;
+    if (running !== undefined) return <GateRoot status={status} {...rest}>{running}</GateRoot>;
     const strip = (
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -140,10 +142,10 @@ export function ReportGate({
       </span>
     );
     if (mode === "line") {
-      return <GateRoot status={status}>{strip}</GateRoot>;
+      return <GateRoot status={status} {...rest}>{strip}</GateRoot>;
     }
     return (
-      <GateRoot status={status}>
+      <GateRoot status={status} {...rest}>
         {strip}
         {children}
       </GateRoot>
@@ -156,7 +158,7 @@ export function ReportGate({
 
   if (mode === "line") {
     return (
-      <GateRoot status={status}>
+      <GateRoot status={status} {...rest}>
         <span className="flex items-center gap-2">
           <span
             className="flex items-center gap-1.5 font-mono text-[10px] tracking-[0.1em] uppercase"
@@ -177,7 +179,7 @@ export function ReportGate({
   }
 
   return (
-    <GateRoot status={status}>
+    <GateRoot status={status} {...rest}>
       {stale ? (
         <span
           className={
@@ -202,22 +204,24 @@ export function ReportGate({
 }
 
 /** The single root every non-null branch renders through — stamps the
- * harness-visible `data-report-status` (plus `definePart`'s data-part). */
+ * harness-visible `data-report-status` (plus `definePart`'s data-part via
+ * the rest props it clones in). */
 function GateRoot({
   status,
+  className,
   children,
-}: {
-  status: ReportStatus;
-  children: ReactNode;
-}) {
+  ...rest
+}: { status: ReportStatus; children: ReactNode } & ComponentPropsWithoutRef<"div">) {
   return (
     <div
       data-report-status={status}
-      className={
+      className={cn(
         status === "fresh"
           ? "flex min-h-0 min-w-0 flex-col"
-          : "flex min-h-0 min-w-0 flex-col gap-2"
-      }
+          : "flex min-h-0 min-w-0 flex-col gap-2",
+        className,
+      )}
+      {...rest}
     >
       {children}
     </div>

@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Film, Images, Plus, RefreshCw, X } from "lucide-react";
@@ -29,7 +30,11 @@ import { ArtifactLightbox } from "@/components/artifacts/lightbox";
  * streamed by /api/artifacts/view, which refuses anything outside those
  * folders. Read-only by design — deleting artifacts happens in the Files tab.
  */
-export function ArtifactsPanel({ project }: { project: string }) {
+export function ArtifactsPanel({
+  project,
+  className,
+  ...rest
+}: { project: string } & ComponentPropsWithoutRef<"div">) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -88,7 +93,7 @@ export function ArtifactsPanel({ project }: { project: string }) {
     });
 
   return (
-    <Card size="sm">
+    <Card size="sm" className={className} {...rest}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />

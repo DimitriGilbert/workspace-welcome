@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import type { Project } from "@workspace-welcome/api/lib/types";
 import { LED_TAG, Led } from "@workspace-welcome/ui/components/led";
 
@@ -13,16 +14,21 @@ import { useWorkspace } from "@/widgets/contexts/workspace-context";
  * the third naming generation (StatusLed/projectLed/worstSeverity copies).
  */
 
-export interface ProjectLedProps {
+export interface ProjectLedProps extends ComponentPropsWithoutRef<"span"> {
   project: Project;
   /** Show the tone's three-letter mono tag (CRT/WRN/INF/LIV/NOM). */
   tag?: boolean;
   /** Breathe the lamp while it isn't nominal (off under reduced motion). */
   pulse?: boolean;
-  className?: string;
 }
 
-export function ProjectLed({ project, tag, pulse = false, className }: ProjectLedProps) {
+export function ProjectLed({
+  project,
+  tag,
+  pulse = false,
+  className,
+  ...rest
+}: ProjectLedProps) {
   const { now } = useWorkspace();
   const state = ledState(project, now);
 
@@ -33,6 +39,7 @@ export function ProjectLed({ project, tag, pulse = false, className }: ProjectLe
       tag={tag ? LED_TAG[state.tone] : undefined}
       pulse={pulse}
       className={className}
+      {...rest}
     />
   );
 }

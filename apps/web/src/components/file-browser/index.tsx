@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen } from "lucide-react";
@@ -41,13 +42,15 @@ const TREE_MAX_RATIO = 0.6;
 export function FileBrowser({
   project,
   height = "70vh",
+  className,
+  ...rest
 }: {
   project: string;
   /** Shared height of the tree/viewer split panes. A prop (not a utility
    * class) so containers can size it without `[class*="h-[70vh]"]`
    * CSS-override hacks. */
   height?: string;
-}) {
+} & ComponentPropsWithoutRef<"div">) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const treeApi = useRef<FileTreeApi | null>(null);
@@ -186,7 +189,7 @@ export function FileBrowser({
   const trashAvailable = listing.data?.trashAvailable ?? true;
 
   return (
-    <Card size="sm">
+    <Card size="sm" className={className} {...rest}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FolderOpen className="size-4 text-muted-foreground" />

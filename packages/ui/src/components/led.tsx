@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
@@ -14,7 +15,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 export type LedTone = "critical" | "warning" | "info" | "live" | "nominal";
 
-export interface LedProps {
+export interface LedProps extends ComponentPropsWithoutRef<"span"> {
   tone: LedTone;
   /** Accessible/hover description; defaults to the tone's meaning. */
   label?: string;
@@ -22,7 +23,6 @@ export interface LedProps {
   tag?: string;
   /** Breathe the lamp. Off under reduced motion; nominal never pulses. */
   pulse?: boolean;
-  className?: string;
 }
 
 export const MIN_CONTENT = { w: 8, h: 8 };
@@ -52,7 +52,14 @@ const LED_LABEL: Record<LedTone, string> = {
   nominal: "Nominal",
 };
 
-export function Led({ tone, label, tag, pulse = false, className }: LedProps) {
+export function Led({
+  tone,
+  label,
+  tag,
+  pulse = false,
+  className,
+  ...rest
+}: LedProps) {
   const reduced = useReducedMotion();
   const hollow = tone === "nominal";
   const breathe = pulse && !reduced && !hollow;
@@ -66,6 +73,7 @@ export function Led({ tone, label, tag, pulse = false, className }: LedProps) {
       aria-label={text}
       title={text}
       className={cn("inline-flex items-center gap-1.5", className)}
+      {...rest}
     >
       <motion.span
         aria-hidden

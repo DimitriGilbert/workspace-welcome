@@ -1,3 +1,5 @@
+import type { ComponentPropsWithoutRef } from "react";
+
 import { FileBrowser } from "@/components/file-browser";
 
 import { useProject } from "@/widgets/contexts/project-context";
@@ -8,16 +10,19 @@ import { useProject } from "@/widgets/contexts/project-context";
  * independent `files.list` queries — leaf parts fetch, contexts provide
  * scope): the path comes from `useProject()`, and the split-pane height is
  * forwarded to FileBrowser's height prop so containers size it without CSS
- * override hacks.
+ * override hacks. Rest props (definePart's data-part stamps, caller
+ * className/style) forward through FileBrowser onto its Card root.
  */
 
-export interface FilesListProps {
+export interface FilesListProps extends ComponentPropsWithoutRef<"div"> {
   /** Shared tree/viewer pane height (CSS length). Default keeps the page
    * layout's 70vh; widget shells pass e.g. "100%" or a fixed length. */
   height?: string;
 }
 
-export function FilesList({ height }: FilesListProps) {
+export function FilesList({ height, className, ...rest }: FilesListProps) {
   const path = useProject().path;
-  return <FileBrowser project={path} height={height} />;
+  return (
+    <FileBrowser project={path} height={height} className={className} {...rest} />
+  );
 }

@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useState } from "react";
 import { NotebookPen } from "lucide-react";
 
@@ -14,18 +15,18 @@ import { useProject } from "@/widgets/contexts/project-context";
  * the state honest without stealing the tile's space.
  */
 
-export interface NoteEditorProps {
+export interface NoteEditorProps extends ComponentPropsWithoutRef<"div"> {
   /** Textarea rows (default 4). */
   rows?: number;
   /** Placeholder shown while the note is empty. */
   placeholder?: string;
-  className?: string;
 }
 
 export function NoteEditor({
   rows = 4,
   placeholder = "Where you left off — next steps, gotchas, links…",
   className,
+  ...rest
 }: NoteEditorProps) {
   const note = useProject().note;
   const [saved, setSaved] = useState(true);
@@ -37,7 +38,7 @@ export function NoteEditor({
   };
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-col gap-1", className)}>
+    <div className={cn("flex min-h-0 min-w-0 flex-col gap-1", className)} {...rest}>
       <span className="flex items-center gap-1.5 text-[10px] font-medium tracking-[0.08em] text-muted-foreground uppercase">
         <NotebookPen className="size-3" aria-hidden />
         Note

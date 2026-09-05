@@ -1002,15 +1002,20 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 - [x] **P2** ui chart family — gates green, committed `20d8a3b`. Chart part is the ONE recharts engine (client-gated, reduced-motion, MIN_CONTENT 200×160); geometry parts (donut/h-bars/seg-bar/heatmap/gauge/pulse-strip) hand-SVG tokens-only. Heatmap ports dayKey/grid/heatLevel locally (ui cannot import app scan-metrics).
 - [x] **W3** grid canvas — gates green (own namespace), committed `164cc18`. Resolved: DEFAULT_GRID_GAP_PX=12 prop-overridable (v1 has no gap field); `data-size` = resolveSizeClass footprint; canvas owns the 1:1 frame (frozen W1 shell doesn't forward data-attrs); Escape re-pins at recorded baseline.
 - [x] **P3** readout/table/git/layout — gates green, committed `29e1fb9`. 13 parts + tokens.ts; carousel height chain moved in-component (supersedes bento.css workaround — that scoped CSS is now dead but harmless until K-phase); @tanstack/react-table catalog dep added to ui.
-- [ ] **P4** app parts — blocked on D2, D4–D7, P2, P3, W1
-- [x] **D5** Settings+Workspace providers — gates green, committed `c614da9`. Resolved: query results typed as ReturnType of canonical hooks (tRPC errors ≠ UseQueryResult<T>); update() tightened to the inferred router input (Partial merging would fake-succeed); refresh(force) maps to the scan fingerprint bypass; data-providers stamped per provider root.
-- [x] **D6** Report provider — gates green, committed `3315441`. Resolved: alerts rows sourced from D2 alertTally.rows (worst→severity); `staleAt` = latestUpdated verdict input (null ⇒ never stale); staleness inputs ride useScanQuery's cache entry; per-provider data-providers stamp (D8 composes the page-stack string).
-- [x] **D7** Project provider — gates green, committed `c5dc2bf`. 530 lines (est. ~300 — IDE choreography + quintet + note). Resolved: quintet = mutation-backed action objects (per-op isPending + per-call onSuccess) superseding draft's bare void fns; ide.starting added; ide.status wires settings.get queryOptions in-file (provider-singular precedent); commitLog not isRepo-gated (lib hook owns enabled).
-- [ ] **W4** registry + renderer + lab — blocked on W3, P3, D5
-- [ ] **P5** parts preview + part-min probe — blocked on P2–P4, M2
+- [x] **P4** app parts — gates green, committed `f565307` + barrel addendum `5e1bcf2`. 15 parts + registry (14 definePart wrappers) + barrel; lib/forms/clone-script.ts; lib/queries/git.ts (one file beyond plan — pickers stay out of raw tRPC); file-browser height prop replaces the h-[70vh] hack. Zero useMutation/useQuery/raw-tRPC in parts.
+- [x] **W4** registry + renderer + lab — gates green, committed `afae714` + `__check` deletion `3266da0`. Lab suite 6/6 PASS at 3440/1280/390 with 31 real project tiles; interactions 9/9. Route gotcha confirmed: pathless dev routes need bracket escape.
 - [x] **M2** harness v0 — self-test proves detection (6/6 probes FAIL the known-bad panel), sentinel 3/3, invariants green; committed `cab5951`. Route gotcha: pathless dev routes need bracket escape (`[__check].tsx`).
-- [ ] **M3** walking skeleton GATE — blocked on W4, D5, D6, P3, M2
-- [ ] **T1–T3** theme waves + V1–V3 → C1 → G1 (owner) → K1–K4
+- [x] **M3** walking skeleton GATE — **GREEN**, committed `060704e`. Harness 6/6 (incl. token-completeness 38/38), sentinel 3/3, drag-resize 5/5, data-providers + data-ready + live scan asserted. Reds fixed: token completeness (skeleton aliases until T1-mc), part-min DOM markers (floors on cell wrappers — P5 finalizes), 3 harness bugs in grep-invariants.
+- [x] **P5** parts preview + part-min probe — committed `e54e648`. 114 floored boxes/scope ≥ floors; 38 tokens resolve; parts-reference doc generated. Flagged: P4 parts dropping definePart stamps (micro-fix dispatched).
+- [x] **T1-mc** — committed `3406fe2`. 47 token declarations, real oklch values; 12/8/4 columns; harness 6 pass 0 warn.
+- [x] **T1-bento** — committed `a18f857`. 38/38 + recency mid-tiers; 12/6/2 columns, cell.h 96.
+- [x] **harness** — invariant-2 exemption for theme tokens.css declaration lines (overlap with invariant 3 fixed); committed `a957af3`; all 7 invariants green.
+- [~] **T1-meadow** tokens+preset — dispatched
+- [x] **D8** provider-stack wiring — gates green, committed `5c5036b`. DOM-verified document-order data-providers on both shells; real-root binding proven (reports.command/commitLog/touch fired live); SSR-NUL grep gotcha (use grep -a).
+- [~] **P4-fix** rest-prop forwarding in parts — dispatched (definePart stamps reach DOM)
+- [ ] **V1** wave-1 validator — blocked on T1-* + P5
+- [~] **P4-fix** rest-prop forwarding — committed with this ledger update
+- [ ] **T2** dashboards → V2 → **T3** project pages → V3 → **C1** → **G1** (owner) → **K1–K4**
 
 The migration is done when ALL of the following hold:
 
