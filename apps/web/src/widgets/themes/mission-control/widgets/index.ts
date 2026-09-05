@@ -1,25 +1,144 @@
 /**
- * Mission Control's widget kinds (master plan §3.3, §5 M3).
+ * Mission Control's widget kinds (master plan §3.3, §5 T1/T2).
  *
  * The eager glob in `widgets/registry.ts` picks this module up and merges
- * its `widgetDefs` into the validated registry — theme waves never edit the
- * shared registry file, and duplicate ids throw at module evaluation.
+ * its `widgetDefs` into the validated registry — theme waves never edit
+ * the shared registry file, and duplicate ids throw at module evaluation.
+ *
+ * T2 dashboard port (widget-for-widget from `components/designs/
+ * mission-control/` + `routes/designs/mission-control/index.tsx`): ids are
+ * prefixed `mc-` so parallel theme waves can never collide in the merged
+ * registry. Project-page kinds land at T3.
  */
 import type { WidgetDef } from "@/widgets/registry";
 
-import { VitalsSkeleton } from "./vitals-skeleton";
+import { McActivityHeatmap, McAlertsDonut, McDirtyLeaders, McStackMix } from "./analytics";
+import { McCommandBar } from "./command-bar";
+import { McFleetLedger } from "./fleet-ledger";
+import { McReportActivity } from "./report-activity";
+import { McReportAi } from "./report-ai";
+import { McReportCode } from "./report-code";
+import { McReportHealth } from "./report-health";
+import { McRoots } from "./roots-panel";
+import { McTriage } from "./triage-board";
+import { McVitals } from "./vitals";
 
 export const widgetDefs: readonly WidgetDef[] = [
   {
-    id: "vitals-skeleton",
+    id: "mc-vitals",
     title: "Fleet vitals",
-    component: VitalsSkeleton,
+    component: McVitals,
     requires: ["workspace"],
-    defaultSize: "3x3",
-    // min stays at the 1x1 default: the kind authors real content at every
-    // ladder rung (single Stat at 1x1), and the lab's ladder catalog places
-    // every registered widget at every rung — any higher floor would fail
-    // validate-layout there.
+    defaultSize: "2x2",
+    min: "1x1",
     hosts: ["stat", "vitals-band"],
+  },
+  {
+    id: "mc-command-bar",
+    title: "Command bar",
+    component: McCommandBar,
+    requires: ["workspace"],
+    defaultSize: "2x1",
+    min: "1x1",
+    hosts: [],
+  },
+  {
+    id: "mc-triage",
+    title: "Triage",
+    component: McTriage,
+    requires: ["workspace"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["attention-list", "stat"],
+  },
+  {
+    id: "mc-fleet-ledger",
+    title: "Fleet ledger",
+    component: McFleetLedger,
+    requires: ["workspace"],
+    defaultSize: "2x3",
+    min: "1x1",
+    hosts: ["data-table", "kv-list", "led-project", "pulse-strip", "severity-dots"],
+  },
+  {
+    id: "mc-report-activity",
+    title: "Activity report",
+    component: McReportActivity,
+    requires: ["workspace", "report"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["report-gate", "chart", "data-table", "stat"],
+  },
+  {
+    id: "mc-report-ai",
+    title: "AI usage",
+    component: McReportAi,
+    requires: ["workspace", "report"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["report-gate", "stat", "seg-bar"],
+  },
+  {
+    id: "mc-report-health",
+    title: "Health",
+    component: McReportHealth,
+    requires: ["workspace", "report"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["report-gate", "data-table", "stat"],
+  },
+  {
+    id: "mc-report-code",
+    title: "Code",
+    component: McReportCode,
+    requires: ["workspace", "report"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["report-gate", "donut", "stat"],
+  },
+  {
+    id: "mc-activity-heatmap",
+    title: "Activity",
+    component: McActivityHeatmap,
+    requires: ["workspace"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["heatmap", "stat"],
+  },
+  {
+    id: "mc-alerts-donut",
+    title: "Alerts",
+    component: McAlertsDonut,
+    requires: ["workspace"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["donut", "stat"],
+  },
+  {
+    id: "mc-stack-mix",
+    title: "Stack mix",
+    component: McStackMix,
+    requires: ["workspace"],
+    defaultSize: "2x2",
+    min: "1x1",
+    hosts: ["donut", "stat"],
+  },
+  {
+    id: "mc-dirty-leaders",
+    title: "Dirty leaders",
+    component: McDirtyLeaders,
+    requires: ["workspace"],
+    defaultSize: "2x1",
+    min: "1x1",
+    hosts: ["h-bars", "stat"],
+  },
+  {
+    id: "mc-roots",
+    title: "Roots",
+    component: McRoots,
+    requires: ["workspace"],
+    defaultSize: "2x1",
+    min: "1x1",
+    hosts: ["kv-list"],
   },
 ];

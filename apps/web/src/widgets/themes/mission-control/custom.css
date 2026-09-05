@@ -1,0 +1,91 @@
+/*
+ * Mission Control chrome skin (master plan §3.6.3 — additive only, never
+ * layout or visibility; dropped from the page head by `?bare=1`, and the
+ * full interaction suite must still pass without it).
+ *
+ * The console's skin language, ported from the design stylesheet
+ * (`mission-control.css`): flat terminal panels with hairline borders, mono
+ * micro-caps eyebrow labels, square corners, raised fills. Colors are only
+ * ever addressed through the custom properties `tokens.css` declares — no
+ * literals beyond custom-property declaration lines (grep-invariant #3).
+ */
+
+[data-ww-theme="mission-control"] {
+  /* skin-local vocabulary (declaration lines only) */
+  --mc-shell-panel: var(--mc-panel);
+  --mc-shell-hairline: var(--mc-line-strong);
+  --mc-kbd-line: var(--mc-line-strong);
+}
+
+/* Widget shells read as the design's `mc-panel`: raised flat panel, square,
+   hairline border, mono eyebrow header. */
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell"] {
+  background: var(--mc-shell-panel);
+  border: 1px solid var(--mc-shell-hairline);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-header"] {
+  border-bottom: 1px solid var(--mc-shell-hairline);
+  padding: 0.5rem 0.875rem;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-title"] {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--eyebrow);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-title"] > span:first-child {
+  border-radius: 0;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-meta"] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  tab-size: 4;
+}
+
+/* Console tabs: the design's `mc-tabs` register — square, mono caps. */
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] [role="tab"] {
+  border: 1px solid transparent;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] [role="tab"][data-active] {
+  border-color: var(--mc-shell-hairline);
+  background: var(--mc-bg-raise);
+}
+
+/* Ledger tables: the design's `mc-th`/`mc-row` register. */
+
+[data-ww-theme="mission-control"] [data-part="data-table"] th {
+  font-family: var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--eyebrow);
+  padding-bottom: 0.375rem;
+}
+
+[data-ww-theme="mission-control"] [data-part="data-table"] tbody tr {
+  transition: background-color 75ms ease;
+}
+
+[data-ww-theme="mission-control"] [data-part="data-table"] tbody tr:hover {
+  background: color-mix(in oklch, var(--mc-accent) 6%, transparent);
+}
+
+/* Keyboard hint caps (the design's `mc-kbd`). */
+
+[data-ww-theme="mission-control"] kbd {
+  border: 1px solid var(--mc-kbd-line);
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}
