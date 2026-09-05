@@ -1,0 +1,79 @@
+/*
+ * Meadow scope tokens (master plan §3.6.1, T1 wave).
+ *
+ * Ported from `components/designs/meadow/meadow.css` (`.meadow`): meadow is
+ * the one warm daylight palette — a light, cream-ground scope inside an app
+ * that forces dark at the root, so every value here re-declares the full
+ * surface set under `[data-ww-theme="meadow"]` and the scope carries
+ * `color-scheme: light`. Every fg/bg pair below was contrast-verified in the
+ * design (>= 4.5:1 body text; --ring 3.4:1 non-text); soften only with that
+ * check re-run. Color literals appear ONLY on custom-property declaration
+ * lines (grep-invariant #2/#3); severity uses the canonical `--sev-*`
+ * vocabulary (§3.7).
+ *
+ * The semantic groups MUST be declared on the `[data-ww-theme="meadow"]`
+ * scope element itself — the base :root cascade would otherwise satisfy
+ * plain resolution and hide a missing stylesheet from the probe.
+ */
+
+[data-ww-theme="meadow"] {
+  /* base shadcn surface — warm daylight cream, sage primary */
+  --background: oklch(0.968 0.015 105);
+  --foreground: oklch(0.27 0.03 150);
+  --card: oklch(0.993 0.007 105);
+  --card-foreground: oklch(0.27 0.03 150);
+  --popover: oklch(0.993 0.007 105);
+  --popover-foreground: oklch(0.27 0.03 150);
+  --primary: oklch(0.46 0.105 152);
+  --primary-foreground: oklch(0.98 0.012 120);
+  --secondary: oklch(0.94 0.022 110);
+  --secondary-foreground: oklch(0.3 0.035 152);
+  --muted: oklch(0.94 0.02 110);
+  --muted-foreground: oklch(0.48 0.028 148);
+  --accent: oklch(0.92 0.035 135);
+  --accent-foreground: oklch(0.3 0.04 152);
+  --destructive: oklch(0.48 0.16 27);
+  --border: oklch(0.895 0.025 110);
+  --input: oklch(0.885 0.028 110);
+  --ring: oklch(0.6 0.115 150);
+  --radius: 0.9rem;
+
+  /* typography (app defaults — meadow rides the shared Geist faces) */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  /* severity — canonical names (§3.7), at the design's light-register hues */
+  --sev-critical: oklch(0.48 0.15 27);
+  --sev-warning: oklch(0.47 0.09 80);
+  --sev-info: oklch(0.47 0.085 250);
+
+  /* semantic part vocabulary + chrome */
+  --state-positive: oklch(0.45 0.095 155);
+  /* Sage = recently alive; stale melts toward warm sand. */
+  --recency-fresh: oklch(0.47 0.1 152);
+  --recency-stale: oklch(0.8 0.02 105);
+  /* Honey: attention + pinned share one warm "keep an eye on this" hue. */
+  --pinned-accent: oklch(0.5 0.095 85);
+  --eyebrow: oklch(0.5 0.045 148);
+  /* Panels round to the design's `calc(var(--radius) + 8px)` (`.meadow-panel`). */
+  --chrome-radius: calc(var(--radius) + 8px);
+  --chrome-hairline: var(--border);
+  --chrome-panel-bg: var(--card);
+
+  /* meadow ride-alongs: translucent washes over the two accents */
+  --recency-fresh-wash: oklch(0.47 0.1 152 / 0.09);
+  --pinned-accent-wash: oklch(0.5 0.095 85 / 0.12);
+
+  /* the one chart ramp, 1..6 — port of `--chart-1..5`; chart-6 is derived
+     in the same pastel register (L 0.55, chroma ~0.09, teal hue) since the
+     design ramp stops at five */
+  --chart-1: oklch(0.46 0.105 152);
+  --chart-2: oklch(0.55 0.1 85);
+  --chart-3: oklch(0.55 0.09 250);
+  --chart-4: oklch(0.55 0.08 330);
+  --chart-5: oklch(0.55 0.1 40);
+  --chart-6: oklch(0.55 0.09 195);
+
+  /* meadow is a scoped LIGHT theme while the app root forces dark */
+  color-scheme: light;
+}
