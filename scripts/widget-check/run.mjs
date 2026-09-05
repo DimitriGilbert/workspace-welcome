@@ -19,8 +19,20 @@
  * the contract: the run is only OK when every probe reported FAIL on it
  * (expected failures prove detection); a probe that passes there is a FAIL.
  *
- * `theme`/`lab`/`parts-preview` map to the surviving routes (§3.2); `lab`
- * and `parts-preview` only exist from W4/P5 on and FAIL honestly until then.
+ * `theme`/`lab`/`parts-preview` map to the surviving routes (§3.2).
+ *
+ * Suite probe sets: `theme`/`lab`/`self-test` run every probe; the
+ * parts-preview suite (P5) runs part-min — the P5-finalized assertions
+ * (part floors at every rendered rung, per-scope token resolution,
+ * fixed-box == viewport, overflow, open-dialog overlays). The board probes
+ * are excluded: density/placement have no `[data-widget-board]` here,
+ * no-inner-scroll is meaningless on the preview BY DESIGN — it renders
+ * FilesList/Artifacts, whose scroll exemptions the empty allowlist reserves
+ * for the owner's G1 decision (no-inner-scroll stays enforced by the
+ * theme/lab board suites) — and portal-scope is single-scope (it compares
+ * every surface's --background to the FIRST scope's), which false-FAILs
+ * surfaces living in the preview's other theme scopes. `--probe` overrides
+ * the suite default explicitly.
  */
 import { fileURLToPath } from "node:url";
 
@@ -38,7 +50,11 @@ const PROBES = [noInnerScroll, density, tokenCompleteness, portalScope, placemen
 const SUITES = {
   theme: { target: "theme", expectProbeFailures: false },
   lab: { target: "lab", expectProbeFailures: false },
-  "parts-preview": { target: "parts-preview", expectProbeFailures: false },
+  "parts-preview": {
+    target: "parts-preview",
+    expectProbeFailures: false,
+    probes: ["part-min"],
+  },
   "self-test": { target: "self-test", expectProbeFailures: true },
 };
 
@@ -155,8 +171,12 @@ const body = async () => {
   const url = targetUrl(options.baseUrl, options.suite, options);
   await assertReachable(options.baseUrl, url);
 
-  const probes = PROBES.filter((probe) => options.probes.length === 0 || options.probes.includes(probe.name));
-  const missing = options.probes.filter((wanted) => !PROBES.some((probe) => probe.name === wanted));
+  // Suite default probe set (all probes unless the suite narrows them);
+  // an explicit --probe list overrides it.
+  const defaultProbeNames = suite.probes ?? PROBES.map((probe) => probe.name);
+  const effectiveNames = options.probes.length > 0 ? options.probes : defaultProbeNames;
+  const probes = PROBES.filter((probe) => effectiveNames.includes(probe.name));
+  const missing = effectiveNames.filter((wanted) => !PROBES.some((probe) => probe.name === wanted));
   if (missing.length > 0) {
     throw new Error(`unknown probe(s): ${missing.join(", ")} (expected: ${PROBES.map((p) => p.name).join(", ")})`);
   }
