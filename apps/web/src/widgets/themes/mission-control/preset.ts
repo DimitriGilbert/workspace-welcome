@@ -1,14 +1,16 @@
 /**
- * Mission Control's skeleton theme preset (master plan §5 M3).
+ * Mission Control's theme preset (master plan §5 T1).
  *
- * The walking skeleton's placement target: the dashboard is one stack region
- * holding one vitals node — the minimum a theme page needs to prove contexts
- * → runtime → parts compose on the real route. The project page is an empty
- * shell (valid `PageLayout`, zero regions): nothing is drawn because nothing
- * is authored, and the T1/T2/T3-mc waves replace both layouts with the real
- * presets. The scope tokens ship as skeleton aliases (`./tokens.css`, loaded
- * from this module — the one per-theme module the preset glob always
- * evaluates); T1-mc replaces both layouts and the token values.
+ * Real `ThemePreset` shell: grid geometry from the design's console — a
+ * 12-column desktop stage (8 tablet / 4 phone) at the console's dense 96 px
+ * row unit (§3.3: 92–104 px observed; mc sits mid-range, matching the M3
+ * gate density). T1 ships empty-region layouts — the dashboard may keep the
+ * M3 skeleton vitals widget as its single stack region until T2 ports the
+ * real dashboard widget-for-widget; the project page stays an empty shell
+ * (valid `PageLayout`, zero regions) until T3.
+ *
+ * The scope tokens ship as real mc values (`./tokens.css`, loaded from this
+ * module — the one per-theme module the preset glob always evaluates).
  */
 import "./tokens.css";
 
