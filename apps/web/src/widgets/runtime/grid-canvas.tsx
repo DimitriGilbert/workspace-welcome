@@ -27,9 +27,11 @@
  * re-pack: authored `at` anchors clamp inside the packer, session-pinned
  * widgets stay fixed, everything else re-packs in reading order.
  *
- * Affordances (drag handle + E/S/SE resize handles) are canvas-rendered
- * buttons inside the frame, wired to `useGridDrag` — the dnd-kit-swap seam.
- * The frame's stretch selector targets non-button children only, so the
+ * Affordances (drag handle + eight resize handles — the N/S/E/W edges plus
+ * the four corners) are canvas-rendered buttons inside the frame, wired to
+ * `useGridDrag` — the dnd-kit-swap seam. North/west resize moves the
+ * widget's origin (x/y shift while cols/rows grow). The frame's stretch
+ * selector targets non-button children only, so the
  * affordance buttons keep their authored hit-zone sizes instead of being
  * stretched across the widget (which once made edge clicks trigger drag/
  * resize everywhere — content must win everywhere but the small zones).
@@ -206,17 +208,23 @@ function GripGlyph() {
 }
 
 /**
- * Resize hit zones (W3): small, precise, invisible strip buttons — the
- * CENTERED 20% of the E/S edge, 2rem deep inward; the SE corner is 2rem ×
- * 2rem. They are live for pointers unconditionally (`pointer-events: auto`,
- * never container-level pointer math), so ONLY these zones intercept resize
- * gestures and all content elsewhere (buttons, links, charts, tabs) receives
- * pointer events normally. They remain focusable <button>s — the keyboard
- * resize path depends on it.
+ * Resize hit zones (W3, extended to all eight directions): small, precise,
+ * invisible strip buttons — each EDGE handle is the CENTERED 20% of that
+ * edge, 2rem deep inward; each CORNER is 2rem × 2rem. They are live for
+ * pointers unconditionally (`pointer-events: auto`, never container-level
+ * pointer math), so ONLY these zones intercept resize gestures and all
+ * content elsewhere (buttons, links, charts, tabs) receives pointer events
+ * normally. They remain focusable <button>s — the keyboard resize path
+ * depends on it.
  */
 const RESIZE_HANDLES: readonly { edge: ResizeEdge; word: string; className: string }[] = [
-  { edge: "e", word: "east", className: "top-[40%] right-0 bottom-[40%] w-8 cursor-ew-resize" },
+  { edge: "n", word: "north", className: "top-0 right-[40%] left-[40%] h-8 cursor-ns-resize" },
   { edge: "s", word: "south", className: "right-[40%] bottom-0 left-[40%] h-8 cursor-ns-resize" },
+  { edge: "e", word: "east", className: "top-[40%] right-0 bottom-[40%] w-8 cursor-ew-resize" },
+  { edge: "w", word: "west", className: "top-[40%] bottom-[40%] left-0 w-8 cursor-ew-resize" },
+  { edge: "nw", word: "north-west", className: "top-0 left-0 size-8 cursor-nwse-resize" },
+  { edge: "ne", word: "north-east", className: "top-0 right-0 size-8 cursor-nesw-resize" },
+  { edge: "sw", word: "south-west", className: "bottom-0 left-0 size-8 cursor-nesw-resize" },
   { edge: "se", word: "south-east", className: "right-0 bottom-0 size-8 cursor-nwse-resize" },
 ];
 
@@ -386,7 +394,11 @@ export function GridCanvas({
                       type="button"
                       data-drag-handle=""
                       aria-label={`Move ${label}. Arrow keys move by one cell; Escape returns to the session start position.`}
-                      className="absolute top-1 left-1 z-20 flex size-6 cursor-grab touch-none items-center justify-center rounded-sm text-muted-foreground opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-(--pinned-accent,var(--primary)) focus-visible:outline-none hover:text-foreground"
+                      // z-30 lifts the grip above the NW resize corner's
+                      // 2rem×2rem zone (both z-20 siblings would otherwise
+                      // order by DOM position) — the move affordance must
+                      // stay reachable at the top-left corner.
+                      className="absolute top-1 left-1 z-30 flex size-6 cursor-grab touch-none items-center justify-center rounded-sm text-muted-foreground opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-(--pinned-accent,var(--primary)) focus-visible:outline-none hover:text-foreground"
                       onPointerDown={(event) => drag.startMove(node.id, region.id, event)}
                       onKeyDown={(event) => drag.moveKeyDown(node.id, event)}
                     >
@@ -397,7 +409,7 @@ export function GridCanvas({
                         key={handle.edge}
                         type="button"
                         data-resize-handle={handle.edge}
-                        aria-label={`Resize ${label} ${handle.word}. Arrow keys adjust by one cell; Escape returns to the session start position.`}
+                        aria-label={`Resize ${label} ${handle.word}. Arrow keys resize in the handle's direction, Shift+Arrow resizes the opposite edge; Escape returns to the session start position.`}
                         className={cn(
                           // Live hit zone: always pointer-events-auto (small
                           // by construction above), visually revealed on

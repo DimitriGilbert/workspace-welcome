@@ -15,18 +15,22 @@
  *
  * Keyboard path is PRIMARY (and the scripted test surface): handles are
  * focusable buttons with aria-labels; arrow keys move/resize by one cell
- * with LIVE commit (session write + re-pack per keypress); Escape reverts
- * the widget to its session-start placement (see `grid-session.ts`); every
- * outcome is announced through a single `aria-live="polite"` message the
- * canvas renders.
+ * with LIVE commit (session write + re-pack per keypress) — a resize arrow
+ * grows along its handle's direction and Shift+Arrow resizes the opposite
+ * edge (negative direction); Escape reverts the widget to its session-start
+ * placement (see `grid-session.ts`); every outcome is announced through a
+ * single `aria-live="polite"` message the canvas renders.
  *
  * Clamps: motion never exceeds the grid (x within `[0, columns - cols]`,
  * y ≥ 0) and resize never goes below the registry `min` (supplied per widget
- * by the canvas via the registry lookup). Moves that would overlap an
- * immovable widget (authored anchor or session-pinned) are REFUSED — the
- * widget stays at its pre-move placement and the refusal is announced; the
- * packer never pushes fixed blocks. No new dependencies — hand-rolled
- * (settled).
+ * by the canvas via the registry lookup) nor past column 1 / row 1 — a north
+ * or west resize moves the widget's ORIGIN (x/y shift while cols/rows grow),
+ * so its clamps bound the origin. Gestures that would overlap an immovable
+ * widget (authored anchor or session-pinned) are REFUSED — moves AND
+ * resizes alike: the pointer path previews on the ghost and refuses at
+ * commit (the widget is still at its pre-gesture placement), the keyboard
+ * path refuses the keypress live; every refusal is announced. The packer
+ * never pushes fixed blocks. No new dependencies — hand-rolled (settled).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
@@ -35,8 +39,32 @@ import { commitSessionPlacement, revertSessionPlacement } from "./grid-session";
 import type { SessionPlacement } from "./grid-session";
 import type { ParsedSize } from "./size-class";
 
-/** Resize affordance edges: east (width), south (height), south-east (both). */
-export type ResizeEdge = "e" | "s" | "se";
+/** Resize affordance directions: the four edges (north/south/east/west) and
+ * the four corners. North/west growth moves the widget's origin (x/y shift
+ * while cols/rows grow); south/east growth keeps the origin. */
+export type ResizeEdge = "n" | "s" | "e" | "w" | "nw" | "ne" | "sw" | "se";
+
+/** Human direction words for announcements, keyed by resize direction. */
+const EDGE_WORDS: Record<ResizeEdge, string> = {
+  n: "north",
+  s: "south",
+  e: "east",
+  w: "west",
+  nw: "north-west",
+  ne: "north-east",
+  sw: "south-west",
+  se: "south-east",
+};
+
+/** Arrow-key resize vocabulary: which footprint axis the key drives and the
+ * grid-space sign of one step. Handle direction + Shift resolve the final
+ * growth sign (see `resizeKeyDown`). */
+const RESIZE_KEYS = {
+  ArrowUp: { axis: "rows", delta: -1 },
+  ArrowDown: { axis: "rows", delta: 1 },
+  ArrowLeft: { axis: "cols", delta: -1 },
+  ArrowRight: { axis: "cols", delta: 1 },
+} as const;
 
 /** What a gesture does: reposition, or grow/shrink from a resize handle. */
 export type DragMode = "move" | ResizeEdge;
@@ -73,6 +101,45 @@ function placementsOverlap(a: DragPlacement, b: DragPlacement): boolean {
     a.y < b.y + b.rows &&
     b.y < a.y + a.rows
   );
+}
+
+/**
+ * Resize geometry for any direction: applies the signed per-axis cell deltas
+ * of a gesture to `origin`. Positive growth grows the footprint; growing via
+ * the north/west edges moves the ORIGIN instead (y/x decrease while rows/cols
+ * grow — the opposite edge stays put). Clamps: never below the registry min
+ * (`minCols`/`minRows`), never above column 1 / row 1 (`x, y ≥ 0`), and east
+ * growth never passes the grid's right edge. South growth is unbounded (the
+ * grid's auto-rows extend downward). Pure — pointer preview and keyboard
+ * steps share it so both paths clamp identically.
+ */
+function applyResize(
+  origin: DragPlacement,
+  edge: ResizeEdge,
+  columns: number,
+  minCols: number,
+  minRows: number,
+  deltaCols: number,
+  deltaRows: number,
+): DragPlacement {
+  const next = { ...origin };
+  if (edge === "e" || edge === "ne" || edge === "se") {
+    next.cols = clamp(origin.cols + deltaCols, minCols, Math.max(minCols, columns - origin.x));
+  }
+  if (edge === "w" || edge === "nw" || edge === "sw") {
+    const grow = clamp(-deltaCols, minCols - origin.cols, origin.x);
+    next.x = origin.x - grow;
+    next.cols = origin.cols + grow;
+  }
+  if (edge === "s" || edge === "sw" || edge === "se") {
+    next.rows = Math.max(minRows, origin.rows + deltaRows);
+  }
+  if (edge === "n" || edge === "ne" || edge === "nw") {
+    const grow = clamp(-deltaRows, minRows - origin.rows, origin.y);
+    next.y = origin.y - grow;
+    next.rows = origin.rows + grow;
+  }
+  return next;
 }
 
 export interface UseGridDragOptions {
@@ -190,25 +257,30 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
     return null;
   }, []);
 
-  const commitPlacement = useCallback((next: DragPlacement, mode: DragMode): void => {
-    const { pageId, widgets } = latest.current;
-    const current = latest.current.placements.find((p) => p.id === next.id);
-    const sessionStart: SessionPlacement = current
-      ? { x: current.x, y: current.y, cols: current.cols, rows: current.rows }
-      : { x: next.x, y: next.y, cols: next.cols, rows: next.rows };
-    commitSessionPlacement(
-      pageId,
-      next.id,
-      { x: next.x, y: next.y, cols: next.cols, rows: next.rows },
-      sessionStart,
-    );
-    const label = widgets.get(next.id)?.label ?? next.id;
-    announce(
-      mode === "move"
-        ? `${label} moved to column ${next.x + 1}, row ${next.y + 1}`
-        : `${label} resized to ${next.cols} by ${next.rows} cells`,
-    );
-  }, [announce]);
+  const commitPlacement = useCallback(
+    (next: DragPlacement, mode: DragMode, direction?: string): void => {
+      const { pageId, widgets } = latest.current;
+      const current = latest.current.placements.find((p) => p.id === next.id);
+      const sessionStart: SessionPlacement = current
+        ? { x: current.x, y: current.y, cols: current.cols, rows: current.rows }
+        : { x: next.x, y: next.y, cols: next.cols, rows: next.rows };
+      commitSessionPlacement(
+        pageId,
+        next.id,
+        { x: next.x, y: next.y, cols: next.cols, rows: next.rows },
+        sessionStart,
+      );
+      const label = widgets.get(next.id)?.label ?? next.id;
+      announce(
+        mode === "move"
+          ? `${label} moved to column ${next.x + 1}, row ${next.y + 1}`
+          : direction === undefined
+            ? `${label} resized to ${next.cols} by ${next.rows} cells`
+            : `${label} resized ${direction} to ${next.cols} by ${next.rows} cells`,
+      );
+    },
+    [announce],
+  );
 
   const revertToSessionStart = useCallback(
     (widgetId: string): void => {
@@ -256,7 +328,6 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
     const meta = widgets.get(interaction.widgetId);
     const minCols = Math.max(1, meta?.min.cols ?? 1);
     const minRows = Math.max(1, meta?.min.rows ?? 1);
-    const maxWidth = Math.max(minCols, columns - origin.x);
 
     let preview: DragPlacement;
     if (interaction.mode === "move") {
@@ -266,13 +337,15 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
         y: Math.max(0, origin.y + Math.round(dy / unitY)),
       };
     } else {
-      preview = { ...origin };
-      if (interaction.mode === "e" || interaction.mode === "se") {
-        preview.cols = clamp(origin.cols + Math.round(dx / unitX), minCols, maxWidth);
-      }
-      if (interaction.mode === "s" || interaction.mode === "se") {
-        preview.rows = Math.max(minRows, origin.rows + Math.round(dy / unitY));
-      }
+      preview = applyResize(
+        origin,
+        interaction.mode,
+        columns,
+        minCols,
+        minRows,
+        Math.round(dx / unitX),
+        Math.round(dy / unitY),
+      );
     }
     interaction.preview = preview;
     setGhost(preview);
@@ -286,19 +359,21 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
       const mode = interaction.mode;
       const { widgets } = latest.current;
       endInteraction();
-      if (mode === "move") {
-        const blocker = findFixedBlocker(preview);
-        if (blocker !== null) {
-          // Refuse: the drop target would overlap a widget that can't move.
-          // Nothing was committed during the gesture, so the widget is still
-          // at its pre-drag placement — only the ghost needs to go.
-          const label = widgets.get(interaction.widgetId)?.label ?? interaction.widgetId;
-          const blockerLabel = widgets.get(blocker.id)?.label ?? blocker.id;
-          announce(`${label} can't move there — ${blockerLabel} occupies that spot`);
-          return;
-        }
+      const blocker = findFixedBlocker(preview);
+      if (blocker !== null) {
+        // Refuse: the target would overlap a widget that can't move. Nothing
+        // was committed during the gesture, so the widget is still at its
+        // pre-gesture placement — only the ghost needs to go.
+        const label = widgets.get(interaction.widgetId)?.label ?? interaction.widgetId;
+        const blockerLabel = widgets.get(blocker.id)?.label ?? blocker.id;
+        announce(
+          mode === "move"
+            ? `${label} can't move there — ${blockerLabel} occupies that spot`
+            : `${label} can't resize there — ${blockerLabel} occupies that spot`,
+        );
+        return;
       }
-      commitPlacement(preview, mode);
+      commitPlacement(preview, mode, mode === "move" ? undefined : EDGE_WORDS[mode]);
     },
     [announce, commitPlacement, endInteraction, findFixedBlocker],
   );
@@ -443,35 +518,63 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
         revertToSessionStart(widgetId);
         return;
       }
-      const horizontal = edge === "e" || edge === "se";
-      const vertical = edge === "s" || edge === "se";
+      const key = RESIZE_KEYS[event.key as keyof typeof RESIZE_KEYS];
+      if (key === undefined) return;
+      const horizontal = edge === "e" || edge === "ne" || edge === "se";
+      const westward = edge === "w" || edge === "nw" || edge === "sw";
+      const vertical = edge === "s" || edge === "se" || edge === "sw";
+      const northward = edge === "n" || edge === "ne" || edge === "nw";
+      const colsAxis = key.axis === "cols";
+      // A key outside the handle's axes is left to the browser (same as the
+      // move handle ignoring cross-axis arrows).
+      if (colsAxis ? !(horizontal || westward) : !(vertical || northward)) return;
+      event.preventDefault();
       const minCols = Math.max(1, meta?.min.cols ?? 1);
       const minRows = Math.max(1, meta?.min.rows ?? 1);
-      const maxWidth = Math.max(minCols, columns - origin.x);
-      const grows = event.key === "ArrowRight" || event.key === "ArrowDown";
-      const shrinks = event.key === "ArrowLeft" || event.key === "ArrowUp";
-      const horizontalKey = event.key === "ArrowLeft" || event.key === "ArrowRight";
-      const verticalKey = event.key === "ArrowUp" || event.key === "ArrowDown";
-      if (!horizontalKey && !verticalKey) return;
-      if ((horizontalKey && !horizontal) || (verticalKey && !vertical)) return;
-      event.preventDefault();
-      const nextCols = horizontal
-        ? clamp(origin.cols + (grows ? 1 : -1), minCols, maxWidth)
-        : origin.cols;
-      const nextRows = vertical
-        ? Math.max(minRows, origin.rows + (grows ? 1 : -1))
-        : origin.rows;
-      if (nextCols === origin.cols && nextRows === origin.rows) {
+      // Growth is positive along the handle's outward direction; Shift+Arrow
+      // resizes the opposite edge — the negative direction.
+      const outward = colsAxis ? (horizontal ? 1 : -1) : vertical ? 1 : -1;
+      const requested = key.delta * outward * (event.shiftKey ? -1 : 1);
+      // `applyResize` speaks pointer-delta convention (a west/north GROW is a
+      // negative delta — the edge moves left/up), so a keyboard growth amount
+      // is negated for the origin-shifting directions.
+      const next = applyResize(
+        origin,
+        edge,
+        columns,
+        minCols,
+        minRows,
+        colsAxis ? (horizontal ? requested : -requested) : 0,
+        colsAxis ? 0 : vertical ? requested : -requested,
+      );
+      const unchanged =
+        next.x === origin.x &&
+        next.y === origin.y &&
+        next.cols === origin.cols &&
+        next.rows === origin.rows;
+      if (unchanged) {
+        // Clamped from both sides: a blocked grow means the grid edge (or the
+        // origin floor) caps the footprint — its maximum; a blocked shrink is
+        // the registry minimum.
         announce(
-          shrinks
-            ? `${label} is already at its minimum size`
-            : `${label} is already at its maximum size`,
+          requested > 0
+            ? `${label} is already at its maximum size`
+            : `${label} is already at its minimum size`,
         );
         return;
       }
-      commitPlacement({ ...origin, cols: nextCols, rows: nextRows }, edge);
+      // The announcement names the edge being resized, i.e. the direction of
+      // this handle's axis (a corner keypress moves one axis at a time).
+      const direction = colsAxis ? (horizontal ? "east" : "west") : vertical ? "south" : "north";
+      const blocker = findFixedBlocker(next);
+      if (blocker !== null) {
+        const blockerLabel = widgets.get(blocker.id)?.label ?? blocker.id;
+        announce(`${label} can't resize ${direction} — ${blockerLabel} occupies that spot`);
+        return;
+      }
+      commitPlacement(next, edge, direction);
     },
-    [announce, commitPlacement, findPlacement, revertToSessionStart],
+    [announce, commitPlacement, findFixedBlocker, findPlacement, revertToSessionStart],
   );
 
   return {
