@@ -53,10 +53,13 @@ export interface SettingsContextValue {
   /**
    * Persist new settings: the `settings.update` mutation wrapper. Writes
    * through, then invalidates the `settings.get` entry so every consumer
-   * re-reads the persisted shape. The wrapper returns void, so mutation
-   * failures toast here — that is the one honest error surface.
+   * re-reads the persisted shape. The wrapper returns void, so both toasts
+   * live here — failure names the error, success confirms the save ("Settings
+   * saved", the legacy settings page's contract).
    */
   update(input: SettingsUpdateInput): void;
+  /** True while an update write is in flight — save buttons disable on it. */
+  saving: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -87,6 +90,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         void queryClient.invalidateQueries({
           queryKey: trpc.settings.get.queryKey(),
         });
+        toast.success("Settings saved");
       },
       onError: (e) => toast.error(e.message),
     }),
@@ -106,8 +110,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       terminalCommand: settings.data?.terminalCommand,
       snitchPath: settings.data?.snitchPath,
       update,
+      saving: updateMutation.isPending,
     }),
-    [settings, update],
+    [settings, update, updateMutation.isPending],
   );
 
   return (
