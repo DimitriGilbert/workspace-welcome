@@ -8,8 +8,15 @@
  * band, files/artifacts via the list/ parts, and the shared IdeationPanel.
  * Report-driven panes gate through ReportGate; charts render only at the
  * authored full rung (≥ 200×160 guaranteed).
+ *
+ * The section strip renders the runtime `WidgetTabs` in its documented
+ * in-content placement (not the shell `tabs` slot, whose single row is a
+ * horizontal scroller): with `flex-wrap` the seven pills wrap at compact
+ * widths instead of inner-scrolling and stay one row once they fit on
+ * desktop.
  */
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
@@ -31,7 +38,7 @@ import {
   ReportGate,
 } from "@/widgets/parts";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { WidgetShell, WidgetTabs } from "@/widgets/runtime/widget-shell";
 
 type ReportView = NonNullable<ReturnType<typeof useReport>["view"]>;
 type ReportAlert = ReportView["alerts"][number];
@@ -398,24 +405,35 @@ function SectionsCompact() {
 export function MeadowProjectSections({ size }: RegisteredWidgetProps) {
   const [tab, setTab] = useState<SectionId>("overview");
   const branch = useProject().project?.git.branch ?? "—";
+  /** Wrapped strip + pane for every rung: `flex-wrap` lets the seven pills
+   * reflow at compact widths (no inner scroll) while desktop stays one row;
+   * `overflow-x-visible` overrides the base strip's scroller. */
+  const withTabs = (pane: ReactNode) => (
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <WidgetTabs
+        tabs={SECTIONS}
+        activeTab={tab}
+        onTabChange={(id) => setTab(toSection(id))}
+        className="flex-wrap overflow-x-visible pt-1"
+      />
+      <div className="min-h-0 flex-1">{pane}</div>
+    </div>
+  );
   return (
     <WidgetShell
       size={{ cols: size.cols, rows: size.rows }}
       className="h-full w-full"
-      tabs={SECTIONS}
-      activeTab={tab}
-      onTabChange={(id) => setTab(toSection(id))}
       sizes={{
-        "1x1": (
+        "1x1": withTabs(
           <div className="flex h-full w-full min-w-0 items-center overflow-hidden px-1">
             <span className="truncate font-mono text-xs">{branch}</span>
-          </div>
+          </div>,
         ),
-        "2x2": <SectionsCompact />,
-        "12x6": <SectionsFull tab={tab} />,
+        "2x2": withTabs(<SectionsCompact />),
+        "12x6": withTabs(<SectionsFull tab={tab} />),
       }}
     >
-      <SectionsFull tab={tab} />
+      {withTabs(<SectionsFull tab={tab} />)}
     </WidgetShell>
   );
 }
