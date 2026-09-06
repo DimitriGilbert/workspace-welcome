@@ -8,7 +8,7 @@
  * set is overridden here with the design's real values so every shared part
  * rendered inside the scope resolves the mc palette. Severity keeps the
  * canonical `--sev-*` names (§3.7); the semantic part vocabulary and the one
- * recharts token-fill block (--chart-1..6) come straight from the design.
+ * chart token-fill block (--chart-1..6) comes straight from the design.
  *
  * Mission Control's chrome is flat terminal panels: hairline borders, square
  * corners, raised panel fill — hence the 0px radius and the low-alpha white
@@ -68,7 +68,7 @@
   --chrome-hairline: oklch(1 0 0 / 7%);
   --chrome-panel-bg: oklch(0.155 0.008 250);
 
-  /* the one chart ramp, 1..6 — the recharts engine token fill (§3.6) */
+  /* the one chart ramp, 1..6 — the chart engine token fill (§3.6) */
   --chart-1: oklch(0.82 0.15 160);
   --chart-2: oklch(0.81 0.13 85);
   --chart-3: oklch(0.72 0.09 240);
@@ -85,4 +85,20 @@
   --mc-line-strong: oklch(1 0 0 / 14%);
   --recency-fresh-wash: oklch(0.82 0.15 160 / 0.1);
   --pinned-accent-wash: oklch(0.82 0.13 90 / 0.1);
+
+  /*
+   * The canvas ground. The scope is the page: it paints the console's
+   * near-black over the app's warm base (the `.dark` body background would
+   * otherwise bleed through as a muddy umber frame around the board) and
+   * spans the viewport so short pages stay grounded. Only paint properties —
+   * no layout, no containing block (the ThemeScope CSS contract).
+   */
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+}
+
+/* Console selection: the design's accent wash (mission-control.css). */
+[data-ww-theme="mission-control"] ::selection {
+  background: color-mix(in oklch, var(--mc-accent) 30%, transparent);
 }

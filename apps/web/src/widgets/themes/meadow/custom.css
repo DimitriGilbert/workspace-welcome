@@ -1,17 +1,23 @@
 /*
- * Meadow custom skin (master plan §5 T2-meadow) — additive chrome only,
+ * Meadow custom skin (master plan §5 T2-meadow) — chrome + page structure,
  * loaded by the /app route head (stripped by ?bare=1). This file composes
  * the scope tokens declared in tokens.css; it never declares palette
- * values itself.
+ * values itself (grep-invariant #3 — every surface below is a var() or a
+ * color-mix over var()).
  *
- * Ported from `components/designs/meadow/meadow.css`: the morning-light
- * glows, the soft panel shells with their layered low-chroma shadows and
- * hover lift, pill controls, the active-tab register, and the warm
- * drag-separator of the context panel's two-panel split.
+ * Ported from `components/designs/meadow/meadow.css` + the design route's
+ * page composition: the morning-light glows, the soft panel shells with
+ * their layered low-chroma shadows and hover lift, pill controls, the
+ * active-tab register, and the two-panel board (mosaic | context rail)
+ * with the design's proportions and whitespace.
  */
 
-/* Morning light: two soft warm glows pinned to the viewport top. */
+/* ---------------------------------------------------------------------------
+ * Scope ground — `.meadow`'s morning light: two soft warm glows pinned to
+ * the viewport top over the cream field.
+ * ------------------------------------------------------------------------- */
 [data-ww-theme="meadow"][data-theme-scope] {
+  color: var(--foreground);
   min-height: 100svh;
   background:
     radial-gradient(
@@ -21,31 +27,46 @@
     ),
     radial-gradient(
       950px 400px at 85% -10%,
-      color-mix(in oklch, var(--pinned-accent) 22%, transparent),
+      color-mix(
+        in oklch,
+        color-mix(in oklch, var(--pinned-accent) 14%, var(--background)) 60%,
+        transparent
+      ),
       transparent 70%
     ),
     var(--background);
   background-attachment: fixed;
 }
 
-/* Soft panel shell for every widget — the design's `.meadow-panel`. */
-[data-ww-theme="meadow"] [data-slot="widget-shell"] {
-  border: 1px solid var(--chrome-hairline);
-  border-radius: var(--chrome-radius);
-  background: var(--chrome-panel-bg);
+/* In-page anchors glide instead of jumping. */
+[data-ww-theme="meadow"][data-theme-scope] {
+  scroll-behavior: smooth;
+}
+
+/* ---------------------------------------------------------------------------
+ * Ported design classes — `.meadow-panel`, `.meadow-lift`, `.meadow-hero`,
+ * `.meadow-focus`, `.meadow-soft-block`, `.meadow-tab-active`,
+ * `.meadow-scroll`. The widgets render these verbatim, exactly as the
+ * design route does.
+ * ------------------------------------------------------------------------- */
+
+/* Elevation: layered, low-chroma shadows over the cream ground. */
+[data-ww-theme="meadow"] .meadow-panel {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 8px);
+  background: var(--card);
   box-shadow:
     0 1px 2px color-mix(in oklch, var(--foreground) 4%, transparent),
     0 14px 36px -22px color-mix(in oklch, var(--foreground) 24%, transparent);
 }
 
-/* The design's `.meadow-lift`, on draggable widgets only. */
-[data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"] {
+[data-ww-theme="meadow"] .meadow-lift {
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
     border-color 180ms ease;
 }
-[data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"]:hover {
+[data-ww-theme="meadow"] .meadow-lift:hover {
   transform: translateY(-2px);
   border-color: color-mix(in oklch, var(--recency-fresh) 30%, var(--border));
   box-shadow:
@@ -53,65 +74,231 @@
     0 22px 48px -22px color-mix(in oklch, var(--foreground) 30%, transparent);
 }
 
-/* Rounded geometry: buttons relax to pills inside the meadow scope. */
-[data-ww-theme="meadow"] [data-slot="button"] {
-  border-radius: 999px;
+/* Hero surface: a soft green-to-cream gradient. */
+[data-ww-theme="meadow"] .meadow-hero {
+  border: 1px solid color-mix(in oklch, var(--recency-fresh) 18%, var(--border));
+  border-radius: calc(var(--radius) + 8px);
+  background: linear-gradient(
+    155deg,
+    var(--accent) 0%,
+    color-mix(in oklch, var(--accent) 55%, var(--card)) 55%,
+    var(--card) 100%
+  );
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--foreground) 4%, transparent),
+    0 16px 40px -24px color-mix(in oklch, var(--recency-fresh) 35%, transparent);
 }
 
-/* Digest cards inside the context panel — the design's soft inner block. */
-[data-ww-theme="meadow"] [data-slot="meadow-card"] {
-  border: 1px solid var(--chrome-hairline);
-  border-radius: calc(var(--radius) + 4px);
-  background: color-mix(in oklch, var(--muted) 30%, var(--card));
-}
-
-/* In-content tabs render as the design's pill tabs; activation is the
-   primary's register (`.meadow-tab-active`). */
-[data-ww-theme="meadow"] [data-slot="widget-tabs"] [role="tab"] {
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 10px;
-  font-weight: 500;
-}
-[data-ww-theme="meadow"] [data-slot="widget-tabs"] [role="tab"][data-active] {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  box-shadow: 0 1px 3px color-mix(in oklch, var(--foreground) 18%, transparent);
-}
-
-/* The drag grip between the report panel and the digest panel: a hairline
-   that warms on hover (`.meadow-separator`). */
-[data-ww-theme="meadow"] .meadow-context-separator {
-  position: relative;
-  cursor: col-resize;
-}
-[data-ww-theme="meadow"] .meadow-context-separator::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 1px;
-  height: 100%;
-  background: var(--border);
-  transition: background-color 140ms ease;
-}
-[data-ww-theme="meadow"] .meadow-context-separator:hover::before {
-  background: color-mix(in oklch, var(--recency-fresh) 35%, var(--border));
-}
-[data-ww-theme="meadow"] .meadow-context-separator:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Keyboard focus ring for the theme-local pill controls. */
 [data-ww-theme="meadow"] .meadow-focus:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
+/* Soft interior block for lists/charts/pre output inside panels. */
+[data-ww-theme="meadow"] .meadow-soft-block {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in oklch, var(--muted) 45%, var(--card));
+}
+
+/* Pill tab activation used by the report widget and page tabs. */
+[data-ww-theme="meadow"] .meadow-tab-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 1px 3px color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+
+/* The attention band's project chips: quiet card pills with a hairline
+ * shadow and a one-pixel hover lift (design's chip shadow, token-composed). */
+[data-ww-theme="meadow"] .meadow-chip-lift {
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent);
+  transition: transform 140ms ease;
+}
+[data-ww-theme="meadow"] .meadow-chip-lift:hover {
+  transform: translateY(-1px);
+}
+
+/* The masthead search field's inset well. */
+[data-ww-theme="meadow"] .meadow-input {
+  box-shadow: inset 0 1px 2px color-mix(in oklch, var(--foreground) 6%, transparent);
+  transition: border-color 140ms ease;
+}
+
+/* Slim soft scrollbars where scrolling is legitimate. */
+[data-ww-theme="meadow"] .meadow-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Rounded geometry: Base UI slots bake sharp corners in the shared kit; the
+   meadow scope relaxes them (design: buttons and badges are pills). */
+[data-ww-theme="meadow"] [data-slot="button"],
+[data-ww-theme="meadow"] [data-slot="badge"] {
+  border-radius: 999px;
+}
+[data-ww-theme="meadow"] [data-slot="skeleton"] {
+  border-radius: calc(var(--radius) + 4px);
+}
+
+/* ---------------------------------------------------------------------------
+ * Page chrome decisions. The design route has no app header bar and no
+ * per-widget title chrome — the masthead widget IS the header, and every
+ * panel carries its own heading. The runtime's console header (mono-caps
+ * label + shared filter input) and shell titles are silent here; the
+ * masthead's search field owns filtering (same workspace filter state).
+ * ------------------------------------------------------------------------- */
+[data-ww-theme="meadow"] [data-slot="page-header"] {
+  display: none;
+}
+[data-ww-theme="meadow"] [data-slot="widget-shell-header"] {
+  display: none;
+}
+
+/* The board wrapper's page gutter: the design's `px-5 pt-5 pb-8` rhythm
+   stepping to `md:px-8` / `2xl:px-12`. */
+[data-ww-theme="meadow"] [data-console-view] > div:has(> [data-widget-board]) {
+  padding: 20px 20px 32px;
+}
+@media (min-width: 768px) {
+  [data-ww-theme="meadow"] [data-console-view] > div:has(> [data-widget-board]) {
+    padding: 20px 32px 32px;
+  }
+}
+@media (min-width: 1536px) {
+  [data-ww-theme="meadow"] [data-console-view] > div:has(> [data-widget-board]) {
+    padding: 20px 48px 32px;
+  }
+}
+
+/* Region rhythm below the split breakpoint: the design's stacked narrow
+   layout (`flex flex-col gap-5`). */
+[data-ww-theme="meadow"] [data-widget-board] {
+  gap: 20px;
+}
+
+/* Block rhythm: the single-widget regions are not rungs of the 104px mosaic
+   cell — they carry the design's block heights instead (one widget row per
+   region, so the footprint math keeps checking). Values step with the
+   content's wrap points: the header row, the attention band, the identity
+   block, the stat strip, and the tabbed sections. */
+[data-ww-theme="meadow"] [data-region="masthead"] {
+  grid-auto-rows: 44px !important;
+}
+[data-ww-theme="meadow"] [data-region="attention"] {
+  grid-auto-rows: 44px !important;
+}
+[data-ww-theme="meadow"] [data-region="identity"] {
+  grid-auto-rows: 120px !important;
+}
+[data-ww-theme="meadow"] [data-region="report-glance"] {
+  grid-auto-rows: 104px !important;
+}
+@media (max-width: 1023px) {
+  [data-ww-theme="meadow"] [data-region="masthead"] {
+    grid-auto-rows: 88px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="attention"] {
+    grid-auto-rows: 72px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="identity"] {
+    grid-auto-rows: 156px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="report-glance"] {
+    grid-auto-rows: 216px !important;
+  }
+}
+@media (max-width: 639px) {
+  [data-ww-theme="meadow"] [data-region="masthead"] {
+    grid-auto-rows: 124px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="attention"] {
+    grid-auto-rows: 116px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="identity"] {
+    grid-auto-rows: 212px !important;
+  }
+  [data-ww-theme="meadow"] [data-region="report-glance"] {
+    grid-auto-rows: 320px !important;
+  }
+}
+
+/* Wide board: the design's two-panel split — mosaic left (76%), context
+   rail right (24%), the hairline separator between them. */
+@media (min-width: 1024px) {
+  [data-ww-theme="meadow"] [data-widget-board] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 24%);
+    grid-template-rows: auto auto auto;
+    gap: 16px 24px;
+    align-items: start;
+  }
+  [data-ww-theme="meadow"] [data-region="masthead"] {
+    grid-area: 1 / 1 / 2 / 3;
+  }
+  [data-ww-theme="meadow"] [data-region="attention"] {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+  [data-ww-theme="meadow"] [data-region="projects"] {
+    grid-area: 3 / 1 / 4 / 2;
+  }
+  [data-ww-theme="meadow"] [data-region="context"] {
+    grid-area: 3 / 2 / 4 / 3;
+    border-left: 1px solid var(--border);
+    padding-left: 24px;
+  }
+
+  /* Project page: the design stacks full-width rows with a 16px gap. */
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-widget-board] {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="identity"],
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="report-glance"],
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="sections"] {
+    grid-area: auto;
+  }
+}
+
+/* The design's project page paddings (`px-5 pt-6 pb-8 md:px-8 2xl:px-12`). */
+[data-ww-theme="meadow"][data-ww-page="project"] [data-console-view] > div:has(> [data-widget-board]) {
+  padding: 24px 20px 32px;
+}
+@media (min-width: 768px) {
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-console-view] > div:has(> [data-widget-board]) {
+    padding: 24px 32px 32px;
+  }
+}
+@media (min-width: 1536px) {
+  [data-ww-theme="meadow"][data-ww-page="project"] [data-console-view] > div:has(> [data-widget-board]) {
+    padding: 24px 48px 32px;
+  }
+}
+
+/* Portaled overlays: ThemeScope hosts them inside the scope, so the light
+   tokens apply by inheritance; round them to the design's soft radii. */
+[data-ww-theme="meadow"] [data-slot="dialog-content"],
+[data-ww-theme="meadow"] [data-slot="dropdown-menu-content"],
+[data-ww-theme="meadow"] [data-slot="select-content"],
+[data-ww-theme="meadow"] [data-slot="tooltip-content"],
+[data-ww-theme="meadow"] [data-slot="sheet-content"],
+[data-ww-theme="meadow"] [data-slot="popover-content"] {
+  border-radius: calc(var(--radius) + 4px);
+}
+[data-ww-theme="meadow"] [data-slot="dialog-content"] {
+  border-radius: calc(var(--radius) + 12px);
+  box-shadow:
+    0 2px 6px color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 32px 80px -32px color-mix(in oklch, var(--foreground) 40%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  [data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"],
-  [data-ww-theme="meadow"] [data-slot="widget-shell"][data-interactive="true"]:hover {
+  [data-ww-theme="meadow"][data-theme-scope] {
+    scroll-behavior: auto;
+  }
+  [data-ww-theme="meadow"] .meadow-lift,
+  [data-ww-theme="meadow"] .meadow-lift:hover,
+  [data-ww-theme="meadow"] .meadow-chip-lift,
+  [data-ww-theme="meadow"] .meadow-chip-lift:hover {
     transform: none;
     transition: none;
   }

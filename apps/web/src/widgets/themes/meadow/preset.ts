@@ -56,13 +56,13 @@ export const meadowPreset: ThemePreset = {
         kind: "flow",
         id: "projects",
         from: "projects",
-        template: { widget: "project-tile" },
+        template: { widget: "meadow-project-tile" },
       },
       {
         kind: "stack",
         id: "context",
         widgets: [
-          { id: "meadow-context", widget: "meadow-context", size: "12x6" },
+          { id: "meadow-context", widget: "meadow-context", size: "12x12" },
         ],
       },
     ],
@@ -95,7 +95,7 @@ export const meadowPreset: ThemePreset = {
         kind: "stack",
         id: "sections",
         widgets: [
-          { id: "meadow-project-sections", widget: "meadow-project-sections", size: "12x6" },
+          { id: "meadow-project-sections", widget: "meadow-project-sections", size: "12x7" },
         ],
       },
     ],

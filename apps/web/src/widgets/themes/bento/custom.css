@@ -1,41 +1,375 @@
 /*
- * Bento's optional chrome skin (master plan §3.6.4, T2-bento) — the glazed
- * tile surface from `components/designs/bento/bento.css` applied to the
- * shared widget shell. ADDITIVE SKIN ONLY: no layout, no visibility, and
- * the full harness suite must pass with `?bare=1`, which drops this file.
- * Zero color literals (grep-invariant #2 exempts only tokens.css
- * declaration lines): every tint is a color-mix over a scope token.
+ * Bento's theme stylesheet — the port of `components/designs/bento/
+ * bento.css` re-scoped from `.bento-root` to the widget system's theme
+ * scope (`[data-ww-theme="bento"]`), plus the pass-through rules that let
+ * the ported tiles replace the generic shell chrome (the shell stays the
+ * placement box; the b-tile is the only visible surface).
+ *
+ * Design language: Linear/Vercel-register dark mosaic. Cool neutral ramp,
+ * one electric-blue accent, semantic severity hues, 20px tile radius,
+ * glazed 1px-lit surfaces. Color literals live ONLY on custom-property
+ * declaration lines (grep-invariant #3).
  */
 
+/* --------------------------------------------------------------- canvas */
+
 [data-ww-theme="bento"] {
-  --bento-sheen: linear-gradient(
-    180deg,
-    color-mix(in oklch, var(--foreground) 4%, transparent),
-    transparent 34%
-  );
-  --bento-lift: 0 14px 36px -22px color-mix(in oklch, var(--background) 82%, transparent);
-  --bento-inset: inset 0 1px 0 color-mix(in oklch, var(--foreground) 9%, transparent);
-  --bento-hover-border: color-mix(in oklch, var(--foreground) 20%, transparent);
+  /* Cool canvas: two corner glows over the near-black ramp (the design's
+     .bento-root background). */
+  background: var(--bento-canvas);
+  color: var(--foreground);
+  min-height: 100svh;
+  padding: 20px clamp(16px, 1.4vw, 48px) 56px;
 }
 
-/* Glazed tile: soft radius, hairline, sheen over the panel, inner light. */
+/* Radii: the app chrome is squared; this concept is soft. */
+[data-ww-theme="bento"] [data-slot="button"] {
+  border-radius: 10px;
+}
+[data-ww-theme="bento"] [data-slot="input"],
+[data-ww-theme="bento"] [data-slot="textarea"],
+[data-ww-theme="bento"] [data-slot="select-trigger"] {
+  border-radius: 10px;
+}
+
+/* ------------------------------------------------- system chrome swap */
+
+/* The ported command-bar widget replaces the generic page header. */
+[data-ww-theme="bento"] [data-slot="page-header"] {
+  display: none;
+}
+
+/* The design's canvas owns the frame: the renderer's wrapper padding and
+   the inter-region gap step aside for the ported values. */
+[data-ww-theme="bento"] div:has(> [data-widget-board]) {
+  max-width: 3520px;
+  margin-inline: auto;
+  padding: 0;
+}
+[data-ww-theme="bento"] [data-flow-state] {
+  margin: 12px 0 0;
+}
+[data-ww-theme="bento"] [data-widget-board] {
+  gap: 16px;
+}
+
+/* Pass-through shell: the canvas frame stays, the chrome goes — the ported
+   BentoTile inside is the only visible surface (20px glaze, hairline, lit
+   top edge). The header row is dropped (tiles carry the design's own
+   b-label headers); the content box becomes a stretch grid. */
 [data-ww-theme="bento"] [data-slot="widget-shell"] {
-  border: 1px solid var(--chrome-hairline);
-  border-radius: var(--chrome-radius);
-  background: var(--bento-sheen), var(--chrome-panel-bg);
-  box-shadow: var(--bento-inset), var(--bento-lift);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
-
-/* Feedback is hover-only and cosmetic (no transform — the shell is a
-   container-query root and must not become a containing block). */
 [data-ww-theme="bento"] [data-slot="widget-shell"]:hover {
-  border-color: var(--bento-hover-border);
+  border-color: transparent;
+}
+[data-ww-theme="bento"] [data-slot="widget-shell-header"] {
+  display: none;
+}
+[data-ww-theme="bento"] [data-slot="widget-shell-content"] {
+  display: grid;
+}
+[data-ww-theme="bento"] [data-slot="widget-shell-content"] > * {
+  min-width: 0;
+  min-height: 0;
 }
 
-/* The design's mono-caps `b-label` register for shell headings. */
-[data-ww-theme="bento"] [data-slot="widget-shell-title"] {
+/* ---------------------------------------------------------------- tile */
+
+[data-ww-theme="bento"] {
+}
+
+.b-tile {
+  position: relative;
+  min-width: 0;
+  border-radius: var(--bento-radius);
+  border: 1px solid var(--border);
+  background: var(--bento-sheen), var(--card);
+  box-shadow: var(--bento-tile-shadow);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    opacity 180ms ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-tile--action {
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      opacity 180ms ease,
+      transform 180ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+}
+
+/* Interactive tile: whole tile opens the project. */
+.b-tile--action {
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-tile--action:hover {
+    transform: translateY(-2px);
+  }
+}
+.b-tile--action:hover,
+.b-tile--action:focus-visible {
+  border-color: var(--bento-hover-border);
+  box-shadow: var(--bento-hover-shadow);
+}
+.b-tile--action:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Pinned tiles carry a warm hairline. */
+.b-tile--pinned {
+  border-color: var(--bento-pinned-border);
+}
+
+/* ---------------------------------------------------------------- type */
+
+.b-num {
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.b-label {
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.b-kbd {
+  pointer-events: none;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--bento-kbd-border);
+  background: var(--bento-kbd-bg);
   font-family: var(--font-mono);
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  line-height: 1;
+  color: var(--muted-foreground);
+}
+
+/* The ported command bar's palette-style search field. */
+.b-search {
+  box-shadow: var(--bento-search-inset);
+}
+
+/* --------------------------------------------------------------- glyphs */
+
+/* Crisp mono glyph chips: ↑ ahead · ↓ behind · ~ dirty · ✓ clean. */
+.b-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: 1px solid var(--bento-glyph-border);
+  background: var(--bento-glyph-bg);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 550;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Age chip inside the recency ring. */
+.b-age {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- legend */
+
+/* Size legend in the mosaic header: the cell shapes, to scale. */
+.b-legend {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+.b-legend-item {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  line-height: 1.15;
+}
+.b-legend-cell {
+  display: inline-flex;
+  gap: 2px;
+}
+.b-legend-cell > i {
+  display: block;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+}
+/* Shape key: hero 3×3, feature 2×3, large 2×2, medium 2×1, compact 1×1. */
+.b-legend-cell > i.hero { width: 13.5px; height: 13.5px; }
+.b-legend-cell > i.feature { width: 9px; height: 13.5px; }
+.b-legend-cell > i.large { width: 9px; height: 9px; }
+.b-legend-cell > i.medium { width: 9px; height: 4.5px; }
+.b-legend-cell > i.compact { width: 4.5px; height: 4.5px; }
+
+/* ------------------------------------------------------------- skeleton */
+
+.b-skel {
+  border-radius: var(--bento-radius);
+  border: 1px solid var(--border);
+  background: var(--bento-skel-sheen);
+  background-size: 240% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .b-skel {
+    animation: b-shimmer 1.6s ease-in-out infinite;
+  }
+}
+@keyframes b-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+/* ------------------------------------------------------- severity bars */
+
+.b-segbar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 3px;
+}
+.b-segbar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  min-width: 8px;
+}
+
+.b-dirtybar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bento-ring-track);
+  overflow: hidden;
+}
+.b-dirtybar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--bento-dirty-bar);
+}
+
+/* Health tile: side-by-side gauge + stats only where the tile is truly wide;
+   below that the stats wrap under the gauge at full width. */
+@media (max-width: 1535.98px) {
+  .b-health-body {
+    flex-direction: column;
+    align-items: center;
+  }
+  .b-health-body dl {
+    width: 100%;
+    max-width: 440px;
+  }
+}
+
+/* ------------------------------------------------------ data carousel */
+
+/* The ui CarouselContent merges classes onto the inner embla track, not the
+   scroll viewport, so the stretch lives here: the viewport grows to the
+   carousel's remaining height and every slide fills it. */
+.b-data-carousel [data-slot="carousel-content"] {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+}
+.b-data-carousel [data-slot="carousel-content"] > div {
+  height: 100%;
+}
+.b-data-carousel [data-slot="carousel-item"] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.b-data-carousel [data-slot="carousel-item"] > div {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------- chat */
+
+/* Tabbed report widget tabs: quiet mono pills (the design's .b-tabs). */
+.b-tabs [data-slot="tabs-list"] {
+  border-radius: 12px;
+}
+.b-tabs [data-slot="tabs-trigger"] {
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* -------------------------------------------------------------- dialog */
+
+/* Dialog chrome for portals: same cool ramp and glazed surface, re-declared
+   locally (the .bento-dialog class the ported dialogs carry). */
+.bento-dialog,
+.bento-dialog[data-slot="dialog-content"] {
+
+  border-radius: 20px;
+  border: 1px solid var(--bento-dialog-border);
+  background: var(--bento-dialog-sheen), var(--card);
+  box-shadow: var(--bento-dialog-shadow);
+  overflow: hidden;
+}
+.bento-dialog [data-slot="button"] {
+  border-radius: 10px;
+}
+.bento-dialog [data-slot="input"],
+.bento-dialog [data-slot="textarea"],
+.bento-dialog [data-slot="select-trigger"] {
+  border-radius: 10px;
+}
+
+/* ---------------------------------------------------------------- chart */
+
+/* recharts renders SVG text/attrs; styling via CSS keeps colors tokenized. */
+[data-ww-theme="bento"] .recharts-cartesian-axis-tick text,
+.bento-dialog .recharts-cartesian-axis-tick text {
+  fill: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+[data-ww-theme="bento"] .recharts-surface,
+.bento-dialog .recharts-surface {
+  overflow: visible;
+}
+
+/* Everything that moves in this concept is feedback-level; reduce collapses
+   it to static. */
+@media (prefers-reduced-motion: reduce) {
+  [data-ww-theme="bento"] *,
+  [data-ww-theme="bento"] *::before,
+  [data-ww-theme="bento"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

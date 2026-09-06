@@ -71,8 +71,8 @@ export const missionControlPreset: ThemePreset = {
         kind: "stack",
         id: "command",
         widgets: [
-          { id: "masthead", widget: "mc-vitals", size: "9x2" },
-          { id: "command-bar", widget: "mc-command-bar", size: "3x2" },
+          { id: "masthead", widget: "mc-vitals", size: "12x1" },
+          { id: "command-bar", widget: "mc-command-bar", size: "12x1" },
         ],
       },
       {
@@ -84,18 +84,21 @@ export const missionControlPreset: ThemePreset = {
           { id: "triage", widget: "mc-triage", size: "7x3" },
           { id: "ledger", widget: "mc-fleet-ledger", size: "7x14" },
           // Context zone (cols 8-10): the root report, one widget per design
-          // section — activity (graph|table), AI usage, health, code.
-          { id: "report-activity", widget: "mc-report-activity", size: "3x6" },
-          { id: "report-ai", widget: "mc-report-ai", size: "3x4" },
+          // section — activity (graph|table), AI usage, health, code — at
+          // the design's section heights (chart panel, cost hero, signals
+          // ledger, code mix).
+          { id: "report-activity", widget: "mc-report-activity", size: "3x4" },
+          { id: "report-ai", widget: "mc-report-ai", size: "3x3" },
           { id: "report-health", widget: "mc-report-health", size: "3x4" },
-          { id: "report-code", widget: "mc-report-code", size: "3x5" },
-          // Analytics column (cols 11-12): heatmap, donuts, dirty leaders,
-          // roots — the design's side zone, top to bottom.
+          { id: "report-code", widget: "mc-report-code", size: "3x4" },
+          // Analytics column (cols 11-12): the heatmap spans the zone, then
+          // the design's half-width pairs — [alerts | stack mix] over
+          // [dirty leaders | roots] — one column each, packed side by side.
           { id: "activity-heatmap", widget: "mc-activity-heatmap", size: "2x4" },
-          { id: "alerts-donut", widget: "mc-alerts-donut", size: "2x5" },
-          { id: "stack-mix", widget: "mc-stack-mix", size: "2x4" },
-          { id: "dirty-leaders", widget: "mc-dirty-leaders", size: "2x3" },
-          { id: "roots", widget: "mc-roots", size: "2x4" },
+          { id: "alerts-donut", widget: "mc-alerts-donut", size: "1x3" },
+          { id: "stack-mix", widget: "mc-stack-mix", size: "1x3" },
+          { id: "dirty-leaders", widget: "mc-dirty-leaders", size: "1x3" },
+          { id: "roots", widget: "mc-roots", size: "1x3" },
         ],
       },
     ],
@@ -117,13 +120,15 @@ export const missionControlPreset: ThemePreset = {
         kind: "stack",
         id: "readout",
         widgets: [
-          // The commit pulse rides the design's overview rhythm; the report
-          // channels re-run against this project's repo-scope report.
-          { id: "commit-pulse", widget: "mc-project-pulse", size: "3x4" },
-          { id: "report-activity", widget: "mc-report-activity", size: "5x6" },
-          { id: "report-ai", widget: "mc-report-ai", size: "4x4" },
-          { id: "report-health", widget: "mc-report-health", size: "4x4" },
-          { id: "report-code", widget: "mc-report-code", size: "4x4" },
+          // The design's overview row: the commit pulse beside the recent
+          // commits ledger; the report channels re-run against this
+          // project's repo-scope report beneath.
+          { id: "commit-pulse", widget: "mc-project-pulse", size: "6x4" },
+          { id: "recent-commits", widget: "mc-project-commits", size: "6x4" },
+          { id: "report-activity", widget: "mc-report-activity", size: "7x5" },
+          { id: "report-ai", widget: "mc-report-ai", size: "5x4" },
+          { id: "report-health", widget: "mc-report-health", size: "5x4" },
+          { id: "report-code", widget: "mc-report-code", size: "7x5" },
         ],
       },
       {

@@ -23,6 +23,7 @@ import { McActivityHeatmap, McAlertsDonut, McDirtyLeaders, McStackMix } from "./
 import { McCommandBar } from "./command-bar";
 import { McFleetLedger } from "./fleet-ledger";
 import { McProjectConsole, McProjectNote } from "./project-console";
+import { McProjectCommits } from "./project-commits";
 import { McProjectPulse } from "./project-pulse";
 import { McProjectStateBand } from "./project-state-band";
 import { McReportActivity } from "./report-activity";
@@ -41,7 +42,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace"],
     defaultSize: "2x2",
     min: "1x1",
-    hosts: ["stat", "vitals-band"],
+    hosts: [],
   },
   {
     id: "mc-command-bar",
@@ -59,7 +60,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace"],
     defaultSize: "2x2",
     min: "1x1",
-    hosts: ["attention-list", "stat"],
+    hosts: ["pulse-strip"],
   },
   {
     id: "mc-fleet-ledger",
@@ -68,11 +69,11 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace"],
     defaultSize: "2x3",
     min: "1x1",
-    hosts: ["data-table", "kv-list", "led-project", "pulse-strip", "severity-dots"],
+    hosts: ["data-table", "led-project", "pulse-strip", "severity-dots"],
   },
   {
     id: "mc-report-activity",
-    title: "Activity report",
+    title: "Activity",
     component: McReportActivity,
     requires: ["workspace", "report"],
     defaultSize: "2x2",
@@ -86,7 +87,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace", "report"],
     defaultSize: "2x2",
     min: "1x1",
-    hosts: ["report-gate", "stat", "seg-bar"],
+    hosts: ["report-gate", "stat"],
   },
   {
     id: "mc-report-health",
@@ -149,7 +150,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace"],
     defaultSize: "2x1",
     min: "1x1",
-    hosts: ["kv-list"],
+    hosts: ["data-table"],
   },
   {
     id: "mc-project-state-band",
@@ -158,7 +159,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["project"],
     defaultSize: "4x4",
     min: "1x1",
-    hosts: ["git-actions-toolbar", "branch-switcher", "commits-list", "chip"],
+    hosts: ["git-actions-toolbar", "branch-switcher", "chip"],
   },
   {
     id: "mc-project-pulse",
@@ -170,8 +171,17 @@ export const widgetDefs: readonly WidgetDef[] = [
     hosts: ["heatmap", "stat"],
   },
   {
+    id: "mc-project-commits",
+    title: "Recent commits",
+    component: McProjectCommits,
+    requires: ["project"],
+    defaultSize: "3x4",
+    min: "1x1",
+    hosts: ["data-table"],
+  },
+  {
     id: "mc-project-note",
-    title: "Note",
+    title: "where i left off",
     component: McProjectNote,
     requires: ["project"],
     defaultSize: "4x3",

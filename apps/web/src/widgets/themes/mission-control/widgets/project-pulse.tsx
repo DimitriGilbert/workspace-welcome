@@ -53,7 +53,14 @@ export function McProjectPulse(props: RegisteredWidgetProps) {
   const weeks = pulseWeeks(commits[0]?.timestamp, commits.at(-1)?.timestamp);
 
   return (
-    <WidgetShell className="h-full w-full">
+    <WidgetShell
+      className="h-full w-full"
+      meta={
+        <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+          {commits.length} in log window
+        </span>
+      }
+    >
       <WidgetShell
         className="h-full w-full"
         interactive={false}

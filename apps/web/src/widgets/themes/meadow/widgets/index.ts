@@ -6,9 +6,10 @@
  * the shared registry file, and duplicate ids throw at module evaluation.
  *
  * Dashboard kinds (T2): the masthead row (greeting + counts + search +
- * commands), the attention band (strip density over the AttentionList
- * part), and the context panel (report + workspace digests in the design's
- * resizable two-panel composition).
+ * commands), the attention band (the design's honey pill strip), the
+ * recency project tile (the design's five-tier bento tile, fed by the
+ * `"projects"` flow's ladder rungs), and the context panel (the design's
+ * right rail: report + workspace digests).
  *
  * Project-page kinds (T3): the identity header, the report-at-a-glance
  * strip, and the soft tabbed sections composing the git/, note, list/
@@ -22,6 +23,7 @@ import { MeadowHeader } from "./meadow-header";
 import { MeadowProjectHeader } from "./project-header";
 import { MeadowProjectSections } from "./project-sections";
 import { MeadowProjectStats } from "./project-stats";
+import { MeadowProjectTile } from "./tile";
 
 export const widgetDefs: readonly WidgetDef[] = [
   {
@@ -40,15 +42,21 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: MeadowAttention,
     requires: ["workspace"],
     defaultSize: "12x1",
-    hosts: ["attention-list"],
+  },
+  {
+    id: "meadow-project-tile",
+    title: "Meadow project tile",
+    component: MeadowProjectTile,
+    requires: ["workspace"],
+    defaultSize: "2x2",
+    min: "1x1",
   },
   {
     id: "meadow-context",
     title: "Workspace context",
     component: MeadowContext,
     requires: ["workspace", "report"],
-    defaultSize: "12x6",
-    hosts: ["chart", "h-bars", "report-gate", "seg-bar"],
+    defaultSize: "12x12",
   },
   {
     id: "meadow-project-header",
@@ -63,14 +71,13 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: MeadowProjectStats,
     requires: ["project", "report"],
     defaultSize: "12x1",
-    hosts: ["report-gate"],
   },
   {
     id: "meadow-project-sections",
     title: "Project sections",
     component: MeadowProjectSections,
     requires: ["project", "report"],
-    defaultSize: "12x6",
+    defaultSize: "12x7",
     hosts: [
       "branch-switcher",
       "git-actions-toolbar",
@@ -78,7 +85,6 @@ export const widgetDefs: readonly WidgetDef[] = [
       "commits-list",
       "files-list",
       "artifacts-list",
-      "report-gate",
     ],
   },
 ];

@@ -1,32 +1,27 @@
 /**
- * Meadow digest cards (T2-meadow) — port of the ContextPanel widgets from
- * `components/designs/meadow/context.tsx`: momentum, rhythm, stacks, and
- * directories. Every derivation is the shared scan-metrics function (the
- * design's local `derive.ts` duplicates were consolidated there) and every
- * visual maps to a ui part: Chart for the momentum trend, SegBar for the
- * rhythm ratio, Chip for the stack census. Cards are theme-local chrome
- * (`data-slot="meadow-card"`, skinned in the theme's custom.css).
+ * Meadow digest cards, ported from the ContextPanel widgets of
+ * `components/designs/meadow/context.tsx` into the theme namespace (owner
+ * correction: theme widgets carry the prototype's presentation): momentum,
+ * rhythm, stacks, and directories. Every derivation is the shared
+ * scan-metrics function (the design's local `derive.ts` duplicates were
+ * consolidated there); the cards are theme-local chrome — the design's
+ * `.meadow-panel` shells, icon chip headings, and soft chips, verbatim.
  */
 import { useMemo } from "react";
 import type { ComponentType } from "react";
 import { Link } from "@tanstack/react-router";
 import { Activity, ArrowRight, Folder, Layers, Waves } from "lucide-react";
 
-import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
-import { Chart } from "@workspace-welcome/ui/components/chart";
-import { Chip } from "@workspace-welcome/ui/components/chip";
-import { SegBar } from "@workspace-welcome/ui/components/seg-bar";
-import { cn } from "@workspace-welcome/ui/lib/utils";
-
+import { AreaTrend } from "./bits";
+import { SoftNumber, chipStyle } from "./bits";
 import {
   dailyActivity,
   freshnessCounts,
   stackDistribution,
   touchedWithinDays,
 } from "@/lib/scan-metrics";
+import { stackIcon } from "@/lib/icons";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Last path segment of an absolute path — for root labels. Ported from the
  * design's derive helper; one line of presentation formatting. */
@@ -35,27 +30,21 @@ function pathBasename(path: string): string {
 }
 
 /** Card shell shared by every digest — the design's `ContextCard`. */
-export function Card({
+export function ContextCard({
   icon: Icon,
   title,
   children,
-  className,
 }: {
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
   title: string;
   children: React.ReactNode;
-  className?: string;
 }) {
   return (
     <section
       aria-label={title}
-      data-slot="meadow-card"
-      className={cn(
-        "flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden p-3.5",
-        className,
-      )}
+      className="meadow-panel flex flex-col gap-2 p-3.5"
     >
-      <h3 className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold tracking-tight text-muted-foreground">
+      <h3 className="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-muted-foreground">
         <Icon aria-hidden className="size-3.5" />
         {title}
       </h3>
@@ -65,11 +54,42 @@ export function Card({
 }
 
 /**
- * Momentum · 4 wks — projects-touched per day over the trailing month.
- * `chart` placements guarantee the 200x160 floor (authored rungs), so the
- * ui Chart renders only there; without it the numerals carry the card.
+ * The momentum widget body — exported so the project page renders the exact
+ * same digest scoped to one project (its touched-days curve).
  */
-export function MomentumCard({ chart }: { chart: boolean }) {
+export function MomentumCardBase({
+  activity,
+  touchedThisWeek,
+  total,
+}: {
+  activity: number[];
+  touchedThisWeek: number;
+  total: number;
+}) {
+  return (
+    <ContextCard icon={Activity} title="Momentum · 4 wks">
+      <div className="flex items-baseline gap-2">
+        <SoftNumber
+          value={touchedThisWeek}
+          className="text-xl leading-none font-semibold tracking-tight text-foreground"
+        />
+        <span className="text-[11px] text-muted-foreground">
+          touched this week
+        </span>
+        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+          {total} touches
+        </span>
+      </div>
+      <AreaTrend
+        values={activity}
+        label={`Projects touched per day over the last four weeks, ${total} total`}
+      />
+    </ContextCard>
+  );
+}
+
+/** The workspace's momentum digest over the shared scan-metrics inputs. */
+export function MomentumCard() {
   const workspace = useWorkspace();
   const activity = useMemo(
     () => dailyActivity(workspace.projects, 28, workspace.now),
@@ -80,141 +100,145 @@ export function MomentumCard({ chart }: { chart: boolean }) {
     [workspace.projects, workspace.now],
   );
   const total = activity.reduce((sum, v) => sum + v, 0);
-
   return (
-    <Card icon={Activity} title="Momentum · 4 wks" className="flex-1">
-      <div className="flex shrink-0 items-baseline gap-2">
-        <AnimatedNumber
-          value={touched}
-          className="text-xl leading-none font-semibold tracking-tight text-foreground"
-        />
-        <span className="text-[11px] text-muted-foreground">touched this week</span>
-        <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-          {total} touches
-        </span>
-      </div>
-      {chart ? (
-        <div className="min-h-0 flex-1">
-          <Chart
-            variant="area"
-            points={activity.map((value, i) => ({
-              label: new Date(
-                workspace.now - (activity.length - 1 - i) * DAY_MS,
-              ).toLocaleDateString(undefined, { month: "numeric", day: "numeric" }),
-              value,
-            }))}
-            color="var(--recency-fresh)"
-            maxPoints={28}
-            ariaLabel={`Projects touched per day over the last four weeks, ${total} total`}
-            className="h-40 min-h-40 w-full"
-          />
-        </div>
-      ) : null}
-    </Card>
+    <MomentumCardBase
+      activity={activity}
+      touchedThisWeek={touched}
+      total={total}
+    />
   );
 }
 
-/** Rhythm — the workspace split across the four recency tiers (SegBar). */
+const TIER_COLORS = {
+  fresh: "var(--recency-fresh)",
+  recent: "color-mix(in oklch, var(--recency-fresh) 62%, var(--card))",
+  stale: "var(--recency-stale)",
+  cold: "var(--border)",
+} as const;
+
 export function RhythmCard() {
   const workspace = useWorkspace();
   const freshness = useMemo(
-    () => freshnessCounts(workspace.projects),
-    [workspace.projects],
+    () => freshnessCounts(workspace.projects, workspace.now),
+    [workspace.projects, workspace.now],
   );
-  const segments = rhythmSegments(freshness);
+  const segments = [
+    { key: "fresh" as const, label: "fresh · 2d", value: freshness.fresh },
+    { key: "recent" as const, label: "recent · 2w", value: freshness.recent },
+    { key: "stale" as const, label: "stale · 3m", value: freshness.stale },
+    { key: "cold" as const, label: "cold", value: freshness.cold },
+  ].filter((s) => s.value > 0);
 
   return (
-    <Card icon={Waves} title="Rhythm">
-      <SegBar segments={segments} height={10} ariaLabel="Projects by recency tier" />
-      <ul className="flex shrink-0 flex-wrap gap-x-3 gap-y-1">
+    <ContextCard icon={Waves} title="Rhythm">
+      <div
+        aria-hidden
+        className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full"
+      >
+        {segments.map((s) => (
+          <span
+            key={s.key}
+            className="h-full first:rounded-l-full last:rounded-r-full"
+            style={{ flexGrow: s.value, backgroundColor: TIER_COLORS[s.key] }}
+          />
+        ))}
+        {segments.length === 0 ? (
+          <span className="h-full w-full rounded-full bg-muted" />
+        ) : null}
+      </div>
+      <ul className="flex flex-wrap gap-x-3 gap-y-1">
         {segments.map((s) => (
           <li
-            key={s.label}
+            key={s.key}
             className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
           >
             <span
               aria-hidden
               className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: s.color }}
+              style={{ backgroundColor: TIER_COLORS[s.key] }}
             />
             {s.label}
-            <AnimatedNumber
+            <SoftNumber
               value={s.value}
               className="font-semibold text-foreground"
             />
           </li>
         ))}
       </ul>
-    </Card>
+    </ContextCard>
   );
-}
-
-/** The freshness-tier breakdown as SegBar segments (shared by the rhythm
- * card and the bare small-rung bar). */
-function rhythmSegments(freshness: {
-  fresh: number;
-  recent: number;
-  stale: number;
-  cold: number;
-}) {
-  return [
-    { label: "fresh · 2d", value: freshness.fresh, color: "var(--recency-fresh)" },
-    {
-      label: "recent · 2w",
-      value: freshness.recent,
-      color: "color-mix(in oklch, var(--recency-fresh) 62%, var(--card))",
-    },
-    { label: "stale · 3m", value: freshness.stale, color: "var(--recency-stale)" },
-    { label: "cold", value: freshness.cold, color: "var(--border)" },
-  ];
 }
 
 /** The rhythm ratio bar alone — the below-the-card small rung. */
 export function RhythmBar() {
   const workspace = useWorkspace();
   const freshness = useMemo(
-    () => freshnessCounts(workspace.projects),
-    [workspace.projects],
+    () => freshnessCounts(workspace.projects, workspace.now),
+    [workspace.projects, workspace.now],
   );
+  const segments = [
+    { key: "fresh" as const, label: "fresh · 2d", value: freshness.fresh },
+    { key: "recent" as const, label: "recent · 2w", value: freshness.recent },
+    { key: "stale" as const, label: "stale · 3m", value: freshness.stale },
+    { key: "cold" as const, label: "cold", value: freshness.cold },
+  ].filter((s) => s.value > 0);
   return (
-    <div className="min-h-0 w-full overflow-hidden pr-2">
-      <SegBar
-        segments={rhythmSegments(freshness)}
-        height={10}
-        ariaLabel="Projects by recency tier"
-      />
+    <div
+      aria-hidden
+      className="min-h-0 w-full overflow-hidden pr-2"
+    >
+      <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full">
+        {segments.map((s) => (
+          <span
+            key={s.key}
+            className="h-full first:rounded-l-full last:rounded-r-full"
+            style={{ flexGrow: s.value, backgroundColor: TIER_COLORS[s.key] }}
+          />
+        ))}
+        {segments.length === 0 ? (
+          <span className="h-full w-full rounded-full bg-muted" />
+        ) : null}
+      </div>
     </div>
   );
 }
 
-/** Stacks — the detected-stack census, top four plus the folded rest. */
 export function StacksCard() {
   const workspace = useWorkspace();
   const stacks = useMemo(
     () => stackDistribution(workspace.projects, 5),
     [workspace.projects],
   );
-
+  const top = stacks.slice(0, 4);
+  const rest = stacks.slice(4).reduce((sum, s) => sum + s.count, 0);
   return (
-    <Card icon={Layers} title="Stacks">
-      <ul className="flex shrink-0 flex-wrap gap-1.5">
-        {stacks.map((s) => (
-          <li key={s.label}>
-            <Chip
-              tone={s.id === "other" ? "neutral" : "positive"}
+    <ContextCard icon={Layers} title="Stacks">
+      <ul className="flex flex-wrap gap-1.5">
+        {top.map((s) => {
+          const Icon = stackIcon(s.id === "unknown" ? undefined : s.id);
+          return (
+            <li
+              key={s.label}
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
+              style={chipStyle("green")}
               title={`${s.count} ${s.count === 1 ? "project" : "projects"} on ${s.label}`}
             >
+              <Icon aria-hidden className="size-3.5" />
               {s.label}
               <span className="tabular-nums">{s.count}</span>
-            </Chip>
+            </li>
+          );
+        })}
+        {rest > 0 ? (
+          <li className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            +{rest} other
           </li>
-        ))}
+        ) : null}
       </ul>
-    </Card>
+    </ContextCard>
   );
 }
 
-/** Directories — tracked roots with project counts and read errors. */
 export function DirectoriesCard() {
   const workspace = useWorkspace();
   const roots = workspace.roots.data ?? [];
@@ -228,8 +252,8 @@ export function DirectoriesCard() {
   const errorRootIds = new Set(workspace.rootErrors.map((e) => e.rootId));
 
   return (
-    <Card icon={Folder} title="Directories">
-      <ul className="flex min-h-0 flex-col gap-1">
+    <ContextCard icon={Folder} title="Directories">
+      <ul className="flex flex-col gap-1">
         {roots.map((r) => (
           <li key={r.id} className="flex items-center gap-2 px-0.5" title={r.path}>
             <span
@@ -262,7 +286,7 @@ export function DirectoriesCard() {
       </ul>
       <Link
         to="/settings"
-        className="meadow-focus group mt-auto inline-flex shrink-0 items-center gap-1 self-start rounded-full text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="meadow-focus group mt-1 inline-flex items-center gap-1 rounded-full text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
       >
         Workspace settings
         <ArrowRight
@@ -270,6 +294,6 @@ export function DirectoriesCard() {
           className="size-3 transition-transform group-hover:translate-x-0.5"
         />
       </Link>
-    </Card>
+    </ContextCard>
   );
 }

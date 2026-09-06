@@ -1,63 +1,45 @@
 /**
- * Bento's project tile (master plan §5 T2-bento): the design's
- * `project-tile.tsx` ported rung-for-rung. The five mosaic tiers ARE this
- * widget's size rungs — hero 3x3 → compact 1x1 — sized by the
- * owner-mandated recency mapping that already lives in the "projects" flow
- * (`scoreProjects` tiers); nothing is re-derived here.
+ * Bento's project tile — port of the design's `project-tile.tsx`: one
+ * project as a bento cell in the five sizes the recency ladder assigns
+ * (hero 3×3 → compact 1×1). Size carries the recency story and sets how
+ * much snitch data the tile surfaces; the tile itself opens the project
+ * page. Data rides the widget system's providers: the project record from
+ * `useWorkspace()`, the report slice from `useReport().entry(path)`, the
+ * clock from the provider (the design's `now` rides the scan the same way).
  *
- * Per-tile report data rides the report context's entry lookup (ONE lazy
- * scan export for the whole board — the design's no-fan-out rule) and
- * per-entry staleness is `report.isEntryStale` (the design's tile rule).
- * Pixels are ui parts + P4 conventions: ProjectLed (the ledState bridge),
- * GitGlyphs, ScoreRing + compactAge (the recency ring, one recency token
- * per tier), SeverityDots, Chip, ViewCarousel. The `Chart` part clears
- * its 200x160 floor only on the hero rung — the feature rung authors
- * HBars/KvList non-chart carousel cards instead (ruling 5).
+ * The design's per-tile pin/hide dropdown needs procedure access the theme
+ * namespace deliberately lacks; the tile keeps the design's visual tiers
+ * and the whole-tile open action (pinning lives on the project page).
  */
+import {
+  BrainCircuit,
+  GitCommitHorizontal,
+  Users,
+} from "lucide-react";
 import { useMemo } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, KeyboardEvent, ReactNode } from "react";
 
-import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
-import type { ReportExportProject } from "@workspace-welcome/api/lib/report-export";
-import { Chip } from "@workspace-welcome/ui/components/chip";
-import { Chart } from "@workspace-welcome/ui/components/chart";
-import { GitGlyphs } from "@workspace-welcome/ui/components/git-glyphs";
-import { HBars } from "@workspace-welcome/ui/components/h-bars";
-import { KvList } from "@workspace-welcome/ui/components/kv-list";
-import { ScoreRing } from "@workspace-welcome/ui/components/score-ring";
-import { SeverityDots } from "@workspace-welcome/ui/components/severity-dots";
-import { ViewCarousel } from "@workspace-welcome/ui/components/view-carousel";
 import { cn } from "@workspace-welcome/ui/lib/utils";
-import type { Tone } from "@workspace-welcome/ui/lib/tokens";
+import type { ReportExportProject } from "@workspace-welcome/api/lib/report-export";
+import type { Project } from "@workspace-welcome/api/lib/types";
 
-import { compactAge, formatCompact, formatCost, relativeTime } from "@/lib/format";
+import { AlertIcons } from "@/components/git-badges";
+import { useNavigate } from "@tanstack/react-router";
+import { formatCompact, formatCost, relativeTime } from "@/lib/format";
+import { stackIcon } from "@/lib/icons";
 
-import { ProjectLedPart } from "@/widgets/parts";
 import { useReport } from "@/widgets/contexts/report-context";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-const SEV_TONE: Record<AlertSeverity, Tone> = {
-  critical: "critical",
-  warning: "warning",
-  info: "info",
-};
+import { BentoTile, CadenceArea, GitGlyphs, RecencyRing } from "../bits";
+import { DataCarousel } from "../data-carousel";
 
-const SEV_TOKEN: Record<AlertSeverity, string> = {
+const SEVERITY_COLOR = {
   critical: "var(--sev-critical)",
   warning: "var(--sev-warning)",
   info: "var(--sev-info)",
-};
-
-/** Recency ring color per tier rung — the design's tier tones as tokens. */
-const TIER_RECENCY: Record<string, string> = {
-  "3x3": "var(--recency-fresh)",
-  "2x3": "var(--recency-warm)",
-  "2x2": "var(--recency-cooling)",
-  "2x1": "var(--recency-stale)",
-  "1x1": "var(--recency-stale)",
-};
+} as const;
 
 interface TileProps {
   path?: string;
@@ -73,188 +55,15 @@ function readTileProps(node: RegisteredWidgetProps["node"]): TileProps {
   };
 }
 
-/* ---------------------------------------------------------- fragments --- */
-
-function TileFill({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
-      {children}
-    </div>
-  );
-}
-
-function TileQuiet({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full min-h-8 items-center justify-center rounded-lg border border-dashed border-border px-3 text-center text-xs text-muted-foreground">
-      {children}
-    </div>
-  );
-}
-
-function TileHeader({ project, large = false }: { project: Project; large?: boolean }) {
-  return (
-    <div className="flex min-w-0 shrink-0 items-center gap-2">
-      <ProjectLedPart project={project} />
-      <span
-        className={cn(
-          "min-w-0 flex-1 truncate font-semibold tracking-tight",
-          large ? "text-sm" : "text-xs",
-        )}
-        title={project.name}
-      >
-        {project.name}
-      </span>
-      {project.stack ? (
-        <Chip tone="neutral" title={`${project.stack.label} stack`}>
-          {project.stack.label}
-        </Chip>
-      ) : null}
-      {project.pinned ? <Chip tone="accent">pinned</Chip> : null}
-    </div>
-  );
-}
-
-/** The recency ring: score sweep + tier token color, the compact age inside. */
-function RingAge({ score, tier, age, px }: { score: number; tier: string; age: string; px: number }) {
-  return (
-    <span
-      className="relative inline-flex shrink-0 items-center justify-center"
-      style={{ width: px, height: px }}
-    >
-      <ScoreRing
-        score={score}
-        size={px}
-        color={TIER_RECENCY[tier] ?? TIER_RECENCY["1x1"]}
-        label={`Recency ring — updated ${age}`}
-      />
-      <span
-        aria-hidden
-        className="absolute font-mono tabular-nums text-foreground"
-        style={{ fontSize: px >= 34 ? 9.5 : 8 }}
-      >
-        {age}
-      </span>
-    </span>
-  );
-}
-
-function AlertDots({ project }: { project: Project }) {
-  if (project.alerts.length === 0) return null;
-  return (
-    <SeverityDots
-      dots={project.alerts.map((alert) => ({
-        id: alert.code,
-        severity: alert.severity,
-        message: alert.message,
-      }))}
-    />
-  );
-}
-
-function ReportLine({ entry }: { entry: ReportExportProject }) {
-  return (
-    <p
-      className="min-w-0 shrink-0 truncate font-mono text-[10px] tabular-nums text-muted-foreground"
-      title={`${entry.totalCommits} commits · ${entry.contributors} contributors · AI cost ${formatCost(entry.aiUsage?.cost ?? 0)} subsidized`}
-    >
-      {formatCompact(entry.totalCommits)} commits · {entry.contributors} contrib. ·{" "}
-      <span style={{ color: "var(--chart-4)" }}>AI {formatCost(entry.aiUsage?.cost ?? 0)}</span>
-    </p>
-  );
-}
-
-function LastCommitLine({ project }: { project: Project }) {
-  const commit = project.git.lastCommit;
-  if (!commit) {
-    return (
-      <p className="text-xs text-muted-foreground">
-        {project.git.isRepo ? "No commits yet." : "Not a git repository."}
-      </p>
-    );
-  }
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <p className="line-clamp-2 text-xs leading-snug" title={commit.message}>
-        {commit.message}
-      </p>
-      <p className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-        {commit.author}
-        {project.git.branch ? ` · ${project.git.branch}` : ""} · {relativeTime(commit.date)}
-      </p>
-    </div>
-  );
-}
-
-function TileFooter({
-  project,
-  tier,
-  score,
-  age,
-  px,
-  large = false,
-}: {
-  project: Project;
-  tier: string;
-  score: number;
-  age: string;
-  px: number;
-  large?: boolean;
-}) {
-  return (
-    <div className="mt-auto flex min-w-0 shrink-0 items-end justify-between gap-2">
-      <GitGlyphs
-        isRepo={project.git.isRepo}
-        ahead={project.git.ahead ?? 0}
-        behind={project.git.behind ?? 0}
-        dirtyCount={project.git.dirtyCount ?? 0}
-        large={large}
-      />
-      <span className="flex shrink-0 items-center gap-2">
-        <AlertDots project={project} />
-        <RingAge score={score} tier={tier} age={age} px={px} />
-      </span>
-    </div>
-  );
-}
-
-function QualityCard({ entry }: { entry: ReportExportProject }) {
-  if (entry.alerts.length === 0) {
-    return <TileQuiet>No quality signals flagged in this report.</TileQuiet>;
-  }
-  return (
-    <ul className="m-0 flex min-h-0 w-full list-none flex-col justify-evenly gap-1.5 p-0">
-      {entry.alerts.slice(0, 5).map((alert) => (
-        <li key={alert.id} className="flex min-w-0 items-center gap-2" title={alert.summary}>
-          <Chip tone={SEV_TONE[alert.severity]}>{alert.label}</Chip>
-          <span
-            className="ml-auto shrink-0 font-mono text-xs tabular-nums"
-            style={{ color: SEV_TOKEN[alert.severity] }}
-          >
-            {alert.value}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function AiCard({ entry }: { entry: ReportExportProject }) {
-  const usage = entry.aiUsage;
-  if (!usage) {
-    return <TileQuiet>No AI usage recorded in this report window.</TileQuiet>;
-  }
-  return (
-    <KvList
-      density="compact"
-      rows={[
-        { label: "AI cost", value: formatCost(usage.cost), tone: "accent", mono: true },
-        { label: "Messages", value: usage.records.toLocaleString(), mono: true },
-        { label: "Tokens in", value: formatCompact(usage.tokens.input), mono: true },
-        { label: "Tokens out", value: formatCompact(usage.tokens.output), mono: true },
-        { label: "Total tokens", value: formatCompact(usage.tokens.total), mono: true },
-      ]}
-    />
-  );
+/** Deep-link into this theme's project page (the app splat route). */
+function useOpenBentoProject() {
+  const navigate = useNavigate();
+  return (path: string) => {
+    void navigate({
+      to: "/app/$theme/project/$",
+      params: { theme: "bento", _splat: path.replace(/^\/+/, "") },
+    });
+  };
 }
 
 /* ------------------------------------------------------------ widget --- */
@@ -263,6 +72,7 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
   const { path, score = 0 } = readTileProps(node);
   const workspace = useWorkspace();
   const report = useReport();
+  const openBentoProject = useOpenBentoProject();
 
   const project = useMemo(
     () =>
@@ -273,6 +83,7 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
   );
   const entry = path === undefined ? null : report.entry(path);
   const entryStale = path !== undefined && report.isEntryStale(path);
+  const now = workspace.now;
 
   if (project === null) {
     return (
@@ -291,182 +102,420 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
     );
   }
 
-  const age = compactAge(workspace.now - (Date.parse(project.updatedAt) || 0), workspace.now);
-  const staleChip =
-    entry !== null && entryStale ? (
-      <Chip
-        tone="warning"
-        title="The project moved on after this snapshot was generated"
-      >
-        data stale
-      </Chip>
-    ) : null;
+  const tier = size.cols >= 3 && size.rows >= 3
+    ? "hero"
+    : size.cols >= 2 && size.rows >= 3
+      ? "feature"
+      : size.cols >= 2 && size.rows >= 2
+        ? "large"
+        : size.cols >= 2
+          ? "medium"
+          : "compact";
 
+  const open = () => openBentoProject(project.path);
+
+  const shared = {
+    action: true,
+    pinned: project.pinned,
+    role: "button" as const,
+    tabIndex: 0,
+    "aria-label": `Open ${project.name}`,
+    onClick: (e: MouseEvent<HTMLDivElement>) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-stop-propagation]")) return;
+      open();
+    },
+    onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    },
+  };
+
+  const header = (iconSize: string, nameClass: string) => (
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span
+        aria-hidden
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-[10px] border border-border bg-white/[0.04] text-muted-foreground",
+          iconSize,
+        )}
+      >
+        <StackIconById project={project} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className={cn("truncate font-semibold tracking-tight", nameClass)} title={project.name}>
+            {project.name}
+          </span>
+          {project.stack ? (
+            <span className="hidden shrink-0 rounded-full border border-border bg-white/[0.03] px-2 py-px text-[0.62rem] font-medium text-muted-foreground sm:inline">
+              {project.stack.label}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  const updatedAtMs = new Date(project.updatedAt).getTime();
+  const dim = tier === "compact" && now - updatedAtMs > 120 * 24 * 60 * 60 * 1000;
+
+  if (tier === "compact") {
+    return (
+      <BentoTile
+        {...shared}
+        className={cn("flex h-full min-h-0 w-full flex-col gap-1.5 p-3", dim && "opacity-60")}
+      >
+        <div className="flex items-center justify-between gap-1">
+          <span
+            aria-hidden
+            className="flex size-6 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.04] text-muted-foreground"
+          >
+            <StackIconById project={project} />
+          </span>
+        </div>
+        <span
+          className="line-clamp-2 text-[0.78rem] leading-tight font-semibold tracking-tight"
+          title={project.name}
+        >
+          {project.name}
+        </span>
+        <div className="mt-auto flex items-center justify-between gap-1.5">
+          <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={26} />
+          <AlertIcons alerts={project.alerts} />
+        </div>
+      </BentoTile>
+    );
+  }
+
+  if (tier === "medium") {
+    return (
+      <BentoTile {...shared} className="flex h-full min-h-0 w-full flex-col gap-2 p-3.5">
+        {header("size-7", "text-[0.84rem]")}
+        <TileStatLine report={entry} project={project} />
+        <div className="mt-auto flex items-center justify-between gap-2">
+          <GitGlyphs git={project.git} />
+          <span className="flex shrink-0 items-center gap-2">
+            <AlertIcons alerts={project.alerts} />
+            <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={30} />
+          </span>
+        </div>
+      </BentoTile>
+    );
+  }
+
+  if (tier === "large") {
+    return (
+      <BentoTile {...shared} className="flex h-full min-h-0 w-full flex-col gap-3 p-4">
+        {header("size-8", "text-[0.92rem]")}
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1">
+          <LastCommitLine project={project} />
+          <TileStatLine report={entry} project={project} />
+        </div>
+        <div className="flex items-end justify-between gap-2">
+          <GitGlyphs git={project.git} large />
+          <span className="flex shrink-0 items-center gap-2">
+            <AlertIcons alerts={project.alerts} />
+            <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={36} />
+          </span>
+        </div>
+      </BentoTile>
+    );
+  }
+
+  if (tier === "feature") {
+    return (
+      <BentoTile {...shared} className="flex h-full min-h-0 w-full flex-col gap-3 p-4">
+        {header("size-8", "text-[0.94rem]")}
+        <div className="flex min-h-0 flex-1 flex-col">
+          {entry ? (
+            <DataCarousel
+              ariaLabel={`${project.name} stats`}
+              autoMs={7000}
+              seed={project.path}
+              cards={[
+                {
+                  label: "graph",
+                  content: (
+                    <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
+                      <CadenceArea cadence={entry.cadence} />
+                      <p className="font-mono text-[0.62rem] text-muted-foreground">
+                        commits / month · {formatCompact(entry.totalCommits)} total
+                      </p>
+                    </div>
+                  ),
+                },
+                {
+                  label: "table",
+                  content: (
+                    <dl className="grid grid-cols-2 content-center gap-x-5 gap-y-2">
+                      <TileStat icon={GitCommitHorizontal} label="commits" value={formatCompact(entry.totalCommits)} />
+                      <TileStat icon={Users} label="contrib." value={String(entry.contributors)} />
+                      <TileStat icon={BrainCircuit} label="AI cost" value={formatCost(entry.aiUsage?.cost ?? 0)} accent />
+                      <TileStat icon={null} label="tokens" value={formatCompact(entry.aiUsage?.tokens.total ?? 0)} />
+                      <TileStat icon={null} label="languages" value={String(entry.languages.length)} />
+                      <TileStat icon={null} label="signals" value={String(entry.alerts.length)} />
+                    </dl>
+                  ),
+                },
+              ]}
+            />
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col justify-center gap-1">
+              <LastCommitLine project={project} />
+            </div>
+          )}
+        </div>
+        <div className="flex items-end justify-between gap-2">
+          <GitGlyphs git={project.git} large />
+          <span className="flex shrink-0 items-center gap-2">
+            <AlertIcons alerts={project.alerts} />
+            <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={38} />
+          </span>
+        </div>
+      </BentoTile>
+    );
+  }
+
+  // hero — 3×3: the working set, with the tabbed snitch digest.
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <TileFill className="gap-1 px-2.5 py-2">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <ProjectLedPart project={project} />
+    <BentoTile {...shared} className="flex h-full min-h-0 w-full flex-col gap-2.5 p-4">
+      {header("size-9", "text-base")}
+
+      {project.note ? (
+        <p className="line-clamp-1 text-xs text-muted-foreground" title={project.note}>
+          {project.note}
+        </p>
+      ) : null}
+
+      {entry ? (
+        <>
+          <div className="flex shrink-0 items-center gap-1" data-stop-propagation>
+            <span className="ml-auto font-mono text-[0.6rem] text-muted-foreground">
+              {formatCompact(entry.totalCommits)} commits · {entry.contributors} contrib.
+              {entry.aiUsage ? ` · AI ${formatCost(entry.aiUsage.cost)}` : ""}
+            </span>
+            {entryStale ? (
               <span
-                className="line-clamp-2 text-[11px] leading-tight font-semibold tracking-tight"
-                title={project.name}
+                className="font-mono text-[0.6rem]"
+                style={{ color: "var(--sev-warning)" }}
+                title="The project moved on after this snapshot was generated"
               >
-                {project.name}
+                · data stale
               </span>
-            </div>
-            <div className="mt-auto flex min-w-0 items-center justify-between gap-1">
-              <AlertDots project={project} />
-              <RingAge score={score} tier="1x1" age={age} px={24} />
-            </div>
-          </TileFill>
-        ),
-        "2x1": (
-          <TileFill className="gap-1.5 px-3 py-2.5">
-            <TileHeader project={project} />
-            {entry !== null ? (
-              <ReportLine entry={entry} />
-            ) : (
-              <LastCommitLine project={project} />
-            )}
-            <TileFooter project={project} tier="2x1" score={score} age={age} px={26} />
-          </TileFill>
-        ),
-        "2x2": (
-          <TileFill className="gap-2 px-3.5 py-3">
-            <TileHeader project={project} large />
-            <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
-              <LastCommitLine project={project} />
-              {entry !== null ? <ReportLine entry={entry} /> : null}
-            </div>
-            <TileFooter project={project} tier="2x2" score={score} age={age} px={34} large />
-          </TileFill>
-        ),
-        "2x3": (
-          <TileFill className="gap-2 px-3.5 py-3">
-            <TileHeader project={project} large />
-            <div className="flex min-w-0 shrink-0 items-center gap-2">
-              {entry !== null ? <ReportLine entry={entry} /> : null}
-              {staleChip}
-            </div>
-            <div className="min-h-0 w-full flex-1">
-              {entry === null ? (
-                <LastCommitLine project={project} />
-              ) : (
-                <ViewCarousel
-                  autoAdvance
-                  ariaLabel={`${project.name} stats`}
-                  className="h-full min-h-0 w-full"
-                  cards={[
-                    {
-                      id: "tile-cadence-bars",
-                      label: "bars",
-                      node: (
-                        <HBars
-                          maxRows={6}
-                          ariaLabel={`Commits per month for ${project.name}`}
-                          className="h-full min-h-0 w-full"
-                          rows={[...entry.cadence.slice(-6)].reverse().map((point) => ({
-                            label: point.period,
-                            value: point.commits,
-                          }))}
-                        />
-                      ),
-                    },
-                    {
-                      id: "tile-stats",
-                      label: "table",
-                      node: (
-                        <KvList
-                          density="compact"
-                          className="h-full min-h-0 w-full"
-                          rows={[
-                            { label: "commits", value: formatCompact(entry.totalCommits), mono: true },
-                            { label: "contrib.", value: String(entry.contributors), mono: true },
-                            { label: "AI cost", value: formatCost(entry.aiUsage?.cost ?? 0), tone: "accent", mono: true },
-                            { label: "tokens", value: formatCompact(entry.aiUsage?.tokens.total ?? 0), mono: true },
-                            { label: "languages", value: String(entry.languages.length), mono: true },
-                            { label: "signals", value: String(entry.alerts.length), mono: true },
-                          ]}
-                        />
-                      ),
-                    },
-                  ]}
-                />
-              )}
-            </div>
-            <TileFooter project={project} tier="2x3" score={score} age={age} px={36} large />
-          </TileFill>
-        ),
-        "3x3": (
-          <TileFill className="gap-2 px-4 py-3">
-            <TileHeader project={project} large />
-            {project.note ? (
-              <p className="line-clamp-1 shrink-0 text-xs text-muted-foreground" title={project.note}>
-                {project.note}
-              </p>
             ) : null}
-            <div className="flex min-w-0 shrink-0 items-center gap-2">
-              {entry !== null ? <ReportLine entry={entry} /> : null}
-              {staleChip}
-            </div>
-            <div className="min-h-0 w-full flex-1">
-              {entry === null ? (
-                <LastCommitLine project={project} />
-              ) : (
-                <ViewCarousel
-                  autoAdvance
-                  ariaLabel={`${project.name} report`}
-                  className="h-full min-h-0 w-full"
-                  cards={[
-                    {
-                      id: "tile-activity",
-                      label: "activity",
-                      node: (
-                        <div className="flex h-full min-h-0 w-full flex-col gap-1">
-                          <div className="min-h-0 w-full flex-1">
-                            <Chart
-                              variant="area"
-                              points={entry.cadence
-                                .slice(-12)
-                                .map((point) => ({ label: point.period, value: point.commits }))}
-                              maxPoints={12}
-                              ariaLabel={`Commits per month for ${project.name}`}
-                            />
-                          </div>
-                          <p className="shrink-0 font-mono text-[9px] text-muted-foreground">
-                            commits / month · last {relativeTime(entry.lastCommit?.date ?? null)}
-                          </p>
-                        </div>
-                      ),
-                    },
-                    {
-                      id: "tile-quality",
-                      label: "quality",
-                      node: <QualityCard entry={entry} />,
-                    },
-                    {
-                      id: "tile-ai",
-                      label: "ai",
-                      node: <AiCard entry={entry} />,
-                    },
-                  ]}
-                />
-              )}
-            </div>
-            <TileFooter project={project} tier="3x3" score={score} age={age} px={40} large />
-          </TileFill>
-        ),
-      }}
-    >
-      <TileFill className="gap-2 px-3.5 py-3">
-        <TileHeader project={project} large />
-        <LastCommitLine project={project} />
-        <TileFooter project={project} tier="2x2" score={score} age={age} px={34} large />
-      </TileFill>
-    </WidgetShell>
+          </div>
+          <DataCarousel
+            ariaLabel={`${project.name} report`}
+            autoMs={6000}
+            seed={project.path}
+            cards={[
+              {
+                label: "activity",
+                content: (
+                  <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+                    <CadenceArea cadence={entry.cadence} />
+                    <p className="font-mono text-[0.62rem] text-muted-foreground">
+                      commits / month · {entry.totalCommits} total · last{" "}
+                      {relativeTime(entry.lastCommit?.date ?? null)}
+                    </p>
+                  </div>
+                ),
+              },
+              {
+                label: "quality",
+                content: <HeroQuality entry={entry} />,
+              },
+              {
+                label: "ai",
+                content: <HeroAi entry={entry} />,
+              },
+            ]}
+          />
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
+          <LastCommitLine project={project} detailed />
+        </div>
+      )}
+
+      <div className="flex items-end justify-between gap-3">
+        <GitGlyphs git={project.git} large />
+        <span className="flex shrink-0 items-center gap-2.5">
+          <AlertIcons alerts={project.alerts} />
+          <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={44} />
+        </span>
+      </div>
+    </BentoTile>
+  );
+}
+
+function StackIconById({ project }: { project: Project }) {
+  const Icon = stackIcon(project.stack?.id);
+  return <Icon className="size-4" />;
+}
+
+/* ---------------------------------------------------------- fragments --- */
+
+function HeroQuality({ entry }: { entry: ReportExportProject }) {
+  if (entry.alerts.length === 0) {
+    return <TileEmpty>No quality signals flagged in this report.</TileEmpty>;
+  }
+  return (
+    <ul className="flex h-full min-h-0 flex-col gap-1.5 pr-0.5">
+      {entry.alerts.map((alert) => (
+        <li
+          key={alert.id}
+          className="flex min-w-0 items-start gap-2 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5"
+          title={alert.summary}
+        >
+          <span
+            className="mt-1 size-2 shrink-0 rounded-[3px]"
+            style={{ background: SEVERITY_COLOR[alert.severity] }}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-medium">{alert.label}</span>
+            <span className="line-clamp-1 block text-[0.66rem] leading-snug text-muted-foreground">
+              {alert.summary}
+            </span>
+          </span>
+          <span className="b-num shrink-0 text-sm" style={{ color: SEVERITY_COLOR[alert.severity] }}>
+            {alert.value}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function HeroAi({ entry }: { entry: ReportExportProject }) {
+  const usage = entry.aiUsage;
+  if (!usage) {
+    return <TileEmpty>No AI usage recorded in this report window.</TileEmpty>;
+  }
+  return (
+    <div className="flex h-full min-h-0 flex-col justify-center gap-2.5">
+      <div className="flex items-baseline gap-2">
+        <span className="b-num text-3xl" style={{ color: "var(--bento-c4)" }}>
+          {formatCost(usage.cost)}
+        </span>
+        <span className="flex flex-col">
+          <span className="text-xs font-medium">subsidized AI cost</span>
+          <span className="font-mono text-[0.62rem] text-muted-foreground">
+            {usage.records.toLocaleString()} messages
+          </span>
+        </span>
+      </div>
+      <dl className="grid grid-cols-3 gap-2 font-mono text-[0.66rem] text-muted-foreground">
+        <div className="flex flex-col gap-0.5 rounded-lg border border-border px-2 py-1.5">
+          <dt className="text-[0.58rem] uppercase tracking-[0.08em]">tokens in</dt>
+          <dd className="text-sm text-foreground">{formatCompact(usage.tokens.input)}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5 rounded-lg border border-border px-2 py-1.5">
+          <dt className="text-[0.58rem] uppercase tracking-[0.08em]">out</dt>
+          <dd className="text-sm text-foreground">{formatCompact(usage.tokens.output)}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5 rounded-lg border border-border px-2 py-1.5">
+          <dt className="text-[0.58rem] uppercase tracking-[0.08em]">total</dt>
+          <dd className="text-sm text-foreground">{formatCompact(usage.tokens.total)}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function TileStatLine({
+  report,
+  project,
+}: {
+  report?: ReportExportProject | null;
+  project: Project;
+}) {
+  if (report) {
+    return (
+      <p
+        className="truncate font-mono text-[0.68rem] text-muted-foreground"
+        title={`${report.totalCommits} commits · ${report.contributors} contributors · AI cost ${formatCost(report.aiUsage?.cost ?? 0)} subsidized`}
+      >
+        {formatCompact(report.totalCommits)} commits · {report.contributors} contrib. ·{" "}
+        <span style={{ color: "var(--bento-c4)" }}>AI {formatCost(report.aiUsage?.cost ?? 0)}</span>
+      </p>
+    );
+  }
+  return <LastCommitLine project={project} />;
+}
+
+function LastCommitLine({
+  project,
+  detailed = false,
+}: {
+  project: Project;
+  detailed?: boolean;
+}) {
+  const lastCommit = project.git.lastCommit;
+  if (!lastCommit) {
+    return (
+      <p
+        className={
+          detailed ? "text-sm text-muted-foreground" : "line-clamp-1 text-xs text-muted-foreground"
+        }
+      >
+        {project.git.isRepo ? "No commits yet." : "Not a git repository."}
+      </p>
+    );
+  }
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="b-label">last commit</p>
+      <p
+        className={cn(
+          detailed ? "line-clamp-2 text-sm leading-snug" : "line-clamp-1 text-[0.8rem] leading-snug",
+        )}
+        title={lastCommit.message}
+      >
+        {lastCommit.message}
+      </p>
+      <p className="font-mono text-[0.66rem] text-muted-foreground">
+        {lastCommit.author}
+        {project.git.branch ? ` · ${project.git.branch}` : ""} · {relativeTime(lastCommit.date)}
+      </p>
+    </div>
+  );
+}
+
+function TileStat({
+  icon: Icon,
+  label,
+  value,
+  accent = false,
+}: {
+  icon: typeof GitCommitHorizontal | null;
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {Icon ? (
+        <Icon
+          className="size-3.5 shrink-0"
+          style={accent ? { color: "var(--bento-c4)" } : { color: "var(--muted-foreground)" }}
+        />
+      ) : null}
+      <dt className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{label}</dt>
+      <dd className="b-num shrink-0 text-sm" style={accent ? { color: "var(--bento-c4)" } : undefined}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function TileEmpty({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border px-3 text-center text-xs text-muted-foreground">
+      {children}
+    </div>
   );
 }

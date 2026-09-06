@@ -1,22 +1,24 @@
 /**
- * Meadow project report strip (T3-meadow) — port of the design's
- * `ProjectReportStats` (`components/designs/meadow/report-section.tsx`):
- * five warm figures from this repo's report — commits, contributors, top
+ * Meadow project report strip, ported from the design's `ProjectReportStats`
+ * (`components/designs/meadow/report-section.tsx`) into the theme namespace
+ * (owner correction: theme widgets carry the prototype's presentation): five
+ * warm figures from this repo's report — commits, contributors, top
  * language, the subsidized AI cost as the honey-tinted loud cell, and the
  * token total. The report state machine (missing/stale/running/fresh) is
- * ReportGate's; the numbers read the report context's normalized view.
+ * ReportProvider's; the numbers read the context's normalized view.
  */
-import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
+import { useState } from "react";
+import { Check, Copy, FlaskConical, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
+import { Button } from "@workspace-welcome/ui/components/button";
+
+import { SoftNumber } from "./bits";
 import { formatCost, formatTokens } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
-import { ReportGate } from "@/widgets/parts";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
-
-/** The report view-model as the report context serves it (stays on the
- * sanctioned import surface — no direct lib/report-view dependency). */
-type ReportView = NonNullable<ReturnType<typeof useReport>["view"]>;
+import type { ReportView } from "@/lib/report-view";
 
 function StatCell({
   label,
@@ -24,18 +26,21 @@ function StatCell({
   sub,
 }: {
   label: string;
-  value: string;
+  value: string | number;
   sub?: string;
 }) {
   return (
-    <div data-slot="meadow-card" className="flex min-w-0 flex-col gap-0.5 p-3">
+    <div className="meadow-panel flex flex-col gap-0.5 p-4">
       <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </span>
-      <span className="truncate text-2xl leading-tight font-semibold tracking-tight text-foreground">
-        {value}
-      </span>
-      {sub ? <span className="text-[10px] text-muted-foreground">{sub}</span> : null}
+      <SoftNumber
+        value={value}
+        className="truncate text-2xl leading-tight font-semibold tracking-tight text-foreground"
+      />
+      {sub ? (
+        <span className="text-[10px] text-muted-foreground">{sub}</span>
+      ) : null}
     </div>
   );
 }
@@ -43,11 +48,11 @@ function StatCell({
 function StatsStrip({ view }: { view: ReportView }) {
   const top = view.languageRows[0];
   return (
-    <div className="grid h-full w-full grid-cols-2 content-center gap-2 sm:grid-cols-3 xl:grid-cols-5">
+    <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
       <StatCell label="commits" value={view.totals.commits.toLocaleString()} />
       <StatCell
         label={view.totals.contributors === 1 ? "contributor" : "contributors"}
-        value={String(view.totals.contributors)}
+        value={view.totals.contributors}
       />
       <StatCell
         label="top language"
@@ -55,11 +60,12 @@ function StatsStrip({ view }: { view: ReportView }) {
         sub={top ? `${formatTokens(top.lines)} lines` : undefined}
       />
       <div
-        data-slot="meadow-card"
-        className="flex min-w-0 flex-col gap-0.5 p-3"
+        className="meadow-panel flex flex-col gap-0.5 p-4"
         style={{
-          background: "color-mix(in oklch, var(--pinned-accent) 6%, var(--card))",
-          borderColor: "color-mix(in oklch, var(--pinned-accent) 22%, var(--border))",
+          background:
+            "color-mix(in oklch, var(--pinned-accent) 6%, var(--card))",
+          borderColor:
+            "color-mix(in oklch, var(--pinned-accent) 22%, var(--border))",
         }}
       >
         <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
@@ -67,9 +73,9 @@ function StatsStrip({ view }: { view: ReportView }) {
         </span>
         {view.aiUsage ? (
           <>
-            <AnimatedNumber
+            <SoftNumber
               value={formatCost(view.aiUsage.cost)}
-              className="truncate text-2xl leading-tight font-semibold tracking-tight"
+              className="text-2xl leading-tight font-semibold tracking-tight"
               style={{ color: "var(--pinned-accent)" }}
             />
             <span className="text-[10px] text-muted-foreground">
@@ -77,27 +83,123 @@ function StatsStrip({ view }: { view: ReportView }) {
             </span>
           </>
         ) : (
-          <span className="py-1 text-sm text-muted-foreground">no AI usage recorded</span>
+          <span className="py-1 text-sm text-muted-foreground">
+            no AI usage recorded
+          </span>
         )}
       </div>
       <StatCell
         label="AI tokens"
         value={view.aiUsage ? formatTokens(view.aiUsage.tokens.total) : "—"}
-        sub={view.aiUsage ? `${formatTokens(view.aiUsage.records)} records` : undefined}
+        sub={
+          view.aiUsage
+            ? `${formatTokens(view.aiUsage.records)} records`
+            : undefined
+        }
       />
     </div>
   );
+}
+
+/** The design's generate strip for a missing report, over the context. */
+function GenerateStrip() {
+  const report = useReport();
+  const [commandCopied, setCommandCopied] = useState(false);
+
+  const copyCommand = async () => {
+    if (!report.command) return;
+    try {
+      await navigator.clipboard.writeText(report.command);
+      setCommandCopied(true);
+      setTimeout(() => setCommandCopied(false), 1600);
+    } catch {
+      toast.error("Couldn't copy the command");
+    }
+  };
+
+  const busy = report.status === "running" || report.status === "loading";
+
+  return (
+    <section
+      aria-label="Generate project report"
+      className="meadow-panel flex w-full flex-wrap items-center gap-x-4 gap-y-2 p-4"
+    >
+      <span
+        aria-hidden
+        className="flex size-8 items-center justify-center rounded-full"
+        style={{
+          color: "var(--recency-fresh)",
+          background:
+            "color-mix(in oklch, var(--recency-fresh) 11%, transparent)",
+        }}
+      >
+        <FlaskConical className="size-4" />
+      </span>
+      <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
+        <span className="font-semibold text-foreground">
+          No snitch report for this project yet.
+        </span>{" "}
+        Generate one to light up the cadence graph, health alerts, language
+        mix, and AI cost — or run the command yourself.
+      </p>
+      <div className="flex items-center gap-2">
+        <Button
+          size="xs"
+          disabled={report.key === null}
+          onClick={() => report.generate()}
+        >
+          {report.key === null ? (
+            <Loader2 aria-hidden className="size-3 animate-spin" />
+          ) : (
+            <FlaskConical aria-hidden className="size-3" />
+          )}
+          {busy ? "Starting…" : "Generate report"}
+        </Button>
+        {report.command ? (
+          <Button variant="outline" size="xs" onClick={copyCommand}>
+            {commandCopied ? (
+              <Check aria-hidden className="size-3" />
+            ) : (
+              <Copy aria-hidden className="size-3" />
+            )}
+            {commandCopied ? "Copied" : "Copy command"}
+          </Button>
+        ) : null}
+      </div>
+      {report.command ? (
+        <pre className="meadow-scroll w-full overflow-x-auto rounded-xl border border-border/70 bg-muted/40 p-2.5 font-mono text-[0.6rem] leading-relaxed break-all whitespace-pre-wrap text-muted-foreground">
+          {report.command}
+        </pre>
+      ) : report.commandError ? (
+        <p className="w-full text-[10px]" style={{ color: "var(--sev-critical)" }}>
+          Command unavailable: {report.commandError}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function StatsFull() {
+  const report = useReport();
+  const view = report.view;
+
+  if (report.status === "loading" && view === null) {
+    return (
+      <div className="meadow-panel flex w-full items-center gap-2 p-6 text-sm text-muted-foreground">
+        <Loader2 aria-hidden className="size-4 animate-spin" />
+        Reading the report cache…
+      </div>
+    );
+  }
+  if (view === null) return <GenerateStrip />;
+  return <StatsStrip view={view} />;
 }
 
 export function MeadowProjectStats({ size }: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
 
-  const gatedStrip = (
-    <ReportGate mode="banner" className="flex min-h-0 flex-1 flex-col">
-      {view !== null ? <StatsStrip view={view} /> : null}
-    </ReportGate>
-  );
+  const gatedStrip = <StatsFull />;
 
   return (
     <WidgetShell
@@ -111,28 +213,9 @@ export function MeadowProjectStats({ size }: RegisteredWidgetProps) {
             </span>
           </div>
         ),
-        "2x1": (
-          <div className="flex h-full w-full min-w-0 flex-wrap content-center items-baseline gap-x-4 gap-y-0.5 overflow-hidden px-1">
-            <span className="text-[11px] text-muted-foreground">
-              <AnimatedNumber
-                value={view?.totals.commits ?? 0}
-                className="text-xs font-semibold tabular-nums text-foreground"
-              />{" "}
-              commits
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              <AnimatedNumber
-                value={view?.totals.contributors ?? 0}
-                className="text-xs font-semibold tabular-nums text-foreground"
-              />{" "}
-              {view?.totals.contributors === 1 ? "contributor" : "contributors"}
-            </span>
-            <span className="truncate text-[11px] text-muted-foreground">
-              {view?.languageRows[0]?.language ?? "—"}
-            </span>
-          </div>
-        ),
-        "12x1": gatedStrip,
+        // Every placement above 1x1 renders the ONE stat strip — its grid
+        // wraps to the width (2 cols on phones, 5 on desktop).
+        "2x1": gatedStrip,
       }}
     >
       {gatedStrip}

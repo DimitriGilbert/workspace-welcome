@@ -1,11 +1,12 @@
 /**
- * Meadow masthead (T2-meadow) — port of `components/designs/meadow/header.tsx`.
- *
- * ONE row: time-of-day greeting, the essential counts inline (AnimatedNumber
- * fade — the design's SoftNumber), and the search field on the same line,
- * with the compact command cluster at the end (refresh, Add menu, settings).
- * Search is the workspace's ONE filter (`filter`/`setFilter`); "/" focuses,
- * Escape clears and blurs — the design's keyboard contract, kept.
+ * Meadow masthead, ported from `components/designs/meadow/header.tsx` into
+ * the theme namespace (owner correction: theme widgets carry the
+ * prototype's presentation). ONE row: time-of-day greeting, the essential
+ * counts inline (SoftNumber fade), and the search field on the same line,
+ * with the compact command cluster at the end (refresh, Add menu,
+ * settings). Search is the workspace's ONE filter (`filter`/`setFilter`);
+ * "/" focuses, Escape clears and blurs — the design's keyboard contract,
+ * kept.
  *
  * The Add menu opens the token-styled form parts (FormCreateProject /
  * FormAddRoot / FormCloneScript) instead of design-local dialogs; refresh
@@ -25,7 +26,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
 import { Button } from "@workspace-welcome/ui/components/button";
 import {
   DropdownMenu,
@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace-welcome/ui/components/dropdown-menu";
 
+import { SoftNumber } from "./bits";
 import { FormAddRoot } from "@/widgets/parts/form/add-root";
 import { FormCloneScript } from "@/widgets/parts/form/clone-script";
 import { FormCreateProject } from "@/widgets/parts/form/create-project";
@@ -48,17 +49,6 @@ function greetingFor(date: Date): string {
   if (h < 12) return "Good morning";
   if (h < 18) return "Good afternoon";
   return "Good evening";
-}
-
-/** Minute-scale "scanned" label for the header counts. Ported from the
- * design's header helper. */
-function relativeScanned(at: number, now: number): string {
-  const minutes = Math.max(0, Math.round((now - at) / 60_000));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
 }
 
 /**
@@ -119,7 +109,7 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
         }}
         placeholder="Filter projects"
         aria-label="Filter projects"
-        className="meadow-focus h-8 w-44 min-w-0 rounded-full border border-input bg-card/80 pr-9 pl-9 text-[13px] shadow-none outline-none placeholder:text-muted-foreground focus-visible:border-(--ring) md:w-60"
+        className="meadow-focus meadow-input h-8 w-44 rounded-full border border-input bg-card/80 pr-9 pl-9 text-[13px] text-foreground outline-none placeholder:text-muted-foreground focus:border-ring md:w-60"
       />
       <kbd
         aria-hidden
@@ -177,7 +167,7 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
   const counts = (
     <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
       <span className="whitespace-nowrap">
-        <AnimatedNumber value={projectCount} className="font-semibold text-foreground" />{" "}
+        <SoftNumber value={projectCount} className="font-semibold text-foreground" />{" "}
         {projectCount === 1 ? "project" : "projects"}
       </span>
       <span aria-hidden className="text-border">
@@ -208,7 +198,7 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
   );
 
   const full: ReactNode = (
-    <div className="flex h-full w-full min-w-0 flex-wrap content-center items-center gap-x-4 gap-y-2 overflow-hidden">
+    <header className="flex h-full w-full min-w-0 flex-wrap content-center items-center gap-x-4 gap-y-2.5 overflow-hidden">
       <h1 className="text-lg font-semibold tracking-tight whitespace-nowrap text-foreground">
         {greetingFor(new Date())}
       </h1>
@@ -217,7 +207,7 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
         {searchField}
         {commands}
       </div>
-    </div>
+    </header>
   );
 
   return (
@@ -233,15 +223,10 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
               </p>
             </div>
           ),
-          "2x1": (
-            <div className="flex h-full w-full min-w-0 flex-col justify-center gap-1 overflow-hidden px-1">
-              <p className="truncate text-sm font-semibold tracking-tight text-foreground">
-                {greetingFor(new Date())}
-              </p>
-              {counts}
-            </div>
-          ),
-          "12x1": full,
+          // Every placement above 1x1 renders the ONE wrapping header row —
+          // the design's presentation at every width (narrow footprints wrap,
+          // they don't degrade to a different rung).
+          "2x1": full,
         }}
       >
         {full}
@@ -262,4 +247,15 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
       <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />
     </>
   );
+}
+
+/** Minute-scale "scanned" label for the header counts. Ported from the
+ * design's header helper. */
+function relativeScanned(at: number, now: number): string {
+  const minutes = Math.max(0, Math.round((now - at) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }

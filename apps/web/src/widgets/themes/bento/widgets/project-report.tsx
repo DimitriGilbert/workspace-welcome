@@ -1,229 +1,146 @@
 /**
- * Bento's project report pair (master plan §5 T3-bento): the design's
- * pulse-summary tile (overview band span 4 of 12) and its full "Pulse" tab
- * (the ReportPanel band) ported onto the widget system.
- *
- * - `bento-project-summary` — the project's snitch story on one tile, as
- *   PER-ENTRY report slices over `useReport().entry(path)` (the no-fan-out
- *   rule: one export, this project's slice): subsidized AI cost Stat, the
- *   commits/contributors/languages/signals register, the cadence area chart
- *   (only on a rung that clears the chart's 200x160 floor), and the worst
- *   signal. Report status (missing CTA / running strip / stale chip) is the
- *   ReportGate part's — this kind renders no status machine of its own.
- * - `bento-project-pulse` — the tabbed report band; the four tab bodies
- *   (Activity / Health / Code / AI usage) and the graph-table ViewCarousel
- *   are the shared dashboard pulse's (`./pulse`), re-rendered over the
- *   page's repo-scoped ReportProvider.
+ * Bento's project report pair — ports of `components/designs/bento/
+ * project-page.tsx`: the pulse-summary tile (overview band span 4 of 12 —
+ * the project's snitch story on one screen: subsidized AI cost headline,
+ * meta, cadence shape, worst signal) and the full "Pulse" band (the same
+ * ReportPanel the dashboard runs, repo-scoped by the page's provider).
  */
-import { useState } from "react";
-import type { ReactNode } from "react";
+import { Activity, ArrowLeft } from "lucide-react";
 
-import type { AlertSeverity } from "@workspace-welcome/api/lib/types";
-import { Chart } from "@workspace-welcome/ui/components/chart";
-import { Chip } from "@workspace-welcome/ui/components/chip";
-import { KvList } from "@workspace-welcome/ui/components/kv-list";
-import { Stat } from "@workspace-welcome/ui/components/stat";
-import { cn } from "@workspace-welcome/ui/lib/utils";
+import { Button } from "@workspace-welcome/ui/components/button";
 
-import { formatCost, relativeTime } from "@/lib/format";
+import { formatCost } from "@/lib/format";
+import { isReportStale } from "@workspace-welcome/api/lib/report-staleness";
 
-import { ReportGatePart } from "@/widgets/parts";
 import { useProject } from "@/widgets/contexts/project-context";
 import { useReport } from "@/widgets/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-import { PULSE_TABS, PulseBody } from "./pulse";
+import { BentoTile, CadenceArea } from "../bits";
+import { ReportPanel } from "./pulse";
 
-const SEV_TOKEN: Record<AlertSeverity, string> = {
-  critical: "var(--sev-critical)",
-  warning: "var(--sev-warning)",
-  info: "var(--sev-info)",
-};
+/* ------------------------------------------------------------ summary --- */
 
-/* ------------------------------------------------------------ helpers --- */
-
-function ReportFill({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
-      {children}
-    </div>
-  );
-}
-
-function ReportQuiet({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full min-h-0 w-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-      {children}
-    </div>
-  );
-}
-
-/* ----------------------------------------------------------- summary --- */
-
-function SummaryBody() {
-  const path = useProject().path;
-  const entry = useReport().entry(path);
-
-  if (entry === null) {
-    return (
-      <ReportQuiet>
-        No report entry for this project — generate the report to see its
-        cadence, quality signals, and AI cost.
-      </ReportQuiet>
-    );
-  }
-
-  const worst = entry.alerts[0];
-  return (
-    <ReportFill className="gap-3 px-5 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-        <Stat
-          label="Subsidized AI cost"
-          value={formatCost(entry.aiUsage?.cost ?? 0)}
-          tone="accent"
-          size="lg"
-          hint={`${entry.aiUsage?.records.toLocaleString() ?? "0"} messages`}
-        />
-        <span className="text-right text-[0.66rem] leading-tight text-muted-foreground">
-          subsidized AI cost
-          <br />
-          {entry.aiUsage?.records.toLocaleString() ?? "0"} messages
-        </span>
-      </div>
-
-      <KvList
-        density="compact"
-        rows={[
-          { label: "Commits", value: entry.totalCommits.toLocaleString(), mono: true },
-          { label: "Contributors", value: String(entry.contributors), mono: true },
-          { label: "Languages", value: String(entry.languages.length), mono: true },
-          { label: "Signals", value: String(entry.alerts.length), mono: true },
-        ]}
-      />
-
-      <div className="min-h-[160px] w-full flex-1">
-        <Chart
-          variant="area"
-          points={entry.cadence
-            .slice(-12)
-            .map((point) => ({ label: point.period, value: point.commits }))}
-          maxPoints={12}
-          ariaLabel={`Commits per month for this project`}
-        />
-      </div>
-
-      {worst ? (
-        <p
-          className="line-clamp-2 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5 text-[0.66rem] leading-snug text-muted-foreground"
-          title={worst.summary}
-        >
-          <span className="font-medium" style={{ color: SEV_TOKEN[worst.severity] }}>
-            {worst.label}:
-          </span>{" "}
-          {worst.summary}
-        </p>
-      ) : null}
-    </ReportFill>
-  );
-}
-
-export function BentoProjectSummary({ size }: RegisteredWidgetProps) {
+export function BentoProjectSummary(_props: RegisteredWidgetProps) {
+  const page = useProject();
   const report = useReport();
+  const project = page.project;
+  const path = page.path;
+  const entry = report.entry(path);
+  const stale =
+    report.exportData !== null && isReportStale(report.exportData.generatedAt, project?.updatedAt ?? null);
+
+  const scrollToPulse = () => {
+    document.querySelector('[data-region="pulse"]')?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      meta={
-        report.status === "stale" ? (
-          <Chip tone="warning">stale</Chip>
-        ) : report.status === "fresh" ? (
-          <Chip tone="positive">fresh</Chip>
-        ) : undefined
-      }
-      sizes={{
-        "4x4": (
-          <ReportGatePart className="min-h-0 w-full flex-1">
-            <SummaryBody />
-          </ReportGatePart>
-        ),
-        "1x1": (
-          <ReportFill className="justify-center gap-1 px-2.5 py-2">
-            <Stat
-              label="AI cost"
-              value={
-                report.view === null
-                  ? "—"
-                  : formatCost(report.view.aiUsage?.cost ?? 0)
-              }
-              tone="accent"
-              size="sm"
-            />
-          </ReportFill>
-        ),
-      }}
-    />
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="b-label">pulse</h2>
+        {entry ? (
+          stale ? (
+            <span className="font-mono text-[0.64rem]" style={{ color: "var(--sev-warning)" }}>
+              stale
+            </span>
+          ) : (
+            <span className="font-mono text-[0.64rem]" style={{ color: "var(--state-positive)" }}>
+              fresh
+            </span>
+          )
+        ) : null}
+      </div>
+
+      {entry ? (
+        <>
+          <div className="flex items-baseline justify-between gap-3">
+            <span
+              className="b-num text-[34px]"
+              style={{ color: "var(--bento-c4)" }}
+              aria-label={`Subsidized AI cost ${(entry.aiUsage?.cost ?? 0).toFixed(2)} dollars`}
+            >
+              {formatCost(entry.aiUsage?.cost ?? 0)}
+            </span>
+            <span className="text-right text-[0.66rem] leading-tight text-muted-foreground">
+              subsidized AI cost
+              <br />
+              {entry.aiUsage?.records.toLocaleString() ?? "0"} messages
+            </span>
+          </div>
+
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <Meta label="Commits" value={entry.totalCommits.toLocaleString()} />
+            <Meta label="Contributors" value={String(entry.contributors)} />
+            <Meta label="Languages" value={String(entry.languages.length)} />
+            <Meta label="Signals" value={String(entry.alerts.length)} />
+          </dl>
+
+          <div className="flex min-h-0 flex-1 flex-col justify-center">
+            <CadenceArea cadence={entry.cadence} />
+          </div>
+
+          {entry.alerts[0] ? (
+            <p
+              className="line-clamp-2 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5 text-[0.66rem] leading-snug text-muted-foreground"
+              title={entry.alerts[0].summary}
+            >
+              <span
+                className="font-medium"
+                style={{
+                  color:
+                    entry.alerts[0].severity === "critical"
+                      ? "var(--sev-critical)"
+                      : entry.alerts[0].severity === "warning"
+                        ? "var(--sev-warning)"
+                        : "var(--sev-info)",
+                }}
+              >
+                {entry.alerts[0].label}:
+              </span>{" "}
+              {entry.alerts[0].summary}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-2.5">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            No cached snitch report for this project yet — the pulse carries its cadence, quality
+            signals, language mix, and subsidized AI cost.
+          </p>
+          <Button size="sm" variant="outline" onClick={scrollToPulse}>
+            <Activity className="size-3.5" /> Open pulse
+          </Button>
+        </div>
+      )}
+
+      <Button size="xs" variant="ghost" className="self-start" onClick={scrollToPulse}>
+        Full pulse <ArrowLeft className="size-3 rotate-180" />
+      </Button>
+    </BentoTile>
   );
 }
 
-/* ------------------------------------------------------------- pulse --- */
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <dt className="b-label">{label}</dt>
+      <dd className="mt-0.5 truncate font-mono text-[0.72rem] text-foreground/90" title={value}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------- pulse --- */
 
 /**
- * The full-width tabbed report band over the page's repo scope. The gate
- * renders the report state machine around the active tab body — missing →
- * CTA, running → strip over retained content, stale → chip + regenerate —
- * so no tab body ever sees a half-resolved report.
+ * The project's full report band — the design's `b-pulse-xl` tile with the
+ * repo-scoped ReportPanel (the page provider scopes kind/path/staleness).
  */
-export function BentoProjectPulse({ size }: RegisteredWidgetProps) {
-  const report = useReport();
-  const view = report.view;
-  const [tab, setTab] = useState("activity");
-  const full = size.cols >= 2 && size.rows >= 2;
-
-  const meta =
-    view !== null ? (
-      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-        generated {relativeTime(view.export.generatedAt)} ·{" "}
-        {view.totals.commits.toLocaleString()} commits
-      </span>
-    ) : (
-      <span className="font-mono text-[10px] text-muted-foreground">
-        git-snitch · repo report
-      </span>
-    );
-
-  let body: ReactNode;
-  if (report.status === "no-scope") {
-    body = (
-      <ReportQuiet>
-        No report scope — this project page has no resolvable path.
-      </ReportQuiet>
-    );
-  } else if (full) {
-    body = (
-      <ReportGatePart className="min-h-0 w-full flex-1">
-        <PulseBody tab={tab} />
-      </ReportGatePart>
-    );
-  } else {
-    body = (
-      <ReportFill className="flex-row flex-wrap items-center gap-x-6 gap-y-1 px-3 pb-2">
-        <Stat label="Commits" value={view === null ? "—" : view.totals.commits.toLocaleString()} size="sm" />
-      </ReportFill>
-    );
-  }
-
+export function BentoProjectPulse(_props: RegisteredWidgetProps) {
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      meta={meta}
-      tabs={full ? PULSE_TABS : undefined}
-      activeTab={full ? tab : undefined}
-      onTabChange={full ? setTab : undefined}
-    >
-      {body}
-    </WidgetShell>
+    <BentoTile className="flex h-full min-h-0 w-full flex-col p-5">
+      <ReportPanel title="Project pulse" className="min-h-0 flex-1" />
+    </BentoTile>
   );
 }

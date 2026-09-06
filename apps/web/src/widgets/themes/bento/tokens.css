@@ -5,13 +5,17 @@
  * neutral ramp — deliberately re-derived inside the theme scope instead of
  * the app's warm umber default — with one electric-blue accent, semantic
  * severity hues, the 20px tile radius, and bento's six-color chart ramp
- * (`--bento-c1..6`). Color literals appear ONLY on custom-property
- * declaration lines (grep-invariant #3); severity uses the canonical
- * `--sev-*` vocabulary (§3.7).
+ * (`--bento-c1..6`, aliased over the canonical --chart-* block). Color
+ * literals appear ONLY on custom-property declaration lines (grep-invariant
+ * #3); severity uses the canonical `--sev-*` vocabulary (§3.7).
  *
  * The semantic groups MUST be declared on the `[data-ww-theme="bento"]`
  * scope element itself — the base :root cascade would otherwise satisfy
  * plain resolution and hide a missing stylesheet from the probe.
+ *
+ * The `--bento-*` tail also carries the literal-bearing values the ported
+ * TSX reads as vars (chart tracks, hairlines, gradients) — keeping them
+ * here is what lets the component code stay literal-free.
  */
 
 [data-ww-theme="bento"] {
@@ -52,7 +56,7 @@
   --recency-fresh: oklch(0.79 0.12 155);
   --recency-stale: oklch(0.55 0.015 265);
   /* bento's full recency ramp (`--tone-live/warm/cooling/cold`): the
-     manifest needs the two poles; the mid tiers ride along for T2/T3. */
+     manifest needs the two poles; the mid tiers ride along for the tiles. */
   --recency-warm: oklch(0.74 0.125 235);
   --recency-cooling: oklch(0.78 0.1 195);
   --pinned-accent: oklch(0.82 0.13 85);
@@ -68,4 +72,63 @@
   --chart-4: oklch(0.82 0.12 90);
   --chart-5: oklch(0.72 0.1 15);
   --chart-6: oklch(0.68 0.02 265);
+
+  /* bento's concept-local aliases (the ported components read these) */
+  --bento-c1: var(--chart-1);
+  --bento-c2: var(--chart-2);
+  --bento-c3: var(--chart-3);
+  --bento-c4: var(--chart-4);
+  --bento-c5: var(--chart-5);
+  --bento-c6: var(--chart-6);
+  --bento-radius: 20px;
+  --tone-live: var(--state-positive);
+  --tone-warm: var(--recency-warm);
+  --tone-cooling: var(--recency-cooling);
+  --tone-cold: var(--recency-stale);
+
+  /* literal-bearing surfaces the ported markup reads as vars */
+  --bento-track: oklch(1 0 0 / 0.07);
+  --bento-track-soft: oklch(1 0 0 / 0.06);
+  --bento-ring-track: oklch(1 0 0 / 0.09);
+  --bento-ai-bar: linear-gradient(90deg, oklch(0.82 0.12 90 / 0.7), var(--bento-c4));
+  --bento-dirty-bar: linear-gradient(90deg, oklch(0.78 0.1 195 / 0.7), var(--bento-c2));
+  --bento-grid-line: oklch(1 0 0 / 0.06);
+  --bento-cursor-line: oklch(1 0 0 / 0.14);
+
+  /* literal-bearing values consumed by custom.css + the ported markup */
+  --bento-canvas: radial-gradient(1100px 480px at 18% -8%, oklch(0.72 0.125 235 / 0.07), transparent 70%), radial-gradient(900px 420px at 85% -12%, oklch(0.76 0.09 300 / 0.05), transparent 72%), var(--background);
+  --bento-kbd-border: oklch(1 0 0 / 0.14);
+  --bento-kbd-bg: oklch(1 0 0 / 0.06);
+  --bento-glyph-border: oklch(1 0 0 / 0.12);
+  --bento-glyph-bg: oklch(1 0 0 / 0.05);
+  --bento-sheen: linear-gradient(180deg, oklch(1 0 0 / 0.04), oklch(1 0 0 / 0) 34%);
+  --bento-tile-shadow: inset 0 1px 0 oklch(1 0 0 / 0.09), 0 14px 36px -22px oklch(0 0 0 / 0.8);
+  --bento-lift: 0 18px 44px -20px oklch(0 0 0 / 0.75);
+  --bento-hover-border: oklch(1 0 0 / 0.2);
+  --bento-pinned-border: oklch(0.82 0.13 85 / 0.22);
+  --bento-hover-shadow: inset 0 1px 0 oklch(1 0 0 / 0.1), var(--bento-lift);
+  --bento-search-inset: inset 0 1px 0 oklch(1 0 0 / 0.05);
+  --bento-skel-sheen: linear-gradient(100deg, oklch(0.21 0.009 265) 40%, oklch(0.26 0.01 265) 50%, oklch(0.21 0.009 265) 60%);
+  --background: oklch(0.135 0.007 265);
+  --foreground: oklch(0.965 0.004 260);
+  --card: oklch(0.19 0.009 265);
+  --card-foreground: oklch(0.965 0.004 260);
+  --popover: oklch(0.22 0.01 265);
+  --popover-foreground: oklch(0.965 0.004 260);
+  --primary: oklch(0.72 0.125 235);
+  --primary-foreground: oklch(0.14 0.02 260);
+  --secondary: oklch(0.25 0.01 265);
+  --secondary-foreground: oklch(0.96 0.004 260);
+  --muted: oklch(0.245 0.01 265);
+  --muted-foreground: oklch(0.715 0.014 260);
+  --accent: oklch(0.28 0.012 265);
+  --accent-foreground: oklch(0.97 0.004 260);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.72 0.125 235);
+  --state-positive: oklch(0.79 0.12 155);
+  --bento-dialog-sheen: linear-gradient(180deg, oklch(1 0 0 / 0.05), oklch(1 0 0 / 0) 30%);
+  --bento-dialog-border: oklch(1 0 0 / 0.12);
+  --bento-dialog-shadow: inset 0 1px 0 oklch(1 0 0 / 0.1), 0 30px 80px -20px oklch(0 0 0 / 0.85);
 }

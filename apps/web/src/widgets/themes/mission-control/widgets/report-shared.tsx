@@ -61,11 +61,17 @@ export function ReportMissingFill() {
  * The one gate every mc report kind renders behind: box-filling loading and
  * missing slots keep the rung honest (the gate's defaults are chrome-height
  * strips), content is retained under `running`, stale renders the chip +
- * regenerate over the children.
+ * regenerate over the children. The gate root FILLS the shell's content box
+ * so the widget bodies (the design's chart-fill panels) stretch like the
+ * prototype's.
  */
 export function McReportGate({ children }: { children: ReactNode }) {
   return (
-    <ReportGate loading={<Skeleton className="h-full w-full" />} missing={<ReportMissingFill />}>
+    <ReportGate
+      className="flex h-full min-h-0 w-full flex-col"
+      loading={<Skeleton className="h-full w-full" />}
+      missing={<ReportMissingFill />}
+    >
       {children}
     </ReportGate>
   );

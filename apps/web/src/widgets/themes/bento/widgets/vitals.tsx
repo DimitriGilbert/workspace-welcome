@@ -1,273 +1,242 @@
 /**
- * Bento's vitals band (master plan §5 T2-bento): widget-for-widget ports of
- * the design's `health-tile.tsx`, `activity-tile.tsx`, and `stack-tile.tsx`.
+ * Bento's vitals band — widget-for-widget ports of the design's
+ * `health-tile.tsx`, `activity-tile.tsx`, and `stack-tile.tsx`. The tiles
+ * are the design's own glazed markup (BentoTile + b-label header rows +
+ * the SVG gauge/donut); data derives from `useWorkspace()` through the
+ * shared scan-metrics module, exactly the derivations the design route ran.
  *
- * Data comes from the shared modules the design's `bento-metrics.ts` was
- * consolidated into — `healthSummary` / `weeklyActivity` /
- * `stackDistribution` over `useWorkspace()`; the pixels are ui parts
- * (Gauge, Chart, Donut, SegBar, HBars, Stat, AnimatedNumber). Every rung
- * renders one stretched root so the density probe measures an honestly
- * filled box, and the `Chart` part appears only on rungs that clear its
- * 200x160 floor — smaller rungs author non-chart presentations (Stat
- * numerals, SegBar geometry) per the charts policy (ruling 5).
+ * The activity chart is the ui Chart part (the system's one chart engine,
+ * an area chart with axes/grid/tooltip) — the theme stylesheet tunes its
+ * ticks and cursor to the design's chart register. Smaller footprints keep
+ * the same fluid layout; the band content wraps rather than re-laddering.
  */
 import { useMemo } from "react";
-import type { ReactNode } from "react";
+import { Activity, History, Pin, ShieldCheck } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
 import { Chart } from "@workspace-welcome/ui/components/chart";
-import { Donut } from "@workspace-welcome/ui/components/donut";
-import { Gauge } from "@workspace-welcome/ui/components/gauge";
-import { HBars } from "@workspace-welcome/ui/components/h-bars";
-import { SegBar } from "@workspace-welcome/ui/components/seg-bar";
-import { Stat } from "@workspace-welcome/ui/components/stat";
-import { cn } from "@workspace-welcome/ui/lib/utils";
-import type { Tone } from "@workspace-welcome/ui/lib/tokens";
 
 import { healthSummary, stackDistribution, weeklyActivity } from "@/lib/scan-metrics";
-import type { HealthSummary } from "@/lib/scan-metrics";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-/** One stretched root per rung — the vitals-skeleton density convention. */
-function BandFill({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
-      {children}
-    </div>
-  );
-}
+import { BentoTile, HealthGauge, RollNumber } from "../bits";
+import { STACK_RAMP } from "../metrics";
 
-/** Quiet mono meta line under the shell header (the design's `b-label` row). */
-function BandMeta({ children }: { children: ReactNode }) {
-  return (
-    <p className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-      {children}
-    </p>
-  );
-}
+/* ---------------------------------------------------------- BentoHealth */
 
-/* ------------------------------------------------------------- health --- */
+const BAND_COLOR = {
+  positive: "var(--state-positive)",
+  warn: "var(--sev-warning)",
+  error: "var(--sev-critical)",
+} as const;
 
-type HealthCell = { label: string; value: number; tone?: Tone };
-
-function healthCells(summary: HealthSummary): HealthCell[] {
-  return [
-    { label: "Clean", value: summary.clean, tone: "positive" },
-    { label: "Flagged", value: summary.flagged, tone: summary.flagged > 0 ? "warning" : undefined },
-    { label: "Dormant 30d+", value: summary.dormant },
-    { label: "Touched 7d", value: summary.activeThisWeek, tone: "info" },
-  ];
-}
-
-function healthTone(score: number): Tone {
-  return score >= 80 ? "positive" : score >= 55 ? "warning" : "critical";
-}
-
-/**
- * Workspace health — the derived 0-100 numeral on bento's 240° gauge arc
- * (ui Gauge), with the four counts that explain it beside it.
- */
-export function BentoHealth({ size }: RegisteredWidgetProps) {
+export function BentoHealth(_props: RegisteredWidgetProps) {
   const { projects, now } = useWorkspace();
   const summary = useMemo(() => healthSummary(projects, now), [projects, now]);
-  const cells = healthCells(summary);
-  const gauge = (
-    <div className="min-w-0 flex-1 self-center @[340px]:max-w-[240px]">
-      <Gauge
-        value={summary.score}
-        label="of 100"
-        ariaLabel={`Workspace health ${summary.score} of 100`}
-      />
+  const band =
+    summary.score >= 80 ? "positive" : summary.score >= 55 ? "warn" : "error";
+  const bandColor = BAND_COLOR[band];
+
+  return (
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-4 p-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="b-label">Workspace health</h2>
+        <span className="font-mono text-[0.68rem] text-muted-foreground">
+          {summary.total} projects
+        </span>
+      </div>
+
+      <div className="b-health-body flex min-h-0 flex-1 flex-wrap items-center justify-center gap-6 sm:justify-between">
+        <HealthGauge score={summary.score} bandColor={bandColor}>
+          <RollNumber
+            value={summary.score}
+            label={`Health score ${summary.score} out of 100`}
+            className="b-num text-[44px]"
+            style={{ color: bandColor }}
+          />
+          <span className="b-label mt-1">of 100</span>
+        </HealthGauge>
+
+        <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-4 self-center">
+          <HealthStat icon={ShieldCheck} label="Clean" value={summary.clean} tone="positive" />
+          <HealthStat
+            icon={Activity}
+            label="Flagged"
+            value={summary.flagged}
+            tone={summary.flagged > 0 ? "warn" : undefined}
+          />
+          <HealthStat icon={History} label="Dormant 30d+" value={summary.dormant} />
+          <HealthStat icon={Pin} label="Touched 7d" value={summary.activeThisWeek} tone="info" />
+        </dl>
+      </div>
+    </BentoTile>
+  );
+}
+
+type Tone = "positive" | "warn" | "info" | undefined;
+
+function HealthStat({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tone?: Tone;
+}) {
+  const color =
+    tone === "positive"
+      ? "var(--state-positive)"
+      : tone === "warn"
+        ? "var(--sev-warning)"
+        : tone === "info"
+          ? "var(--bento-c1)"
+          : "var(--muted-foreground)";
+  return (
+    <div className="flex items-center gap-2.5">
+      <Icon className="size-3.5 shrink-0" style={{ color }} />
+      <dt className="flex-1 text-xs text-muted-foreground">{label}</dt>
+      <dd className="b-num text-lg" style={{ color: tone ? color : undefined }}>
+        {value}
+      </dd>
     </div>
   );
-  const full = (
-    <BandFill className="flex-row flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
-      {gauge}
-      <div className="grid min-w-0 flex-1 grid-cols-2 content-center gap-x-6 gap-y-3">
-        {cells.map((cell) => (
-          <Stat key={cell.label} label={cell.label} value={cell.value} tone={cell.tone} size="sm" />
-        ))}
-      </div>
-    </BandFill>
+}
+
+/* -------------------------------------------------------- BentoActivity */
+
+export function BentoActivity(_props: RegisteredWidgetProps) {
+  const { projects, now } = useWorkspace();
+  const data = useMemo(() => weeklyActivity(projects, 16, now), [projects, now]);
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+  const peak = data.reduce(
+    (best, d) => (d.count > best.count ? d : best),
+    data[0] ?? { label: "", count: 0 },
   );
 
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <BandFill className="items-center justify-center px-2">
-            <Stat
-              label="Health"
-              value={`${summary.score}/100`}
-              tone={healthTone(summary.score)}
-              size="sm"
-            />
-          </BandFill>
-        ),
-        "2x1": (
-          <BandFill className="flex-row items-center px-3 py-1">
-            {gauge}
-            <Stat label="Projects" value={summary.total} size="sm" className="shrink-0" />
-          </BandFill>
-        ),
-        "2x2": full,
-        "3x3": full,
-      }}
-    >
-      {full}
-    </WidgetShell>
-  );
-}
-
-/* ----------------------------------------------------------- activity --- */
-
-/**
- * Activity — trailing 16-week histogram of last-touch events (ui Chart,
- * area variant) with the workspace total and peak week beside it.
- */
-export function BentoActivity({ size }: RegisteredWidgetProps) {
-  const { projects, now } = useWorkspace();
-  const weekly = useMemo(() => weeklyActivity(projects, 16, now), [projects, now]);
-  const total = weekly.reduce((sum, point) => sum + point.count, 0);
-  const peak = weekly.reduce(
-    (best, point) => (point.count > best.count ? point : best),
-    weekly[0] ?? { label: "", count: 0 },
-  );
-  const counter = (
-    <span className="flex items-baseline gap-1.5">
-      <AnimatedNumber
-        value={total}
-        motion="roll"
-        className="text-2xl font-semibold tabular-nums text-foreground"
-      />
-      <span className="text-xs text-muted-foreground">projects touched in 16 weeks</span>
-    </span>
-  );
-  const body = (
-    <BandFill className="gap-2 px-4 py-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        {counter}
-        {peak.count > 0 ? <BandMeta>peak {peak.count} · wk of {peak.label}</BandMeta> : null}
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-3">
+          <h2 className="b-label">Activity</h2>
+          <span className="flex items-baseline gap-1.5">
+            <RollNumber value={total} className="b-num text-[26px] text-foreground" />
+            <span className="text-xs text-muted-foreground">projects touched in 16 weeks</span>
+          </span>
+        </div>
+        {peak.count > 0 ? (
+          <span className="font-mono text-[0.68rem] text-muted-foreground">
+            peak {peak.count} · wk of {peak.label}
+          </span>
+        ) : null}
       </div>
-      <div className="min-h-0 w-full flex-1">
+
+      <div className="min-h-0 flex-1">
         <Chart
           variant="area"
-          points={weekly.map((point) => ({ label: point.label, value: point.count }))}
+          points={data.map((d) => ({ label: d.label, value: d.count }))}
           maxPoints={16}
           ariaLabel="Projects touched per week over the trailing 16 weeks"
+          className="h-full w-full"
         />
       </div>
-    </BandFill>
-  );
-
-  return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <BandFill className="items-center justify-center px-2">
-            <Stat label="Touched 16w" value={total} size="sm" />
-          </BandFill>
-        ),
-        "2x1": (
-          <BandFill className="justify-center gap-1 px-3 py-2">
-            {counter}
-            {peak.count > 0 ? <BandMeta>peak {peak.count} · wk of {peak.label}</BandMeta> : null}
-          </BandFill>
-        ),
-        "2x2": body,
-        "3x3": body,
-      }}
-    >
-      {body}
-    </WidgetShell>
+    </BentoTile>
   );
 }
 
-/* ------------------------------------------------------------- stacks --- */
+/* ---------------------------------------------------------- BentoStacks */
 
-/**
- * Stack mix — the workspace's manifest distribution as a donut (default
- * chart-token ramp = the design's six-color ramp) with share rows beside it.
- */
-export function BentoStacks({ size }: RegisteredWidgetProps) {
+export function BentoStacks(_props: RegisteredWidgetProps) {
   const { projects } = useWorkspace();
   const slices = useMemo(() => stackDistribution(projects), [projects]);
-  const total = slices.reduce((sum, slice) => sum + slice.count, 0);
-  const lead = slices[0];
-  const leadLine =
-    lead === undefined ? null : (
-      <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
-        <span className="font-semibold text-foreground/90">{lead.label}</span> leads with{" "}
-        {lead.count} of {total} projects
-        {slices.length > 1
-          ? `; ${slices.slice(1).map((slice) => slice.label).join(", ")} fill the rest.`
-          : "."}
-      </p>
-    );
-  const donut = (
-    <Donut
-      size={120}
-      center={{ value: String(total), label: "projects" }}
-      slices={slices.map((slice) => ({ label: slice.label, value: slice.count }))}
-      ariaLabel={`Stack mix: ${slices.map((slice) => `${slice.label} ${slice.count}`).join(", ")}`}
-    />
-  );
-  const body = (
-    <BandFill className="justify-center gap-3 px-4 py-3">
-      <div className="flex min-h-0 flex-wrap items-center justify-center gap-4">
-        {donut}
-        {leadLine}
-      </div>
-      <HBars
-        maxRows={6}
-        ariaLabel="Projects by stack"
-        rows={slices.map((slice) => ({
-          label: slice.label,
-          value: slice.count,
-          display: `${Math.round((slice.count / Math.max(total, 1)) * 100)}%`,
-        }))}
-        className="min-h-0 w-full flex-1"
-      />
-    </BandFill>
-  );
+  const total = slices.reduce((sum, s) => sum + s.count, 0);
+
+  let offset = 0;
+  const segments = slices.map((s, i) => {
+    const frac = total === 0 ? 0 : s.count / total;
+    const R = 44;
+    const CIRC = 2 * Math.PI * R;
+    const GAP = 2.5;
+    const dash = Math.max(frac * CIRC - GAP, 0.75);
+    const seg = { slice: s, dash, offset, color: STACK_RAMP[i % STACK_RAMP.length] };
+    offset += frac * CIRC;
+    return seg;
+  });
 
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <BandFill className="items-center justify-center px-2">
-            <Stat label="Projects" value={total} size="sm" />
-          </BandFill>
-        ),
-        "2x1": (
-          <BandFill className="justify-center gap-2 px-3 py-2">
-            <SegBar
-              height={10}
-              ariaLabel={`Stack mix: ${slices.map((slice) => `${slice.label} ${slice.count}`).join(", ")}`}
-              segments={slices.map((slice) => ({ value: slice.count, label: slice.label }))}
-            />
-            {leadLine}
-          </BandFill>
-        ),
-        "2x2": (
-          <BandFill className="justify-center gap-3 px-3 py-2">
-            {donut}
-            {leadLine}
-          </BandFill>
-        ),
-        "3x3": body,
-      }}
-    >
-      {body}
-    </WidgetShell>
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="b-label">Stack mix</h2>
+        <span className="font-mono text-[0.68rem] text-muted-foreground">by manifest</span>
+      </div>
+
+      {total === 0 ? (
+        <p className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+          No projects match the filter.
+        </p>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+          <div className="flex items-center gap-4">
+            <div className="relative size-[112px] shrink-0">
+              <svg viewBox="0 0 120 120" className="block size-full" aria-hidden>
+                <circle cx="60" cy="60" r="44" fill="none" stroke="var(--bento-track-soft)" strokeWidth={14} />
+                {segments.map((seg) => (
+                  <circle
+                    key={seg.slice.id}
+                    cx="60"
+                    cy="60"
+                    r="44"
+                    fill="none"
+                    strokeWidth={14}
+                    style={{ stroke: seg.color }}
+                    strokeDasharray={`${seg.dash} ${2 * Math.PI * 44 - seg.dash}`}
+                    strokeDashoffset={-seg.offset}
+                    transform="rotate(-90 60 60)"
+                  />
+                ))}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="b-num text-[26px]">{total}</span>
+                <span className="b-label mt-0.5">projects</span>
+              </div>
+            </div>
+
+            {/* Aggregate line next to the donut keeps the top zone dense. */}
+            <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
+              <span className="b-num text-foreground/90">{segments[0]?.slice.label}</span>{" "}
+              leads with {segments[0]?.slice.count} of {total} projects
+              {segments.length > 1
+                ? `; ${segments.slice(1).map((s) => s.slice.label).join(", ")} fill the rest.`
+                : "."}
+            </p>
+          </div>
+
+          <ul className="flex flex-col gap-1.5">
+            {segments.map((seg) => {
+              const pct = Math.round((seg.slice.count / total) * 100);
+              return (
+                <li key={seg.slice.id} className="flex items-center gap-2.5 text-xs">
+                  <span aria-hidden className="size-2 shrink-0 rounded-[3px]" style={{ background: seg.color }} />
+                  <span className="w-20 shrink-0 truncate text-muted-foreground" title={seg.slice.label}>
+                    {seg.slice.label}
+                  </span>
+                  <span className="b-dirtybar min-w-0 flex-1">
+                    <span style={{ width: `${Math.max(pct, 4)}%`, background: seg.color }} />
+                  </span>
+                  <span className="b-num w-6 shrink-0 text-right text-sm">{seg.slice.count}</span>
+                  <span className="w-8 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                    {pct}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </BentoTile>
   );
 }

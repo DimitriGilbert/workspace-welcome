@@ -1,6 +1,7 @@
 /**
- * McReportHealth — the HEALTH report widget (T2 port of the design's
- * `ReportHealthWidget`): the export's alert signals as a sortable DataTable
+ * McReportHealth — the HEALTH report widget (port of the design's
+ * `ReportHealthWidget` body, `components/designs/mission-control/
+ * report-widgets.tsx`): the export's alert signals as a sortable table
  * (severity register, signal, value — worst first), the comparative
  * export's repeated signals capped at the design's twelve-row window with
  * the "+N more signals" footer. Clean report renders the honest all-clear;
@@ -16,7 +17,7 @@ import { Stat } from "@workspace-welcome/ui/components/stat";
 
 import { useReport } from "@/widgets/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
 
 import { McReportGate, ReportGeneratedMeta } from "./report-shared";
 
@@ -42,7 +43,7 @@ const signalColumns = signalHelper.columns([
   signalHelper.accessor((r) => r.severity, {
     id: "severity",
     sortFn: "alphanumeric",
-    size: 8,
+    size: 10,
     header: "Sev",
     cell: (ctx) => {
       const row = ctx.row.original;
@@ -80,9 +81,10 @@ const signalColumns = signalHelper.columns([
   }),
 ]);
 
-export function McReportHealth(props: RegisteredWidgetProps) {
+export function McReportHealth(_props: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
+  const placed = useWidgetSize();
 
   const rows = useMemo<SignalRow[]>(
     () =>
@@ -97,77 +99,71 @@ export function McReportHealth(props: RegisteredWidgetProps) {
   const shown = rows.slice(0, HEALTH_MAX_ROWS);
   const overflow = rows.length - shown.length;
   const census = view?.alertTally.severityCounts;
+  const full = placed.cols >= 3 && placed.rows >= 3;
+  const mid = placed.cols >= 2 && placed.rows >= 2;
+
+  const allClear = (
+    <div className="flex items-center gap-2 py-1">
+      <span aria-hidden className="size-1.5 bg-(--state-positive)" />
+      <p className="font-mono text-[11px] text-muted-foreground">
+        0 signals — health clean
+      </p>
+    </div>
+  );
 
   return (
     <WidgetShell
       className="h-full w-full"
       meta={
-        <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
-          {rows.length} signals
-          {overflow > 0 ? ` · top ${shown.length}` : ""}
+        <span className="flex items-center gap-3">
+          <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
+            {rows.length} signals
+            {overflow > 0 ? ` · top ${shown.length}` : ""}
+          </span>
           {view === null ? null : <ReportGeneratedMeta />}
         </span>
       }
     >
       <McReportGate>
-        <WidgetShell
-          className="h-full w-full"
-          size={{ cols: props.size.cols, rows: props.size.rows }}
-          sizes={{
-            "1x1": (
-              <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">
-                <Stat label="Signals" value={rows.length} tone={rows.length > 0 ? "warning" : "positive"} />
-              </div>
-            ),
-            "2x2":
-              census === undefined ? null : (
-                <div className="flex h-full min-h-0 w-full min-w-0 flex-col justify-center gap-3 overflow-hidden px-3 pb-2">
-                  {rows.length === 0 ? (
-                    <p className="flex items-center gap-2 font-mono text-[11px]" style={{ color: "var(--state-positive)" }}>
-                      <span aria-hidden className="size-1.5 bg-(--state-positive)" />
-                      0 signals — health clean
-                    </p>
-                  ) : (
-                    <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
-                      <Stat label="Critical" value={census.critical} tone={census.critical > 0 ? "critical" : undefined} />
-                      <Stat label="Warning" value={census.warning} tone={census.warning > 0 ? "warning" : undefined} />
-                      <Stat label="Info" value={census.info} />
-                    </div>
-                  )}
+        {full ? (
+          <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-3.5 pb-3">
+            {rows.length === 0 ? (
+              allClear
+            ) : (
+              <>
+                <div className="min-h-0 min-w-0">
+                  <DataTable
+                    columns={signalColumns}
+                    data={shown}
+                    ariaLabel="Report health signals: severity, label, value, worst first"
+                    minWidth={260}
+                  />
                 </div>
-              ),
-            "3x3": (
-              <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-3 pb-3">
-                {rows.length === 0 ? (
-                  <p className="flex items-center gap-2 py-1 font-mono text-[11px]" style={{ color: "var(--state-positive)" }}>
-                    <span aria-hidden className="size-1.5 bg-(--state-positive)" />
-                    0 signals — health clean
+                {overflow > 0 ? (
+                  <p className="mt-auto shrink-0 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                    +{overflow} more signals in the export
                   </p>
-                ) : (
-                  <>
-                    <div className="min-h-0 min-w-0">
-                      <DataTable
-                        columns={signalColumns}
-                        data={shown}
-                        ariaLabel="Report health signals: severity, label, value, worst first"
-                        minWidth={260}
-                      />
-                    </div>
-                    {overflow > 0 ? (
-                      <p className="mt-auto shrink-0 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                        +{overflow} more signals in the export
-                      </p>
-                    ) : null}
-                  </>
-                )}
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : mid && census !== undefined ? (
+          <div className="flex h-full min-h-0 w-full min-w-0 flex-col justify-center gap-3 overflow-hidden px-3.5 pb-2">
+            {rows.length === 0 ? (
+              allClear
+            ) : (
+              <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
+                <Stat label="Critical" value={census.critical} tone={census.critical > 0 ? "critical" : undefined} />
+                <Stat label="Warning" value={census.warning} tone={census.warning > 0 ? "warning" : undefined} />
+                <Stat label="Info" value={census.info} />
               </div>
-            ),
-          }}
-        >
-          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">
+            )}
+          </div>
+        ) : (
+          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
             <Stat label="Signals" value={rows.length} tone={rows.length > 0 ? "warning" : "positive"} />
           </div>
-        </WidgetShell>
+        )}
       </McReportGate>
     </WidgetShell>
   );

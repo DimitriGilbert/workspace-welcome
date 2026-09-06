@@ -1,48 +1,69 @@
 /**
- * McTriage — the severity-driven triage band (T2 port of the design's
+ * McTriage — the severity-driven triage band (verbatim port of the design's
  * `AttentionBoard`, `components/designs/mission-control/attention-board.tsx`
- * — the console "never renders this band when the fleet is clean").
+ * — the console "never renders this band when the fleet is clean"): every
+ * project carrying an error or warn alert, worst first, one line each —
+ * severity glyph register, name + alert message, pulse strip, update age.
  *
- * Rows come from the ONE attention surface, the `AttentionList` part
- * (`attentionProjects` over the working set: worst first, freshest
- * tiebreak), capped at the design's six-row preview with the part's "+N
- * more" footer. The header counts keep the design's err/wrn register.
- *
- * The design renders NOTHING when the fleet is nominal — a preset is static
- * data, so the empty board renders the honest substitute: the freshness
- * census (fresh/recent/stale/cold) that explains the quiet. Row activation
- * (open the project page) is the `AttentionList` `onOpen` callback; no
- * navigation seam exists in the import surface yet, so rows render
- * non-interactive (recorded in the T2 wave report; the ledger's unit links
- * carry same-theme navigation).
+ * Row activation opens the project through the same-theme project route
+ * (the design's `useOpenDesignProject` seam). The design's "Full triage"
+ * header button switches a view the widget system owns at the page level,
+ * so the header carries the err/wrn register only — no dead control.
+ * Nominal fleet renders nothing (the design's contract); the freshness
+ * census stands in for the preset's static empty state.
  */
-import { Stat } from "@workspace-welcome/ui/components/stat";
+import { Pin } from "lucide-react";
+
+import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { freshnessCounts, severityCounts } from "@/lib/scan-metrics";
-import { AttentionList } from "@/widgets/parts";
+import { dateTooltip, relativeTime } from "@/lib/format";
+import { freshnessCounts } from "@/lib/scan-metrics";
+import { pulseCells } from "@/lib/scan-metrics";
+import { PulseStrip } from "@workspace-welcome/ui/components/pulse-strip";
+import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+
+import { projectHref } from "./fleet-ledger";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-const PREVIEW_ROWS = 6;
+const SEV_LABEL: Record<AlertSeverity, string> = {
+  critical: "ERR",
+  warning: "WRN",
+  info: "INF",
+};
 
-/** The design's err/wrn counter line (tone-tinted numerals, quiet separator). */
-function SeverityRegister() {
-  const workspace = useWorkspace();
-  const counts = severityCounts(workspace.projects);
-  const flagged = counts.critical + counts.warning;
-  if (flagged === 0) return null;
-  return (
-    <p className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
-      {counts.critical > 0 ? (
-        <span className="text-(--sev-critical)">{counts.critical} err</span>
-      ) : null}
-      {counts.critical > 0 && counts.warning > 0 ? (
-        <span className="mx-1.5 text-muted-foreground/40">/</span>
-      ) : null}
-      {counts.warning > 0 ? <span>{counts.warning} wrn</span> : null}
-    </p>
+/** Worst alert severity carried by a project, or null when clean. */
+function worstSeverity(p: Project): AlertSeverity | null {
+  if (p.alerts.some((a) => a.severity === "critical")) return "critical";
+  if (p.alerts.some((a) => a.severity === "warning")) return "warning";
+  if (p.alerts.some((a) => a.severity === "info")) return "info";
+  return null;
+}
+
+/** Sort key for triage: errors surface first, clean projects sink. */
+function severityRank(p: Project): number {
+  const worst = worstSeverity(p);
+  if (worst === "critical") return 0;
+  if (worst === "warning") return 1;
+  if (worst === "info") return 2;
+  return 3;
+}
+
+function openProject(path: string): void {
+  window.location.href = projectHref(path);
+}
+
+/** The design's six-row preview. */
+const PREVIEW = 6;
+
+/** The severity rows, worst first, freshest tiebreak — the design's sort. */
+function triagedProjects(projects: Project[]): Project[] {
+  return [...projects].sort(
+    (a, b) =>
+      severityRank(a) - severityRank(b) ||
+      new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   );
 }
 
@@ -52,7 +73,7 @@ function NominalCensus() {
   const tiers = freshnessCounts(workspace.projects, workspace.now);
   return (
     <div
-      className="flex h-full min-h-0 w-full flex-col justify-center gap-4 overflow-hidden px-3 pb-2"
+      className="flex h-full min-h-0 w-full flex-col justify-center gap-4 overflow-hidden px-4 pb-2"
       data-mc-triage="nominal"
     >
       <p
@@ -62,14 +83,9 @@ function NominalCensus() {
         <span aria-hidden className="inline-block size-1.5 bg-(--state-positive)" />
         Fleet nominal
       </p>
-      <div className="flex min-w-0 flex-wrap items-center gap-x-8 gap-y-3">
-        <Stat label="Fresh" value={tiers.fresh} size="sm" />
-        <Stat label="Recent" value={tiers.recent} size="sm" />
-        <Stat label="Stale" value={tiers.stale} size="sm" />
-        <Stat label="Cold" value={tiers.cold} size="sm" />
-      </div>
-      <p className={cn("text-xs text-muted-foreground")}>
-        No critical or warning alerts are open. Every unit is on branch, in sync and clean.
+      <p className="text-xs text-muted-foreground">
+        No alerts are open. Every unit is on branch, in sync and clean —{" "}
+        {tiers.fresh} fresh, {tiers.recent} recent, {tiers.stale} stale, {tiers.cold} cold.
       </p>
     </div>
   );
@@ -77,23 +93,95 @@ function NominalCensus() {
 
 export function McTriage(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
-  const flagged = workspace.projects.some(
-    (p) =>
-      p.alerts.some((a) => a.severity === "critical") ||
-      p.alerts.some((a) => a.severity === "warning"),
+  const triaged = triagedProjects(workspace.projects).filter(
+    (p) => p.alerts.some((a) => a.severity === "critical") || p.alerts.some((a) => a.severity === "warning"),
   );
+
+  if (workspace.scanState === "loading") {
+    return (
+      <WidgetShell className="h-full w-full">
+        <div className="flex h-full min-h-0 w-full flex-col justify-center gap-2 px-4 pb-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+      </WidgetShell>
+    );
+  }
+
+  const preview = triaged.slice(0, PREVIEW);
+  const overflow = triaged.length - preview.length;
+  const errors = triaged.filter((p) => worstSeverity(p) === "critical").length;
+  const warns = triaged.length - errors;
 
   return (
     <WidgetShell className="h-full w-full">
-      {flagged ? (
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden">
-          <div className="flex shrink-0 items-center gap-3 px-3">
-            <SeverityRegister />
-          </div>
-          <AttentionList density="rows" max={PREVIEW_ROWS} className="min-h-0 flex-1 px-3 pb-2" />
-        </div>
-      ) : (
+      {triaged.length === 0 ? (
         <NominalCensus />
+      ) : (
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border border-(--mc-line) bg-(--mc-panel)">
+          <header className="flex shrink-0 items-center gap-3 border-b border-(--mc-line-strong) px-4 py-2">
+            <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-(--sev-warning)">
+              Triage
+            </h2>
+            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+              {errors > 0 ? <span className="text-(--sev-critical)">{errors} err</span> : null}
+              {errors > 0 && warns > 0 ? <span className="mx-1.5 text-muted-foreground/40">/</span> : null}
+              {warns > 0 ? <span>{warns} warn</span> : null}
+            </span>
+          </header>
+          <ul className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {preview.map((p) => {
+              const worst = worstSeverity(p);
+              const primary = p.alerts.find((a) => a.severity === worst) ?? p.alerts[0];
+              return (
+                <li
+                  key={p.path}
+                  className="group flex shrink-0 cursor-pointer items-center gap-3 border-b border-(--mc-line) px-4 py-2 transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
+                  onClick={() => openProject(p.path)}
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "w-7 shrink-0 font-mono text-[9px] tracking-[0.1em]",
+                      worst === "critical" && "text-(--sev-critical)",
+                      worst === "warning" && "text-(--sev-warning)",
+                      worst === "info" && "text-(--sev-info)",
+                    )}
+                  >
+                    {worst ? SEV_LABEL[worst] : ""}
+                  </span>
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <a
+                      href={projectHref(p.path)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex min-w-0 shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {p.name}
+                      {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
+                    </a>
+                    <span className="truncate text-xs text-muted-foreground">{primary?.message}</span>
+                  </span>
+                  <PulseStrip
+                    cells={pulseCells(p, 24, workspace.now)}
+                    className="hidden w-32 shrink-0 xl:inline-flex"
+                  />
+                  <span
+                    className="hidden w-24 shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
+                    title={dateTooltip(p.updatedAt)}
+                  >
+                    {relativeTime(p.updatedAt)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {overflow > 0 ? (
+            <p className="shrink-0 border-t border-(--mc-line) px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              +{overflow} more in full triage
+            </p>
+          ) : null}
+        </div>
       )}
     </WidgetShell>
   );

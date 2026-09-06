@@ -6,11 +6,11 @@
  * `md:grid-cols-2 xl:grid-cols-[1.15fr_0.75fr_1fr_1.1fr]` band.
  *
  * Every interactive surface is a system part: `GitActionsToolbar` +
- * `BranchSwitcher` (the `git/` parts over `useProject().git`), and
- * `CommitsList` (the history column; the `CommitsList` part supersedes the
- * design's `CommitHistoryCell`). The facts column also carries the design's
- * header console buttons (editor/terminal/folder/IDE) as plain buttons over
- * `useProject().open` / `useProject().ide` — no new part needed.
+ * `BranchSwitcher` (the `git/` parts over `useProject().git`), and the
+ * history column is the design's `CommitHistoryCell` presentation — the ui
+ * `CommitGraph` over the ONE cached commit-log entry. The facts column also
+ * carries the design's header console buttons (editor/terminal/folder/IDE)
+ * as plain buttons over `useProject().open` / `useProject().ide`.
  *
  * Ladder: the full four-column band renders at the "12x4" rung (the
  * preset's authored footprint); "2x2" keeps the working pair (git + facts);
@@ -19,6 +19,7 @@
 import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, CodeXml, ExternalLink, Folder, Loader2, Terminal } from "lucide-react";
 
+import { CommitGraph } from "@workspace-welcome/ui/components/commit-graph";
 import { Chip } from "@workspace-welcome/ui/components/chip";
 import { Stat } from "@workspace-welcome/ui/components/stat";
 import { cn } from "@workspace-welcome/ui/lib/utils";
@@ -26,13 +27,15 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { relativeTime } from "@/lib/format";
 import { useProject } from "@/widgets/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { BranchSwitcher, CommitsList, GitActionsToolbar } from "@/widgets/parts";
+import { BranchSwitcher, GitActionsToolbar } from "@/widgets/parts";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-/** History column window — recent register only; the full log lives in the
- * report zone's activity table. Direct narrower window (§3.4 hook-safety):
- * `CommitsList` rides `useCommitLogQuery(path, limit)`. */
-const HISTORY_LIMIT = 12;
+/** History column window — the design's CommitHistoryCell presentation (the
+ * ui `CommitGraph`, fed by the ONE cached commit-log entry, limit 200): a
+ * count line over the graph rows. The design's cell scrolls internally; the
+ * board contract forbids inner scrollers, so the band shows a window with
+ * an honest footer. */
+const HISTORY_ROWS = 8;
 
 /** One label/value row of the design's instrument register. */
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -49,7 +52,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 /** One hairline column of the band: mono caps title over rows. */
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2 bg-background p-3">
+    <div className="flex min-w-0 flex-col gap-2 bg-(--mc-panel) p-3">
       <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
         {title}
       </span>
@@ -243,11 +246,33 @@ function LastCommitPanel() {
   );
 }
 
-/** history column: the CommitsList part's list register. */
+/** history column: the design's CommitHistoryCell — count line over the
+ * CommitGraph rows, windowed (the design's cell scrolls; the band shows a
+ * window with an honest footer). */
 function HistoryPanel() {
+  const project = useProject();
+  const commits = project.commitLog.data ?? [];
+  const shown = commits.slice(0, HISTORY_ROWS);
+  const overflow = commits.length - shown.length;
   return (
     <Panel title="history">
-      <CommitsList view="list" limit={HISTORY_LIMIT} className="min-h-0 flex-1" />
+      <div className="flex min-h-0 flex-col gap-1">
+        <p className="text-xs text-muted-foreground">
+          {commits.length === 1
+            ? "1 commit, newest first."
+            : `${commits.length} commits, newest first.`}
+        </p>
+        {commits.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No commits yet.</p>
+        ) : (
+          <CommitGraph entries={shown} />
+        )}
+        {overflow > 0 ? (
+          <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+            +{overflow} more in the log
+          </p>
+        ) : null}
+      </div>
     </Panel>
   );
 }
@@ -257,7 +282,7 @@ function AlertsStrip() {
   const project = useProject();
   const alerts = project.project?.alerts ?? [];
   return (
-    <div className="col-span-full flex flex-wrap items-center gap-1.5 border-t border-(--mc-line-strong) bg-muted/40 px-3 py-2">
+    <div className="col-span-full flex flex-wrap items-center gap-1.5 border-t border-(--mc-line) bg-(--mc-bg-raise) px-3 py-2">
       {alerts.length > 0 ? (
         alerts.map((a) => (
           <Chip key={a.code} tone={a.severity} title={a.message}>
@@ -276,7 +301,7 @@ function AlertsStrip() {
 /** The full four-column band (rendered at the "4x4" rung and up). */
 function StateBand() {
   return (
-    <div className="grid h-full w-full grid-cols-1 gap-px border border-(--mc-line-strong) bg-(--mc-line-strong) md:grid-cols-2 xl:grid-cols-[1.15fr_0.75fr_1fr_1.1fr]">
+    <div className="grid h-full w-full grid-cols-1 gap-px border border-(--mc-line) bg-(--mc-line) md:grid-cols-2 xl:grid-cols-[1.15fr_0.75fr_1fr_1.1fr]">
       <GitPanel />
       <FactsPanel />
       <LastCommitPanel />
@@ -289,7 +314,7 @@ function StateBand() {
 /** The compact pair: git + facts (below the full band's rung). */
 function CompactBand() {
   return (
-    <div className="grid h-full w-full grid-cols-1 gap-px border border-(--mc-line-strong) bg-(--mc-line-strong) md:grid-cols-2">
+    <div className="grid h-full w-full grid-cols-1 gap-px border border-(--mc-line) bg-(--mc-line) md:grid-cols-2">
       <GitPanel />
       <FactsPanel />
     </div>

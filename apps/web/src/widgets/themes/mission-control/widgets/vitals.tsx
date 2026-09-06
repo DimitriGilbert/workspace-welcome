@@ -1,109 +1,115 @@
 /**
- * McVitals — the console masthead (T2 port of the design's `VitalsBoard`,
- * `components/designs/mission-control/command-bar.tsx`; replaces the M3
- * `vitals-skeleton` kind). The fleet reports itself in six tabular figures
- * before a single project name appears — units, live-this-week, triage,
- * pins, uncommitted files, unpushed commits — color only where a threshold
- * trips (the design's accent/warn registers mapped onto the ui Tone tokens:
- * the design's `--mc-accent` equals this theme's `--state-positive`).
+ * McVitals — the console masthead (verbatim port of the design's
+ * `VitalsBoard` + `AnimatedNumeral`, `components/designs/mission-control/
+ * command-bar.tsx`). The fleet reports itself in six tabular figures before
+ * a single project name appears — units, live-this-week, triage, pins,
+ * uncommitted files, unpushed commits — color only where a threshold trips.
  *
- * The band is ui `VitalsBand` (Stat + spring `AnimatedNumber` per cell —
- * the design's chasing-spring masthead). Rungs: `1x1` the unit count, `2x1`
- * the first three figures, `2x2` up the full six-cell band. Every rung
- * renders one fill-box wrapper so the density probe measures an honestly
- * filled box; the Stat/VitalsBand MIN_CONTENT floors ride the wrappers as
- * `data-part-min-*` + layout floors (the ui readout parts render fixed
- * roots, so the wrapper stamps, per the vitals-skeleton precedent).
+ * Each numeral's spring chases the incoming value so a rescan makes the
+ * masthead count itself up/down instead of snapping. DOM order stays dt
+ * (label) then dd (value); flex-col-reverse puts the numeral on top
+ * visually while keeping valid description-list semantics.
+ *
+ * The board places this on the canvas ground (the shell chrome is stripped
+ * for the `masthead` node in custom.css), so the band reads exactly like
+ * the design's sticky header vitals. The band fills its box (`h-full`
+ * flex, items end-aligned) — the density contract — while the type scale
+ * is the design's own.
  */
-import { Stat, MIN_CONTENT as STAT_MIN_CONTENT } from "@workspace-welcome/ui/components/stat";
-import {
-  VitalsBand,
-  MIN_CONTENT as VITALS_BAND_MIN_CONTENT,
-} from "@workspace-welcome/ui/components/vitals-band";
-import type { VitalsCell } from "@workspace-welcome/ui/components/vitals-band";
-import type { Tone } from "@workspace-welcome/ui/lib/tokens";
+import { useEffect } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 
-import type { FleetVitals } from "@/lib/scan-metrics";
+import { cn } from "@workspace-welcome/ui/lib/utils";
+
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-/** The masthead's six figures, in the design's order and tone registers. */
-function vitalsCells(vitals: FleetVitals): VitalsCell[] {
-  return [
-    { label: "Units", value: vitals.total },
-    { label: "Active 7d", value: vitals.activeWeek, tone: "positive" satisfies Tone },
-    {
-      label: "Attention",
-      value: vitals.attention,
-      tone: vitals.attention > 0 ? ("warning" satisfies Tone) : undefined,
-    },
-    { label: "Pinned", value: vitals.pinned },
-    {
-      label: "Dirty files",
-      value: vitals.dirtySum,
-      tone: vitals.dirtySum > 0 ? ("warning" satisfies Tone) : undefined,
-    },
-    { label: "Unpushed", value: vitals.aheadSum, tone: "positive" satisfies Tone },
-  ];
-}
+/**
+ * One animated console numeral. The spring chases the incoming value so a
+ * rescan makes the masthead count itself up/down instead of snapping.
+ */
+function AnimatedNumeral({
+  value,
+  tone,
+}: {
+  value: number;
+  tone?: "warn" | "accent" | undefined;
+}) {
+  const raw = useMotionValue(value);
+  const spring = useSpring(raw, { stiffness: 320, damping: 30, mass: 0.6 });
+  const text = useTransform(spring, (v) => String(Math.round(v)).padStart(2, "0"));
+  useEffect(() => {
+    raw.set(value);
+  }, [value, raw]);
 
-/** One numeral cell: the part's box, floored at its declared MIN_CONTENT. */
-function StatCell({ cell }: { cell: VitalsCell }) {
   return (
-    <div
-      data-part-min-w={STAT_MIN_CONTENT.w}
-      data-part-min-h={STAT_MIN_CONTENT.h}
-      style={{ minWidth: STAT_MIN_CONTENT.w, minHeight: STAT_MIN_CONTENT.h }}
+    <motion.dd
+      className={cn(
+        "font-mono text-[22px] leading-none font-medium tracking-tighter tabular-nums @[640px]:text-[28px] min-[2200px]:text-[34px]",
+        tone === "warn" && "text-(--sev-warning)",
+        tone === "accent" && "text-(--mc-accent)",
+        !tone && "text-foreground",
+      )}
     >
-      <Stat label={cell.label} value={cell.value} tone={cell.tone} />
-    </div>
+      {text}
+    </motion.dd>
   );
 }
 
-/** The full band's box, floored at its declared MIN_CONTENT. */
-function BandCell({ cells }: { cells: VitalsCell[] }) {
+/** The masthead's six figures, in the design's order and tone registers. */
+function VitalsBoard({
+  total,
+  activeWeek,
+  attention,
+  pinned,
+  dirtySum,
+  aheadSum,
+}: {
+  total: number;
+  activeWeek: number;
+  attention: number;
+  pinned: number;
+  dirtySum: number;
+  aheadSum: number;
+}) {
+  const cells: { label: string; value: number; tone?: "warn" | "accent" }[] = [
+    { label: "Units", value: total },
+    { label: "Active 7d", value: activeWeek, tone: "accent" },
+    { label: "Attention", value: attention, tone: attention > 0 ? "warn" : undefined },
+    { label: "Pinned", value: pinned },
+    { label: "Dirty files", value: dirtySum, tone: dirtySum > 0 ? "warn" : undefined },
+    { label: "Unpushed", value: aheadSum, tone: "accent" },
+  ];
+
   return (
-    <div
-      data-part-min-w={VITALS_BAND_MIN_CONTENT.w}
-      data-part-min-h={VITALS_BAND_MIN_CONTENT.h}
-      style={{ minWidth: VITALS_BAND_MIN_CONTENT.w, minHeight: VITALS_BAND_MIN_CONTENT.h }}
-      className="min-w-0"
-    >
-      <VitalsBand cells={cells} ariaLabel="Workspace vitals" className="h-full w-full items-center" />
-    </div>
+    <dl className="flex min-h-0 w-full min-w-0 flex-wrap items-end gap-x-5 gap-y-2 @[640px]:gap-x-8 @[640px]:gap-y-4 min-[2200px]:gap-x-12">
+      {cells.map((cell) => (
+        <div key={cell.label} className="flex flex-col-reverse gap-1">
+          <dt className="font-mono text-[8.5px] uppercase tracking-[0.18em] text-muted-foreground @[640px]:text-[9.5px]">
+            {cell.label}
+          </dt>
+          <AnimatedNumeral value={cell.value} tone={cell.tone} />
+        </div>
+      ))}
+    </dl>
   );
 }
 
 export function McVitals(_props: RegisteredWidgetProps) {
   const { vitals } = useWorkspace();
-  const cells = vitalsCells(vitals);
 
   return (
-    <WidgetShell
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3 pb-2">
-            <StatCell cell={cells[0] ?? { label: "Units", value: vitals.total }} />
-          </div>
-        ),
-        "2x1": (
-          <div className="flex h-full min-h-0 w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-2 overflow-hidden px-3 pb-2">
-            {cells.slice(0, 3).map((cell) => (
-              <StatCell key={cell.label} cell={cell} />
-            ))}
-          </div>
-        ),
-        "2x2": (
-          <div className="flex h-full min-h-0 w-full min-w-0 items-center overflow-hidden px-3 pb-2">
-            <BandCell cells={cells} />
-          </div>
-        ),
-      }}
-    >
-      <div className="flex h-full min-h-0 w-full min-w-0 items-center overflow-hidden px-3 pb-2">
-        <BandCell cells={cells} />
+    <WidgetShell className="h-full w-full">
+      <div className="flex h-full min-h-0 w-full min-w-0 items-start overflow-hidden px-3 pt-3 pb-2 @[640px]:px-4 @[640px]:pt-5 @[640px]:pb-3 min-[2200px]:px-6">
+        <VitalsBoard
+          total={vitals.total}
+          activeWeek={vitals.activeWeek}
+          attention={vitals.attention}
+          pinned={vitals.pinned}
+          dirtySum={vitals.dirtySum}
+          aheadSum={vitals.aheadSum}
+        />
       </div>
     </WidgetShell>
   );

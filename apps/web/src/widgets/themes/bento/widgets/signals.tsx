@@ -1,195 +1,277 @@
 /**
- * Bento's signals row (master plan §5 T2-bento): widget-for-widget ports of
- * the design's `attention-tile.tsx` and `severity-tile.tsx`.
- *
- * Needs-attention is the `attention-list` part (the ONE `attentionProjects`
- * derivation — worst first, freshest tiebreak) with the design's rolled
- * count numeral in front; signal mix is the severity SegBar + Stat census
- * plus the uncommitted-work ranking (dirtyLeaders → HBars). No local
- * derivation, no local part copy — data via `useWorkspace()`, pixels via
- * parts and ui.
+ * Bento's signals row — ports of the design's `attention-tile.tsx` (the
+ * featured panel: every project with an error or warning alert, worst
+ * first, rows opening the project page) and `severity-tile.tsx` (the
+ * severity split plus the uncommitted-work leaders). Data derives from
+ * `useWorkspace()` via the shared scan-metrics module (the consolidations
+ * of the design's own derivations); pixels are the design's tile markup.
  */
-import { useMemo } from "react";
-import type { ReactNode } from "react";
+import { useMemo, useState } from "react";
+import {
+  ChevronDown,
+  CircleAlert,
+  CircleCheck,
+  OctagonAlert,
+  TriangleAlert,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-import { AnimatedNumber } from "@workspace-welcome/ui/components/animated-number";
-import { HBars } from "@workspace-welcome/ui/components/h-bars";
-import { SegBar } from "@workspace-welcome/ui/components/seg-bar";
-import { Stat } from "@workspace-welcome/ui/components/stat";
-import { cn } from "@workspace-welcome/ui/lib/utils";
+import { useNavigate } from "@tanstack/react-router";
 
+import { relativeTime } from "@/lib/format";
 import { attentionProjects, dirtyLeaders, severityCounts } from "@/lib/scan-metrics";
+import type { SeverityCounts } from "@/lib/scan-metrics";
 
-import { AttentionListPart } from "@/widgets/parts";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-function SignalFill({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex h-full min-h-0 w-full min-w-0 flex-col", className)}>
-      {children}
-    </div>
-  );
+import { BentoTile, GitGlyphs, RollNumber } from "../bits";
+
+/** Deep-link into this theme's project page (the app splat route). */
+function useOpenBentoProject() {
+  const navigate = useNavigate();
+  return (path: string) => {
+    void navigate({
+      to: "/app/$theme/project/$",
+      params: { theme: "bento", _splat: path.replace(/^\/+/, "") },
+    });
+  };
 }
 
-/* --------------------------------------------------------- attention --- */
+/* -------------------------------------------------------- BentoAttention */
 
-/**
- * Needs attention — every project carrying a critical/warning alert, worst
- * first. Rows render through the attention-list part (non-interactive on
- * the dashboard: presets carry JSON props only, so `onOpen` stays unbound —
- * project-page navigation is the T3 wave's surface).
- */
-export function BentoAttention({ size }: RegisteredWidgetProps) {
+const PREVIEW = 6;
+
+const SEVERITY_ICON: Record<"critical" | "warning", LucideIcon> = {
+  critical: OctagonAlert,
+  warning: TriangleAlert,
+};
+
+export function BentoAttention(_props: RegisteredWidgetProps) {
   const { projects } = useWorkspace();
+  const openProject = useOpenBentoProject();
+  const [expanded, setExpanded] = useState(false);
+
   const attention = useMemo(() => attentionProjects(projects), [projects]);
-  const criticals = attention.filter((project) =>
-    project.alerts.some((alert) => alert.severity === "critical"),
-  ).length;
-  const warnings = attention.length - criticals;
-  const count = (
-    <AnimatedNumber
-      value={attention.length}
-      motion="roll"
-      className="text-2xl font-semibold tabular-nums"
-      style={{ color: attention.length > 0 ? "var(--sev-warning)" : "var(--state-positive)" }}
-    />
-  );
-  const census = (
-    <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 font-mono text-[11px] tabular-nums">
-      {count}
-      <span className="text-muted-foreground">need attention</span>
-      {criticals > 0 ? (
-        <span style={{ color: "var(--sev-critical)" }}>{criticals} critical</span>
-      ) : null}
-      {warnings > 0 ? (
-        <span style={{ color: "var(--sev-warning)" }}>
-          {warnings} {warnings === 1 ? "warning" : "warnings"}
-        </span>
-      ) : null}
-      <span className="ml-auto text-muted-foreground">of {projects.length} projects</span>
-    </span>
-  );
+
+  const errors = attention.filter((p) => p.alerts.some((a) => a.severity === "critical")).length;
+  const warns = attention.length - errors;
+  const visible = expanded ? attention : attention.slice(0, PREVIEW);
 
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": (
-          <SignalFill className="items-center justify-center px-2">
-            {count}
-          </SignalFill>
-        ),
-        "2x1": (
-          <SignalFill className="justify-center gap-1.5 px-3 py-2">
-            {census}
-            <AttentionListPart density="strip" max={6} className="min-h-0 w-full" />
-          </SignalFill>
-        ),
-        "2x2": (
-          <SignalFill className="gap-1.5 px-3 py-2">
-            {census}
-            <AttentionListPart
-              density="rows"
-              max={8}
-              className="min-h-0 w-full flex-1 [&>ul]:flex-1"
-            />
-          </SignalFill>
-        ),
-        "3x3": (
-          <SignalFill className="gap-1.5 px-3 py-2">
-            {census}
-            <AttentionListPart
-              density="rows"
-              max={10}
-              className="min-h-0 w-full flex-1 [&>ul]:flex-1"
-            />
-          </SignalFill>
-        ),
-      }}
-    >
-      <SignalFill className="gap-1.5 px-3 py-2">
-        {census}
-        <AttentionListPart density="rows" max={8} className="min-h-0 w-full flex-1 [&>ul]:flex-1" />
-      </SignalFill>
-    </WidgetShell>
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <h2 className="b-label">Needs attention</h2>
+          <RollNumber
+            value={attention.length}
+            label={`${attention.length} projects need attention`}
+            className="b-num text-[30px]"
+            style={{ color: attention.length > 0 ? "var(--sev-warning)" : "var(--state-positive)" }}
+          />
+          {attention.length > 0 ? (
+            <span className="flex items-center gap-2 font-mono text-[0.68rem]">
+              {errors > 0 ? (
+                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-critical)" }}>
+                  <OctagonAlert className="size-3" /> {errors} {errors === 1 ? "error" : "errors"}
+                </span>
+              ) : null}
+              {warns > 0 ? (
+                <span className="inline-flex items-center gap-1" style={{ color: "var(--sev-warning)" }}>
+                  <TriangleAlert className="size-3" /> {warns} {warns === 1 ? "warning" : "warnings"}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
+        <span className="font-mono text-[0.68rem] text-muted-foreground">
+          of {projects.length} projects
+        </span>
+      </div>
+
+      {attention.length === 0 ? (
+        <div className="flex min-h-24 flex-1 flex-col items-center justify-center gap-1.5 text-center">
+          <CircleCheck className="size-5" style={{ color: "var(--state-positive)" }} />
+          <p className="text-sm font-semibold">All clear</p>
+          <p className="text-xs text-muted-foreground">
+            No error or warning alerts in the current view.
+          </p>
+        </div>
+      ) : (
+        <>
+          <ul className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {visible.map((p) => {
+              const blocking = p.alerts.filter(
+                (a) => a.severity === "critical" || a.severity === "warning",
+              );
+              const worst = blocking.some((a) => a.severity === "critical")
+                ? "critical"
+                : "warning";
+              const Icon = SEVERITY_ICON[worst];
+              return (
+                <li key={p.path} className="flex min-h-9 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => openProject(p.path)}
+                    className="group flex w-full items-center gap-3 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]"
+                  >
+                    <Icon
+                      className="size-4 shrink-0"
+                      style={{ color: worst === "critical" ? "var(--sev-critical)" : "var(--sev-warning)" }}
+                    />
+                    <span className="w-32 shrink-0 truncate text-[0.82rem] font-semibold tracking-tight sm:w-64">
+                      {p.name}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-wrap content-center gap-1.5">
+                      {blocking.map((a) => (
+                        <span
+                          key={a.code}
+                          className="inline-flex max-w-full items-center truncate rounded-md px-2 py-0.5 text-[0.7rem] font-medium"
+                          style={
+                            a.severity === "critical"
+                              ? {
+                                  background:
+                                    "color-mix(in oklch, var(--sev-critical) 13%, transparent)",
+                                  color: "var(--sev-critical)",
+                                }
+                              : {
+                                  background:
+                                    "color-mix(in oklch, var(--sev-warning) 12%, transparent)",
+                                  color: "var(--sev-warning)",
+                                }
+                          }
+                        >
+                          {a.message}
+                        </span>
+                      ))}
+                    </span>
+                    <GitGlyphs git={p.git} className="hidden md:inline-flex" />
+                    <span className="hidden shrink-0 font-mono text-[0.7rem] tabular-nums text-muted-foreground sm:inline">
+                      {relativeTime(p.updatedAt)}
+                    </span>
+                    <ChevronDown className="size-3.5 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {attention.length > PREVIEW ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="self-start rounded-md px-1.5 py-1 font-mono text-[0.68rem] text-muted-foreground transition-colors hover:text-foreground"
+              aria-expanded={expanded}
+            >
+              {expanded ? "Show fewer" : `Show ${attention.length - PREVIEW} more`}
+            </button>
+          ) : null}
+        </>
+      )}
+    </BentoTile>
   );
 }
 
-/* ----------------------------------------------------------- signals --- */
+/* ---------------------------------------------------------- BentoSignals */
 
-/**
- * Signal mix — the workspace's alert severity split (SegBar + Stat census)
- * over the uncommitted-work ranking, exactly the design's two stacked
- * halves.
- */
-export function BentoSignals({ size }: RegisteredWidgetProps) {
+export function BentoSignals(_props: RegisteredWidgetProps) {
   const { projects } = useWorkspace();
-  const counts = useMemo(() => severityCounts(projects), [projects]);
-  const leaders = useMemo(() => dirtyLeaders(projects, 6), [projects]);
+  const counts: SeverityCounts = useMemo(() => severityCounts(projects), [projects]);
   const total = counts.critical + counts.warning + counts.info;
-  const segBar = (
-    <SegBar
-      height={10}
-      ariaLabel={`${counts.critical} critical, ${counts.warning} warning, ${counts.info} info alerts`}
-      segments={[
-        { value: counts.critical, color: "var(--sev-critical)", label: "critical" },
-        { value: counts.warning, color: "var(--sev-warning)", label: "warning" },
-        { value: counts.info, color: "var(--sev-info)", label: "info" },
-      ]}
-    />
-  );
-  const census = (
-    <div className="grid min-w-0 grid-cols-3 gap-2">
-      <Stat label="Critical" value={counts.critical} tone={counts.critical > 0 ? "critical" : undefined} size="sm" />
-      <Stat label="Warnings" value={counts.warning} tone={counts.warning > 0 ? "warning" : undefined} size="sm" />
-      <Stat label="Info" value={counts.info} tone={counts.info > 0 ? "info" : undefined} size="sm" />
-    </div>
-  );
-  const dirty = leaders.length === 0 ? (
-    <p className="min-h-0 flex-1 text-xs text-muted-foreground">
-      Nothing dirty — working trees are clean.
-    </p>
-  ) : (
-    <div className="flex min-h-0 w-full flex-1 flex-col gap-1 border-t border-border pt-2">
-      <p className="shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-        Uncommitted work · {total} {total === 1 ? "alert" : "alerts"}
-      </p>
-      <HBars
-        maxRows={6}
-        ariaLabel="Uncommitted files by repository"
-        rows={leaders.map((leader) => ({ label: leader.name, value: leader.dirty }))}
-        className="min-h-0 w-full flex-1"
-      />
-    </div>
-  );
-  const body = (
-    <SignalFill className="gap-2.5 px-4 py-3">
-      {segBar}
-      {census}
-      {dirty}
-    </SignalFill>
-  );
+  const leaders = useMemo(() => dirtyLeaders(projects, 6), [projects]);
+  const maxDirty = leaders[0]?.dirty ?? 1;
 
   return (
-    <WidgetShell
-      size={{ cols: size.cols, rows: size.rows }}
-      className="h-full w-full"
-      sizes={{
-        "1x1": <SignalFill className="items-center justify-center px-2">{segBar}</SignalFill>,
-        "2x1": (
-          <SignalFill className="justify-center gap-2 px-3 py-2">
-            {segBar}
-            {census}
-          </SignalFill>
-        ),
-        "2x2": body,
-        "3x3": body,
-      }}
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="b-label">Signal mix</h2>
+        <span className="font-mono text-[0.68rem] text-muted-foreground">
+          {total} {total === 1 ? "alert" : "alerts"} · {leaders.length} dirty
+        </span>
+      </div>
+
+      {total === 0 ? (
+        <div
+          className="flex items-center gap-2 rounded-lg border border-border bg-white/[0.02] px-3 py-2 text-xs text-muted-foreground"
+          style={{ borderColor: "color-mix(in oklch, var(--state-positive) 30%, transparent)" }}
+        >
+          <span className="size-2 shrink-0 rounded-full" style={{ background: "var(--state-positive)" }} />
+          No alerts in the current view — every scan signal is clean.
+        </div>
+      ) : (
+        <>
+          <div
+            className="b-segbar"
+            role="img"
+            aria-label={`${counts.critical} errors, ${counts.warning} warnings, ${counts.info} info alerts`}
+          >
+            {counts.critical > 0 ? (
+              <span style={{ flexGrow: counts.critical, background: "var(--sev-critical)" }} />
+            ) : null}
+            {counts.warning > 0 ? (
+              <span style={{ flexGrow: counts.warning, background: "var(--sev-warning)" }} />
+            ) : null}
+            {counts.info > 0 ? (
+              <span style={{ flexGrow: counts.info, background: "var(--sev-info)" }} />
+            ) : null}
+          </div>
+
+          <dl className="grid grid-cols-3 gap-2">
+            <SeverityStat icon={OctagonAlert} label="Errors" count={counts.critical} color="var(--sev-critical)" />
+            <SeverityStat icon={TriangleAlert} label="Warnings" count={counts.warning} color="var(--sev-warning)" />
+            <SeverityStat icon={CircleAlert} label="Info" count={counts.info} color="var(--sev-info)" />
+          </dl>
+        </>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col gap-2 border-t border-border pt-3">
+        <h3 className="b-label">Uncommitted work</h3>
+        {leaders.length === 0 ? (
+          <p className="flex flex-1 items-center text-xs text-muted-foreground">
+            Nothing dirty. Working trees are clean.
+          </p>
+        ) : (
+          <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-1.5">
+            {leaders.map((l) => (
+              <li key={l.path} className="flex items-center gap-2.5">
+                <span className="w-24 shrink-0 truncate text-xs sm:w-32" title={l.name}>
+                  {l.name}
+                </span>
+                <span className="b-dirtybar min-w-0 flex-1">
+                  <span style={{ width: `${Math.max((l.dirty / maxDirty) * 100, 8)}%` }} />
+                </span>
+                <span className="b-num w-7 shrink-0 text-right text-sm">{l.dirty}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </BentoTile>
+  );
+}
+
+function SeverityStat({
+  icon: Icon,
+  label,
+  count,
+  color,
+}: {
+  icon: LucideIcon;
+  label: string;
+  count: number;
+  color: string;
+}) {
+  return (
+    <div
+      className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-white/[0.02] px-2.5 py-2"
+      title={`${count} ${label.toLowerCase()}`}
     >
-      {body}
-    </WidgetShell>
+      <dt className="flex items-center gap-1.5 text-[0.62rem] text-muted-foreground">
+        <Icon className="size-3 shrink-0" style={{ color }} />
+        {label}
+      </dt>
+      <dd className="b-num text-lg" style={{ color: count > 0 ? color : "var(--muted-foreground)" }}>
+        {count}
+      </dd>
+    </div>
   );
 }
