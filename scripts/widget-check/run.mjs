@@ -5,6 +5,9 @@
  * Flags:
  *   --theme <slug>        theme under test (default: mission-control)
  *   --page <kind>         dashboard | project   (default: dashboard)
+ *   --path <projectPath>  absolute project path for --page project (splat
+ *                         after the leading "/"; default: this repo's own
+ *                         root, a real scanned project with a cached report)
  *   --viewport <WxH>      emulated viewport      (default: 1440x900)
  *   --suite <name>        theme | lab | parts-preview | self-test (default: theme)
  *   --bare                append ?bare=1 (custom.css dropped from the head)
@@ -65,7 +68,8 @@ const DEFAULT_VIEWPORT = "1440x900";
 function usage() {
   process.stdout.write(
     `usage: node scripts/widget-check/run.mjs [--suite theme|lab|parts-preview|self-test]\n` +
-      `          [--theme <slug>] [--page dashboard|project] [--viewport WxH]\n` +
+      `          [--theme <slug>] [--page dashboard|project] [--path <projectPath>]\n` +
+      `          [--viewport WxH]\n` +
       `          [--bare] [--base-url <url>] [--out <path>] [--probe <name>]...\n`,
   );
 }
@@ -75,6 +79,7 @@ function parseArgs(argv) {
   const options = {
     theme: DEFAULT_THEME,
     page: "dashboard",
+    path: undefined,
     viewport: DEFAULT_VIEWPORT,
     suite: "theme",
     bare: false,
@@ -93,6 +98,7 @@ function parseArgs(argv) {
     switch (flag) {
       case "--theme": options.theme = value(); break;
       case "--page": options.page = value(); break;
+      case "--path": options.path = value(); break;
       case "--viewport": options.viewport = value(); break;
       case "--suite": options.suite = value(); break;
       case "--bare": options.bare = true; break;
@@ -104,6 +110,29 @@ function parseArgs(argv) {
     }
   }
   return options;
+}
+
+/**
+ * The project path behind `--page project` (D-V3-2): the splat route
+ * `/app/<theme>/project/<path…>` carries the absolute project path minus its
+ * leading "/" (see apps/web/src/lib/open-project.ts). Default when omitted:
+ * this repo's own root — a real scanned project with a cached report, so the
+ * page under test is a real project readout, not the null-project shell.
+ */
+function resolveProjectPath(options) {
+  if (options.page !== "project") {
+    if (options.path !== undefined) {
+      throw new Error(`--path only applies to --page project (got --page ${options.page})`);
+    }
+    return undefined;
+  }
+  const raw = options.path ?? fileURLToPath(new URL("../../", import.meta.url));
+  if (!raw.startsWith("/")) {
+    throw new Error(`--path must be an absolute filesystem path (got "${raw}")`);
+  }
+  const trimmed = raw.replace(/\/+$/, "");
+  if (trimmed === "") throw new Error(`--path must name a project directory (got "${raw}")`);
+  return trimmed;
 }
 
 function parseViewport(spec) {
@@ -121,7 +150,8 @@ function targetUrl(baseUrl, suiteName, options) {
   switch (suite.target) {
     case "theme": {
       if (options.page === "project") {
-        return `${baseUrl}/app/${options.theme}/project/${bareQuery}`;
+        const splat = options.path.replace(/^\/+/, "");
+        return `${baseUrl}/app/${options.theme}/project/${splat}${bareQuery}`;
       }
       return `${baseUrl}/app/${options.theme}${bareQuery}`;
     }
@@ -168,6 +198,8 @@ const body = async () => {
     throw new Error(`unknown page "${options.page}" (expected: dashboard, project)`);
   }
   const viewport = parseViewport(options.viewport);
+  const projectPath = resolveProjectPath(options);
+  if (projectPath !== undefined) options.path = projectPath;
   const url = targetUrl(options.baseUrl, options.suite, options);
   await assertReachable(options.baseUrl, url);
 
@@ -183,7 +215,14 @@ const body = async () => {
 
   const report = new Report({
     suite: options.suite,
-    meta: { url, theme: options.theme, page: options.page, viewport: options.viewport, bare: options.bare },
+    meta: {
+      url,
+      theme: options.theme,
+      page: options.page,
+      ...(projectPath !== undefined ? { projectPath } : {}),
+      viewport: options.viewport,
+      bare: options.bare,
+    },
     // Self-test inversion: raw probe FAILs against the known-bad panel are
     // the expected outcome and must not decide the exit code — the
     // "self-test" detection lines below do.
