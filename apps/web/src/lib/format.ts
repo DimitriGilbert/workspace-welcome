@@ -41,7 +41,9 @@ export function formatBytes(size: number): string {
 /**
  * Compact numeral on the mission-bento ladder: 6760914711 → 6.8B,
  * 210433186 → 210.4M, 912 → 912 (thousands round to whole k, smaller
- * counts keep their locale grouping).
+ * counts keep their locale grouping). Replaces the duplicate
+ * `formatCompact` in `components/designs/mission-bento/report-utils.ts`
+ * (removed at cleanup K1).
  */
 export function formatCompact(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -52,7 +54,9 @@ export function formatCompact(n: number): string {
 
 /**
  * Compact token figures on the meadow ladder: 618.8M, 61.9k, 942 —
- * one decimal all the way down to 1k, plain integer below.
+ * one decimal all the way down to 1k, plain integer below. Replaces the
+ * duplicate `formatTokens` in
+ * `components/designs/meadow/report-data.ts` (removed at cleanup K1).
  */
 export function formatTokens(n: number): string {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
@@ -64,6 +68,10 @@ export function formatTokens(n: number): string {
 /**
  * Recorded (subsidized) AI cost, meadow superset: "$1.24" / "$0",
  * sub-cent precision below 1¢ (`$0.0004`) and grouped rounding at $1000+.
+ * Replaces `formatCost` in `components/designs/meadow/report-data.ts`
+ * and the thinner duplicates in
+ * `components/designs/mission-bento/report-utils.ts` and
+ * `components/designs/bento/project-tile.tsx` (removed at cleanup K1).
  */
 export function formatCost(cost: number): string {
   if (cost === 0) return "$0";
@@ -78,8 +86,9 @@ export function formatCost(cost: number): string {
  * week rung included (days < 14 → d, < 70 → w, < 730 → mo, else y).
  * Elapsed under a minute (or a future timestamp) reads as "now"; the
  * exact timestamp rides along in tooltips. `now` is a defaulted
- * parameter so callers (and tests) stay SSR-safe; ISO-input callers go
- * through {@link ageMs}.
+ * parameter so callers (and tests) stay SSR-safe. Replaces the ISO-input
+ * `compactAge` in `components/designs/meadow/derive.ts` (removed at
+ * cleanup K1; ISO callers go through {@link ageMs}).
  */
 export function compactAge(ms: number, now: number = Date.now()): string {
   const elapsed = now - ms;
@@ -98,6 +107,8 @@ export function compactAge(ms: number, now: number = Date.now()): string {
 /**
  * ISO bridge to {@link compactAge}: parses an ISO timestamp (or null →
  * "—") into epoch ms and delegates; unparseable input also yields "—".
+ * Takes over the ISO entry point of meadow derive.ts `compactAge`
+ * (removed at cleanup K1).
  */
 export function ageMs(iso: string | null, now?: number): string {
   if (!iso) return "—";
@@ -108,8 +119,11 @@ export function ageMs(iso: string | null, now?: number): string {
 
 /**
  * Job-timer elapsed readout: "42s", "3m 05s" (seconds zero-padded once
- * minutes appear, clamped at zero). Shared by the legacy dashboard
- * (`routes/index.tsx`) and the scaffold forms.
+ * minutes appear, clamped at zero). Replaces the private `formatElapsed`
+ * duplicates in `lib/forms/create-project.tsx`,
+ * `components/designs/mission-control/console-forms.tsx`,
+ * `routes/index.tsx`, and the `routes/designs/*` pages (removed at
+ * cleanup K1).
  */
 export function formatElapsed(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));

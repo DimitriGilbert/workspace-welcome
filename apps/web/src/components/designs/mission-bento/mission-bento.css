@@ -1,0 +1,541 @@
+/*
+ * Mission Bento scope -------------------------------------------------------
+ * The fused console: mission-control's near-black cool palette, mono display
+ * numerals and phosphor-green instrument language, carrying bento's
+ * recency-sized project mosaic. Scoped under the doubled `.mb.mb` so it
+ * out-specifies the app's `.dark` theme for every shared component rendered
+ * inside — the rest of the app keeps the Kiln theme.
+ *
+ * Contrast: foreground oklch(0.94) on oklch(0.125) ≈ 14:1; muted oklch(0.66)
+ * ≈ 5.6:1; phosphor accent oklch(0.83 0.16 158) ≈ 9:1 — all past WCAG AA.
+ */
+
+/*
+ * Token scope. `.mb.mb` dresses the page shell; `.mb-scope.mb-scope` carries
+ * the same tokens onto portal-mounted chrome (dialogs render at document
+ * body, outside the page subtree) so shared components inside them resolve
+ * the console palette too. The doubled compounds out-specify the app's
+ * `.dark` block either way.
+ */
+.mb.mb,
+.mb-scope.mb-scope {
+  color-scheme: dark;
+
+  --background: oklch(0.125 0.008 255);
+  --foreground: oklch(0.94 0.004 250);
+  --card: oklch(0.16 0.009 255);
+  --card-foreground: oklch(0.94 0.004 250);
+  --popover: oklch(0.18 0.01 255);
+  --popover-foreground: oklch(0.94 0.004 250);
+  --primary: oklch(0.83 0.16 158);
+  --primary-foreground: oklch(0.16 0.03 158);
+  --secondary: oklch(0.21 0.009 255);
+  --secondary-foreground: oklch(0.94 0.004 250);
+  --muted: oklch(0.2 0.009 255);
+  --muted-foreground: oklch(0.66 0.012 253);
+  --accent: oklch(0.23 0.01 255);
+  --accent-foreground: oklch(0.95 0.004 250);
+  --destructive: oklch(0.7 0.18 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.83 0.16 158);
+
+  --sev-info: oklch(0.72 0.08 240);
+  --sev-warning: oklch(0.81 0.14 85);
+  --sev-critical: oklch(0.7 0.18 25);
+  --state-positive: oklch(0.8 0.14 158);
+  --recency-fresh: oklch(0.83 0.16 158);
+  --recency-stale: oklch(1 0 0 / 12%);
+  --recency-fresh-wash: oklch(0.83 0.16 158 / 0.1);
+  --pinned-accent: oklch(0.82 0.13 90);
+
+  /* Concept-local structure tokens. */
+  --mb-accent: oklch(0.83 0.16 158);
+  --mb-accent-dim: oklch(0.83 0.16 158 / 0.55);
+  --mb-amber: oklch(0.81 0.14 85);
+  --mb-red: oklch(0.7 0.18 25);
+  --mb-blue: oklch(0.72 0.08 240);
+  --mb-panel: oklch(0.16 0.009 255);
+  --mb-panel-raise: oklch(0.185 0.01 255);
+  --mb-line: oklch(1 0 0 / 7%);
+  --mb-line-strong: oklch(1 0 0 / 14%);
+  --mb-radius: 6px;
+
+  color: var(--foreground);
+}
+
+/* Page-shell-only treatment: dotted instrument backdrop. */
+.mb.mb {
+  background-color: var(--background);
+  background-image: radial-gradient(oklch(1 0 0 / 0.022) 1px, transparent 1px);
+  background-size: 26px 26px;
+  min-height: 100svh;
+}
+
+.mb ::selection {
+  background: color-mix(in oklch, var(--mb-accent) 30%, transparent);
+}
+
+/* Console scrollbars: thin, square, dark. */
+.mb-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mb-line-strong) transparent;
+}
+.mb-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.mb-scroll::-webkit-scrollbar-thumb {
+  background: var(--mb-line-strong);
+  border-radius: 0;
+}
+.mb-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer components {
+  /* Micro mono caps — section + instrument labels. */
+  .mb-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Tabular mono numeral — the display face of the console. */
+  .mb-num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    font-weight: 500;
+  }
+
+  /* Terminal input. */
+  .mb-input {
+    border: 1px solid var(--mb-line-strong);
+    background: var(--mb-panel);
+    color: var(--foreground);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color 120ms ease;
+  }
+  .mb-input::placeholder {
+    color: color-mix(in oklch, var(--muted-foreground) 75%, transparent);
+  }
+  .mb-input:focus {
+    border-color: color-mix(in oklch, var(--mb-accent) 55%, transparent);
+  }
+
+  .mb-kbd {
+    border: 1px solid var(--mb-line);
+    background: var(--mb-panel);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 4px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Flat raised instrument surface, hairline border, small console radius. */
+  .mb-panel {
+    background: var(--mb-panel);
+    border: 1px solid var(--mb-line);
+    border-radius: var(--mb-radius);
+  }
+
+  /* Mosaic tile: flat raised card, hairline border, no resting glow —
+     hover/active feedback only. */
+  .mb-tile {
+    position: relative;
+    min-width: 0;
+    border-radius: var(--mb-radius);
+    border: 1px solid var(--mb-line);
+    background: var(--mb-panel);
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+  .mb-tile--action {
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mb-tile--action {
+      transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        background-color 160ms ease,
+        transform 160ms cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+    .mb-tile--action:hover {
+      transform: translateY(-2px);
+    }
+  }
+  .mb-tile--action:hover,
+  .mb-tile--action:focus-visible {
+    border-color: oklch(1 0 0 / 0.22);
+    background: var(--mb-panel-raise);
+  }
+  .mb-tile--action:focus-visible {
+    outline: 1px solid var(--mb-accent);
+    outline-offset: -1px;
+  }
+
+  /* Pinned tiles: amber docked hairline (a border, not a glow). */
+  .mb-tile--pinned {
+    border-color: oklch(0.82 0.13 90 / 0.3);
+  }
+
+  /* Status LEDs — the severity language of the console. */
+  .mb-led {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+  .mb-led--error {
+    background: var(--mb-red);
+    box-shadow: 0 0 8px oklch(0.7 0.18 25 / 0.8);
+  }
+  .mb-led--warn {
+    background: var(--mb-amber);
+    box-shadow: 0 0 8px oklch(0.81 0.14 85 / 0.7);
+  }
+  .mb-led--info {
+    background: var(--mb-blue);
+  }
+  .mb-led--live {
+    background: var(--mb-accent);
+    box-shadow: 0 0 8px oklch(0.83 0.16 158 / 0.65);
+  }
+  .mb-led--nominal {
+    background: transparent;
+    border: 1px solid var(--mb-line-strong);
+    box-shadow: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mb-led--error {
+      animation: mb-blink 1.4s ease-in-out infinite;
+    }
+    .mb-led--warn {
+      animation: mb-blink 2.2s ease-in-out infinite;
+    }
+    .mb-led--live {
+      animation: mb-breath 3.2s ease-in-out infinite;
+    }
+  }
+
+  /* Pulse strip cells: brightness steps with transition, tick cell solid. */
+  .mb-pulse-cell {
+    min-width: 1px;
+    flex: 1 1 0%;
+    transition: background-color 240ms ease;
+  }
+
+  /* Channel switch (view segmented control). */
+  .mb-channel {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 0 0.625rem;
+    height: 2rem;
+    outline: none;
+    transition:
+      color 120ms ease,
+      background-color 120ms ease;
+  }
+  .mb-channel:hover {
+    color: var(--foreground);
+  }
+  .mb-channel[aria-pressed="true"],
+  .mb-channel[aria-selected="true"] {
+    color: var(--mb-accent);
+    background: color-mix(in oklch, var(--mb-accent) 9%, transparent);
+  }
+
+  /* Mono chips (report periods, tabs). */
+  .mb-chip {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    border: 1px solid var(--mb-line);
+    border-radius: 4px;
+    padding: 3px 8px;
+    outline: none;
+    transition:
+      color 120ms ease,
+      border-color 120ms ease,
+      background-color 120ms ease;
+  }
+  .mb-chip:hover {
+    color: var(--foreground);
+    border-color: var(--mb-line-strong);
+  }
+  .mb-chip[aria-pressed="true"] {
+    color: var(--mb-accent);
+    border-color: color-mix(in oklch, var(--mb-accent) 45%, transparent);
+    background: color-mix(in oklch, var(--mb-accent) 9%, transparent);
+  }
+
+  /* Square console action buttons in the command band. */
+  .mb-act {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding: 0 0.625rem;
+    border: 1px solid var(--mb-line);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    background: transparent;
+    outline: none;
+    transition:
+      color 120ms ease,
+      border-color 120ms ease,
+      background-color 120ms ease;
+  }
+  .mb-act:hover:not(:disabled) {
+    color: var(--mb-accent);
+    border-color: color-mix(in oklch, var(--mb-accent) 40%, var(--mb-line));
+  }
+  .mb-act:focus-visible {
+    outline: 1px solid var(--mb-accent);
+    outline-offset: 1px;
+  }
+  .mb-act:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* Dirty-leader bar rows (signal band). */
+  .mb-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    text-align: left;
+    outline: none;
+    border-radius: 3px;
+  }
+  .mb-bar-row:hover .mb-bar-name,
+  .mb-bar-row:focus-visible .mb-bar-name {
+    color: var(--mb-accent);
+  }
+  .mb-bar-row:focus-visible {
+    outline: 1px solid var(--mb-accent);
+  }
+  .mb-bar-track {
+    height: 5px;
+    flex: 1 1 0%;
+    background: oklch(1 0 0 / 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .mb-bar-fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--mb-amber) 75%, transparent);
+    transition: width 400ms cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+
+  /* Skeleton shimmer for loading mosaic. */
+  .mb-skel {
+    border-radius: var(--mb-radius);
+    border: 1px solid var(--mb-line);
+    background: linear-gradient(
+      100deg,
+      oklch(0.185 0.009 255) 40%,
+      oklch(0.23 0.01 255) 50%,
+      oklch(0.185 0.009 255) 60%
+    );
+    background-size: 240% 100%;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .mb-skel {
+      animation: mb-shimmer 1.6s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes mb-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes mb-breath {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes mb-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+/* ---------------------------------------------------------------- mosaic */
+
+/*
+ * The recency mosaic, packed by the shared algorithm
+ * (@/lib/mosaic-layout — sizes 3x3 / 2x3 / 2x2 / 2x1 / 1x1, log-scaled
+ * set-relative recency, line-filling skyline). Tiles receive EXPLICIT
+ * grid-column / grid-row from their placement, so this stylesheet only
+ * defines the unit: one auto-row per algorithm row, 12 tracks on desktop,
+ * 6 from 1024, single full-width stack below (the layout is recomputed per
+ * breakpoint in JS).
+ */
+.mb-mosaic {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  grid-auto-rows: 96px;
+  gap: 12px;
+}
+@media (min-width: 1024px) {
+  .mb-mosaic {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: 88px;
+  }
+}
+@media (min-width: 1536px) {
+  .mb-mosaic {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    grid-auto-rows: 96px;
+  }
+}
+
+/* ------------------------------------------------- signal line */
+
+/*
+ * ONE aligned instrument row (owner round-3): alerts, activity, stacks and
+ * dirty share a single grid row and height — report-backed where the snitch
+ * report is the best surface, scan-backed where only the scan knows it.
+ *   <1280px  the instruments wrap 2-up (activity full-width first)
+ */
+.mb-line {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.mb-line > * {
+  min-width: 0;
+}
+.mb-line--alerts {
+  grid-column: span 12;
+}
+.mb-line--activity {
+  grid-column: span 12;
+  min-height: 260px;
+}
+.mb-line--stacks,
+.mb-line--dirty {
+  grid-column: span 6;
+}
+@media (min-width: 1280px) {
+  .mb-line--alerts {
+    grid-column: span 2;
+  }
+  .mb-line--activity {
+    grid-column: span 6;
+    min-height: 0;
+  }
+  .mb-line--stacks {
+    grid-column: span 2;
+  }
+  .mb-line--dirty {
+    grid-column: span 2;
+  }
+}
+
+/* Carousel graph↔table slides: keep the height chain intact from the
+   panel (flex-1) down to the ResponsiveContainer. */
+.mb [data-slot="carousel-content"] {
+  height: 100%;
+}
+
+/* Instrument headers shared by cluster + report panels. */
+.mb-inst-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--mb-line);
+  padding: 0.625rem 0.875rem 0.5rem;
+}
+
+/* recharts SVG text styling stays tokenized here. */
+.mb .recharts-cartesian-axis-tick text,
+.mb .recharts-pie-label-text {
+  fill: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.mb .recharts-surface {
+  overflow: visible;
+}
+
+/* --------------------------------------------------------- ultrawide */
+
+@media (width >= 2200px) {
+  .mb-stage {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+  .mb-input {
+    width: 24rem;
+  }
+}
+
+/* --------------------------------------------------------- motion kill */
+
+@media (prefers-reduced-motion: reduce) {
+  .mb *,
+  .mb *::before,
+  .mb *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Dialog chrome: square the shared dialog inside the console scope. */
+.mb [data-slot="dialog-content"] {
+  border-radius: var(--mb-radius);
+  border-color: var(--mb-line-strong);
+  background: var(--popover);
+}
+.mb [data-slot="button"] {
+  border-radius: 4px;
+}
+.mb [data-slot="input"],
+.mb [data-slot="textarea"] {
+  border-radius: 4px;
+}
+.mb [data-slot="select-trigger"] {
+  border-radius: 4px;
+}

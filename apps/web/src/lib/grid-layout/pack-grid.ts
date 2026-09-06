@@ -1,8 +1,8 @@
 /**
  * The item-agnostic bento packer for the widget system (master plan §5, W2).
  *
- * This is the skyline packer + reading order ported from the legacy mosaic
- * module, stripped of everything project-specific:
+ * This is the skyline packer + reading order ported from the mosaic layout
+ * (apps/web/src/lib/mosaic-layout), stripped of everything project-specific:
  * no recency scoring, no tiers, no paths. The caller decides WHAT each item
  * is and HOW BIG it is; this module decides WHERE it lands.
  *

@@ -1,0 +1,299 @@
+/*
+ * Meadow — a scoped daylight theme for the /designs/meadow route.
+ *
+ * The app root forces `.dark` on <html>; every token this subtree consumes is
+ * re-declared here under `.meadow`, so the light theme wins by cascade scope
+ * without touching shared styles. Portaled overlays (sheets, dropdown menus,
+ * toasts) render outside the wrapper and keep the app theme — intentional.
+ *
+ * Contrast: every fg/bg pair below was verified >= 4.5:1 (WCAG AA body text)
+ * against --card / --background via an OKLCH->sRGB luminance check; --ring is
+ * 3.4:1 (AA non-text). Soften a color only if you re-run that check.
+ */
+.meadow {
+  --background: oklch(0.968 0.015 105);
+  --foreground: oklch(0.27 0.03 150);
+  --card: oklch(0.993 0.007 105);
+  --card-foreground: oklch(0.27 0.03 150);
+  --popover: oklch(0.993 0.007 105);
+  --popover-foreground: oklch(0.27 0.03 150);
+  --primary: oklch(0.46 0.105 152);
+  --primary-foreground: oklch(0.98 0.012 120);
+  --secondary: oklch(0.94 0.022 110);
+  --secondary-foreground: oklch(0.3 0.035 152);
+  --muted: oklch(0.94 0.02 110);
+  --muted-foreground: oklch(0.48 0.028 148);
+  --accent: oklch(0.92 0.035 135);
+  --accent-foreground: oklch(0.3 0.04 152);
+  --destructive: oklch(0.48 0.16 27);
+  --border: oklch(0.895 0.025 110);
+  --input: oklch(0.885 0.028 110);
+  --ring: oklch(0.6 0.115 150);
+  --chart-1: oklch(0.46 0.105 152);
+  --chart-2: oklch(0.55 0.1 85);
+  --chart-3: oklch(0.55 0.09 250);
+  --chart-4: oklch(0.55 0.08 330);
+  --chart-5: oklch(0.55 0.1 40);
+  --radius: 0.9rem;
+  --sidebar: oklch(0.955 0.018 108);
+  --sidebar-foreground: oklch(0.27 0.03 150);
+  --sidebar-primary: oklch(0.46 0.105 152);
+  --sidebar-primary-foreground: oklch(0.98 0.012 120);
+  --sidebar-accent: oklch(0.92 0.035 135);
+  --sidebar-accent-foreground: oklch(0.3 0.04 152);
+  --sidebar-border: oklch(0.895 0.025 110);
+  --sidebar-ring: oklch(0.6 0.115 150);
+
+  /* Sage = recently alive; stale melts toward warm sand. */
+  --recency-fresh: oklch(0.47 0.1 152);
+  --recency-stale: oklch(0.8 0.02 105);
+  --recency-fresh-wash: oklch(0.47 0.1 152 / 0.09);
+
+  /* Honey: attention + pinned share one warm "keep an eye on this" hue. */
+  --pinned-accent: oklch(0.5 0.095 85);
+  --pinned-accent-wash: oklch(0.5 0.095 85 / 0.12);
+
+  --sev-info: oklch(0.47 0.085 250);
+  --sev-warning: oklch(0.47 0.09 80);
+  --sev-critical: oklch(0.48 0.15 27);
+
+  --state-positive: oklch(0.45 0.095 155);
+
+  --eyebrow: oklch(0.5 0.045 148);
+
+  color-scheme: light;
+  color: var(--foreground);
+  min-height: 100svh;
+  /* Morning light: two soft warm glows pinned to the viewport top. */
+  background:
+    radial-gradient(
+      1100px 420px at 15% -8%,
+      oklch(0.93 0.05 130 / 0.55),
+      transparent 70%
+    ),
+    radial-gradient(
+      950px 400px at 85% -10%,
+      oklch(0.95 0.045 90 / 0.5),
+      transparent 70%
+    ),
+    var(--background);
+  background-attachment: fixed;
+}
+
+/* Rounded geometry: Base UI slots bake sharp corners in the shared kit; the
+   meadow subtree relaxes them. Specificity (class + slot) beats the utilities. */
+.meadow [data-slot="button"],
+.meadow [data-slot="badge"] {
+  border-radius: 999px;
+}
+.meadow [data-slot="skeleton"] {
+  border-radius: calc(var(--radius) + 4px);
+}
+
+/* Elevation: layered, low-chroma shadows over the cream ground. */
+.meadow-panel {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 8px);
+  background: var(--card);
+  box-shadow:
+    0 1px 2px oklch(0.4 0.05 110 / 0.04),
+    0 14px 36px -22px oklch(0.4 0.05 110 / 0.24);
+}
+
+.meadow-lift {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+.meadow-lift:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklch, var(--recency-fresh) 30%, var(--border));
+  box-shadow:
+    0 2px 4px oklch(0.4 0.05 110 / 0.05),
+    0 22px 48px -22px oklch(0.4 0.05 110 / 0.3);
+}
+
+/* Hero surface for the rail's Today card: a soft green-to-cream gradient. */
+.meadow-hero {
+  border: 1px solid color-mix(in oklch, var(--recency-fresh) 18%, var(--border));
+  border-radius: calc(var(--radius) + 8px);
+  background: linear-gradient(
+    155deg,
+    oklch(0.93 0.05 140) 0%,
+    oklch(0.965 0.03 120) 55%,
+    oklch(0.99 0.01 110) 100%
+  );
+  box-shadow:
+    0 1px 2px oklch(0.4 0.05 110 / 0.04),
+    0 16px 40px -24px oklch(0.45 0.07 150 / 0.35);
+}
+
+.meadow-focus:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* In-page anchors (the header's "need care" link) glide instead of jumping. */
+.meadow {
+  scroll-behavior: smooth;
+}
+
+/* Soft interior block for lists/pre output inside dialogs and panels. */
+.meadow-soft-block {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  background: color-mix(in oklch, var(--muted) 45%, var(--card));
+}
+
+/* Pill tab activation used by the report widget and page tabs. */
+.meadow-tab-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 1px 3px oklch(0.4 0.05 110 / 0.18);
+}
+
+/* The mosaic: explicit per-tile placement from computeMosaicLayout; row
+   height is the one responsive knob (columns come from the layout itself). */
+.meadow-mosaic {
+  grid-auto-rows: 84px;
+}
+@media (min-width: 768px) {
+  .meadow-mosaic {
+    grid-auto-rows: 100px;
+  }
+}
+@media (min-width: 1280px) {
+  .meadow-mosaic {
+    grid-auto-rows: 104px;
+  }
+}
+
+/* Slim soft scrollbars inside the resizable panels. */
+.meadow-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.meadow-context {
+  background: color-mix(in oklch, var(--card) 45%, transparent);
+}
+
+/* The drag grip between the mosaic and the context panel: a hairline that
+   warms on hover, thickens slightly while active; states come from the
+   library's data-separator attribute (inactive|hover|active|focus). */
+.meadow-separator {
+  position: relative;
+  cursor: col-resize;
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+.meadow-separator::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1px;
+  height: 100%;
+  background: var(--border);
+  transition: background-color 140ms ease;
+}
+.meadow-separator::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 3px;
+  height: 36px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+.meadow-separator:hover::before,
+.meadow-separator[data-separator="hover"]::before {
+  background: color-mix(in oklch, var(--recency-fresh) 35%, var(--border));
+}
+.meadow-separator[data-separator="active"]::before,
+.meadow-separator:focus-visible::before {
+  background: var(--recency-fresh);
+}
+.meadow-separator:hover::after,
+.meadow-separator[data-separator="hover"]::after {
+  background: color-mix(in oklch, var(--recency-fresh) 40%, var(--border));
+}
+.meadow-separator[data-separator="active"]::after {
+  background: var(--recency-fresh);
+}
+.meadow-separator:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meadow {
+    scroll-behavior: auto;
+  }
+  .meadow-lift,
+  .meadow-lift:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Portaled overlays: Base UI renders dialogs, menus, sheets, selects, and
+   tooltips into document.body, outside the .meadow wrapper, where the app's
+   dark tokens would snap back. While a meadow route is mounted (:has guard,
+   so other routes are untouched), re-declare the light tokens on the overlay
+   surfaces themselves — every component inside is token-driven, so the
+   utilities pick the palette up by inheritance. */
+body:has(.meadow) [data-slot="dialog-content"],
+body:has(.meadow) [data-slot="dropdown-menu-content"],
+body:has(.meadow) [data-slot="select-content"],
+body:has(.meadow) [data-slot="tooltip-content"],
+body:has(.meadow) [data-slot="sheet-content"],
+body:has(.meadow) [data-slot="popover-content"] {
+  --background: oklch(0.993 0.007 105);
+  --foreground: oklch(0.27 0.03 150);
+  --card: oklch(0.993 0.007 105);
+  --card-foreground: oklch(0.27 0.03 150);
+  --popover: oklch(0.993 0.007 105);
+  --popover-foreground: oklch(0.27 0.03 150);
+  --primary: oklch(0.46 0.105 152);
+  --primary-foreground: oklch(0.98 0.012 120);
+  --secondary: oklch(0.94 0.022 110);
+  --secondary-foreground: oklch(0.3 0.035 152);
+  --muted: oklch(0.94 0.02 110);
+  --muted-foreground: oklch(0.48 0.028 148);
+  --accent: oklch(0.92 0.035 135);
+  --accent-foreground: oklch(0.3 0.04 152);
+  --destructive: oklch(0.48 0.16 27);
+  --border: oklch(0.895 0.025 110);
+  --input: oklch(0.885 0.028 110);
+  --ring: oklch(0.6 0.115 150);
+  --recency-fresh: oklch(0.47 0.1 152);
+  --pinned-accent: oklch(0.5 0.095 85);
+  --sev-info: oklch(0.47 0.085 250);
+  --sev-warning: oklch(0.47 0.09 80);
+  --sev-critical: oklch(0.48 0.15 27);
+  --state-positive: oklch(0.45 0.095 155);
+  color-scheme: light;
+}
+body:has(.meadow) [data-slot="dropdown-menu-content"],
+body:has(.meadow) [data-slot="tooltip-content"],
+body:has(.meadow) [data-slot="dialog-content"],
+body:has(.meadow) [data-slot="popover-content"] {
+  border-radius: calc(var(--radius) + 4px);
+}
+body:has(.meadow) [data-slot="dialog-content"] {
+  border-radius: calc(var(--radius) + 12px);
+  box-shadow:
+    0 2px 6px oklch(0.4 0.05 110 / 0.06),
+    0 32px 80px -32px oklch(0.4 0.05 110 / 0.4);
+}
+
+/* The app root forces .dark on <html>; Toaster (sonner) also portals to
+   body. Give toasts the meadow light register while a meadow route mounts. */
+body:has(.meadow) [data-sonner-toaster] {
+  --normal-bg: oklch(0.993 0.007 105);
+  --normal-text: oklch(0.27 0.03 150);
+  --normal-border: oklch(0.895 0.025 110);
+}

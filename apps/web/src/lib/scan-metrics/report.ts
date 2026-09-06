@@ -110,11 +110,40 @@ export function languageRows(exportData: ReportExport, limit = 8): LanguageRow[]
   return [...rows].sort((a, b) => b.lines - a.lines).slice(0, limit);
 }
 
+/** A single project entry's languages, heaviest by lines first. */
+export function projectLanguages(entry: ReportExportProject, limit = 8): LanguageRow[] {
+  return [...entry.languages].sort((a, b) => b.lines - a.lines).slice(0, limit);
+}
+
 /** Index a scan export's projects by absolute path for O(1) tile lookups. */
 export function indexProjectsByPath(
   exportData: ReportExport,
 ): Map<string, ReportExportProject> {
   return new Map(exportData.projects.map((p) => [p.path, p]));
+}
+
+/** Adapt one snitch project entry into the export shape the aggregators
+ * read, so whole-workspace instruments can be reused verbatim on one project. */
+export function entryAsExport(entry: ReportExportProject): ReportExport {
+  const at = entry.lastCommit?.date ?? new Date(0).toISOString();
+  return {
+    key: `entry-${entry.path}`,
+    kind: "repo",
+    label: "project",
+    targetPath: entry.path,
+    period: null,
+    generatedAt: at,
+    savedAt: at,
+    projects: [entry],
+    totals: {
+      commits: entry.totalCommits,
+      contributors: entry.contributors,
+      repositories: 1,
+      languages: entry.languages,
+      alerts: entry.alerts,
+    },
+    aiUsage: entry.aiUsage,
+  };
 }
 
 export interface AiUsageLeader {

@@ -1,7 +1,7 @@
 /**
  * Log-scaled, set-relative recency scoring + tier blend for the widget system
- * (master plan §5, W2). Moved VERBATIM from the legacy mosaic module —
- * the math is byte-equal; only the shape
+ * (master plan §5, W2). Moved VERBATIM from the mosaic layout
+ * (apps/web/src/lib/mosaic-layout) — the math is byte-equal; only the shape
  * changed: the reference clock is INJECTED (`now` is a required option), the
  * tier count comes from the caller's ladder, and packing lives apart in
  * `pack-grid.ts`.
