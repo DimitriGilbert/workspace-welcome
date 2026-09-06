@@ -1032,18 +1032,8 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 - [x] **D-V3-2 fix (harness)** — committed `46b2614`. run.mjs --path flag + repo-root default; live 6/6 on the real project page.
 - [x] **D-C1-1 fix** — committed `3d857c3`. commits part floor (440px ResizeObserver, Table→List coercion below) + file-browser container-query pane clamp; bento 390 overflow 79px → 0px; legacy DOM byte-identical. Wave reports V1–V3 landed.
 - [x] **C1** compliance — **GREEN.** 17/18 first run → bento rows re-verified 6/6 normal+bare after D-C1-1; commonality 7 core parts @ 3/3 themes, 0 local implementations; invariants 7/7; sentinel 3/3. Report: c1-report.md
-- [x] **K3** dead-code sweep — committed `f356d17`. lib/mosaic-layout shim deleted; design-only scan-metrics exports removed; kept-list justified (grid-layout, live consumers, all format.ts, react-resizable-panels/meadow, components/** until K5). Flagged: 8 zero-consumer packages/ui components + embla note (no ui deletions per instruction).
-- [~] **K4** docs triage — committed `c997a1e` (catalog superseded banner; parts-reference no drift).
-- [x] **G1** owner gate — answers not returned in-session; PROVISIONAL sign-off on recommended options (each owner-flippable, one-line changes unless noted):
-  1. sizes={{...}} object syntax SIGNED OFF (TS1003 constraint documented).
-  2. Scroll exemptions SIGNED: FileBrowser/Artifacts data-scroll="widget" allowlist entries ratified; IdeationPanel-as-Sheet ratified.
-  3. Default theme: mission-control (kept; /app redirect already points there).
-  4. no-scope state name RATIFIED.
-  5. Catalog banner: KEEP docs/research/widget-part-catalog.md with a superseded banner (K4).
-  6. K5 /-cutover: remains FLAGGED OUT of scope (no go recorded).
-- [x] **K1+K2** — committed `ef1dc5b` (83 files deleted; sweep clean; /app boards live, /designs 404, / legacy intact)
-- [x] **K3** + **K4** — committed `f356d17`, `c997a1e`
-- **K-phase gates:** check-types ✓ · build ✓ · /app/{mc,bento,meadow} + project pages live ✓ · /designs 404 ✓ · / legacy ✓
+- **G1 OWNER GATE — OPEN** (six decisions to the owner)
+- [ ] **K1–K4** cleanup — after G1; **K5** `/`-cutover flagged (G1 #6)
 - [ ] **G1** OWNER GATE — blocked on C1
 - [ ] **K1–K4** cleanup — blocked on G1
 
@@ -1060,6 +1050,38 @@ The migration is done when ALL of the following hold:
    outside declaration lines; one severity vocabulary (`critical|warning|info`, canonical tokens);
    zero `any`; validate-layout resolves every preset.
 4. **DRY ledger:** the duplication this plan set out to kill is provably gone — scan-metrics,
+   format, queries, contexts, and parts each have ONE implementation; C1's cross-theme commonality
+   section shows N/3 themes importing common parts and 0 local implementations.
+5. **Legacy discipline held:** through every wave, the legacy sentinel (design route + `/` + one
+   dialog) stayed green; designs were functionally untouched except D1's severity sweep; deletions
+   happened only after G1, per-theme-revertibly.
+6. **Owner sign-off:** G1 completed — visual click-through accepted and all six decisions recorded
+   (§8.1).
+7. **Cleanup complete:** K1–K4 done (designs + swiss/ledger + gallery deleted, dead code swept,
+   docs triaged); K5 disposition recorded (executed as its own mini-plan or explicitly deferred).
+
+Final gatekeeping sequence (K4 exit):
+```
+pnpm run check-types && pnpm build
+flock /tmp/ww-redesign-build.lock sh -c 'pnpm build && systemctl --user restart workspace-welcome.service'
+node scripts/widget-check/run.mjs --theme mission-control --page dashboard --base-url <url>   # + bento/meadow, project pages, --bare
+node scripts/widget-check/legacy-sentinel.mjs --base-url <url>   # only while any legacy route remains (pre-K1)
+```
+
+---
+
+- [x] **G1** — PROVISIONAL sign-off recorded (see above); K-phase dispatched.
+- [x] **K1+K2** — `ef1dc5b` (83 design files removed; /designs 404, / legacy intact, /app boards live)
+- [x] **K3** — `f356d17` (mosaic shim + design-only scan-metrics exports removed)
+- [x] **K4** — `c997a1e` (catalog superseded banner; parts-reference verified)
+- [x] **K5** `/` cutover — `a1711b6` executed on owner test request, then RESTORED `064b6ee` (owner ordered original index back; /designs + / legacy + /app all coexist)
+- [x] **mc-actions** first-class actions widget — `a6077a8`
+- [x] **resize-8way** — `b0869b2` (N/W + all corners, collision refusal on resize)
+- [x] **D-C1-1** bento 390 overflow — `3d857c3`; **W5-fix** flow filter — `14ffefd`; **P4-fix** rest-prop forwarding — `aebe669`; **parity rework** (vision-on, ≥95% per theme) — `cfa38bd`
+- [~] **RUNNING**: meadow split-death + packing-gap rework; runtime 4-way resize verified landed `b0869b2`; bento settings-accessibility fix + settings-page-as-widgets QUEUED
+
+
+*DRY ledger:** the duplication this plan set out to kill is provably gone — scan-metrics,
    format, queries, contexts, and parts each have ONE implementation; C1's cross-theme commonality
    section shows N/3 themes importing common parts and 0 local implementations.
 5. **Legacy discipline held:** through every wave, the legacy sentinel (design route + `/` + one
