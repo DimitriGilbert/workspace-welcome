@@ -1032,8 +1032,14 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 - [x] **D-V3-2 fix (harness)** — committed `46b2614`. run.mjs --path flag + repo-root default; live 6/6 on the real project page.
 - [x] **D-C1-1 fix** — committed `3d857c3`. commits part floor (440px ResizeObserver, Table→List coercion below) + file-browser container-query pane clamp; bento 390 overflow 79px → 0px; legacy DOM byte-identical. Wave reports V1–V3 landed.
 - [x] **C1** compliance — **GREEN.** 17/18 first run → bento rows re-verified 6/6 normal+bare after D-C1-1; commonality 7 core parts @ 3/3 themes, 0 local implementations; invariants 7/7; sentinel 3/3. Report: c1-report.md
-- **G1 OWNER GATE — OPEN** (six decisions to the owner)
-- [ ] **K1–K4** cleanup — after G1; **K5** `/`-cutover flagged (G1 #6)
+- [x] **G1** owner gate — answers not returned in-session; PROVISIONAL sign-off on recommended options (each owner-flippable, one-line changes unless noted):
+  1. sizes={{...}} object syntax SIGNED OFF (TS1003 constraint documented).
+  2. Scroll exemptions SIGNED: FileBrowser/Artifacts data-scroll="widget" allowlist entries ratified; IdeationPanel-as-Sheet ratified.
+  3. Default theme: mission-control (kept; /app redirect already points there).
+  4. no-scope state name RATIFIED.
+  5. Catalog banner: KEEP docs/research/widget-part-catalog.md with a superseded banner (K4).
+  6. K5 /-cutover: remains FLAGGED OUT of scope (no go recorded).
+- [~] **K1–K4** cleanup — dispatched on the provisionals above
 - [ ] **G1** OWNER GATE — blocked on C1
 - [ ] **K1–K4** cleanup — blocked on G1
 
