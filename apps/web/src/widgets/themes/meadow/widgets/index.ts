@@ -1,5 +1,7 @@
 /**
- * Meadow's widget kinds (master plan §3.3, §5 T2/T3-meadow).
+ * Meadow's widget kinds (master plan §3.3, §5 T2/T3-meadow; T2 reworked per
+ * the owner's verdict — the context rail is gone, every digest is its own
+ * kind).
  *
  * The eager glob in `widgets/registry.ts` picks this module up and merges
  * its `widgetDefs` into the validated registry — theme waves never edit
@@ -8,8 +10,9 @@
  * Dashboard kinds (T2): the masthead row (greeting + counts + search +
  * commands), the attention band (the design's honey pill strip), the
  * recency project tile (the design's five-tier bento tile, fed by the
- * `"projects"` flow's ladder rungs), and the context panel (the design's
- * right rail: report + workspace digests).
+ * `"projects"` flow's ladder rungs), and the five workspace digests
+ * (report / momentum / rhythm / stacks / directories) that the preset
+ * composes as a full-width band below the mosaic.
  *
  * Project-page kinds (T3): the identity header, the report-at-a-glance
  * strip, and the soft tabbed sections composing the git/, note, list/
@@ -18,8 +21,14 @@
 import type { WidgetDef } from "@/widgets/registry";
 
 import { MeadowAttention } from "./meadow-attention";
-import { MeadowContext } from "./meadow-context";
 import { MeadowHeader } from "./meadow-header";
+import {
+  MeadowDirectoriesDigest,
+  MeadowMomentumDigest,
+  MeadowReportDigest,
+  MeadowRhythmDigest,
+  MeadowStacksDigest,
+} from "./digests";
 import { MeadowProjectHeader } from "./project-header";
 import { MeadowProjectSections } from "./project-sections";
 import { MeadowProjectStats } from "./project-stats";
@@ -52,11 +61,39 @@ export const widgetDefs: readonly WidgetDef[] = [
     min: "1x1",
   },
   {
-    id: "meadow-context",
-    title: "Workspace context",
-    component: MeadowContext,
+    id: "meadow-report",
+    title: "Workspace report",
+    component: MeadowReportDigest,
     requires: ["workspace", "report"],
-    defaultSize: "12x12",
+    defaultSize: "12x3",
+  },
+  {
+    id: "meadow-momentum",
+    title: "Momentum · 4 wks",
+    component: MeadowMomentumDigest,
+    requires: ["workspace"],
+    defaultSize: "12x1",
+  },
+  {
+    id: "meadow-rhythm",
+    title: "Rhythm",
+    component: MeadowRhythmDigest,
+    requires: ["workspace"],
+    defaultSize: "12x1",
+  },
+  {
+    id: "meadow-stacks",
+    title: "Stacks",
+    component: MeadowStacksDigest,
+    requires: ["workspace"],
+    defaultSize: "12x1",
+  },
+  {
+    id: "meadow-directories",
+    title: "Directories",
+    component: MeadowDirectoriesDigest,
+    requires: ["workspace"],
+    defaultSize: "12x1",
   },
   {
     id: "meadow-project-header",

@@ -42,12 +42,17 @@ const NUMERAL_CLASS: Record<string, string> = {
   compact: "text-lg",
 };
 
-/** Design tier from the placement footprint (the flow's ladder rung). */
+/**
+ * Design tier from the placement footprint. The preset's template remaps
+ * the flow's tiers to even spans (hero 4x3, feature 4x2, large 2x2,
+ * medium 2x1, compact 2x1) so rows tile on every breakpoint; the ladder
+ * rungs themselves (3x3…1x1, the lab's catalog) keep their bodies.
+ */
 function tierOf(cols: number, rows: number): string {
-  if (cols === 3 && rows === 3) return "hero";
-  if (cols === 2 && rows === 3) return "feature";
-  if (cols === 2 && rows === 2) return "large";
-  if (cols === 2 && rows === 1) return "medium";
+  if (cols >= 3 && rows >= 3) return "hero";
+  if (cols >= 4 || rows >= 3) return "feature";
+  if (cols >= 2 && rows >= 2) return "large";
+  if (cols >= 2) return "medium";
   return "compact";
 }
 

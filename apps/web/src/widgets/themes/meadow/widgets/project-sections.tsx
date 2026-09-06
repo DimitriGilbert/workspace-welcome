@@ -33,8 +33,8 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { Donut, HBars, RatioBar, CadenceArea } from "./bits";
+import { ProjectMomentumCard } from "./context-cards";
 import { MeadowReport } from "./report";
-import { ProjectMomentumCard } from "./meadow-context";
 import { Button } from "@workspace-welcome/ui/components/button";
 
 import { IdeationPanel } from "@/components/ideation/ideation-panel";

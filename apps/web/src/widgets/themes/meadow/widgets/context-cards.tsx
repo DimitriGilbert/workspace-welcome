@@ -6,6 +6,11 @@
  * scan-metrics function (the design's local `derive.ts` duplicates were
  * consolidated there); the cards are theme-local chrome — the design's
  * `.meadow-panel` shells, icon chip headings, and soft chips, verbatim.
+ *
+ * Since the T2-meadow rework each card is placed by its own widget kind
+ * (`digests.tsx`) as a full-width band, so the cards stretch to their
+ * placement (`h-full`) and clip their content overflow — band rungs have a
+ * definite height and no-inner-scroll forbids inner scrolling.
  */
 import { useMemo } from "react";
 import type { ComponentType } from "react";
@@ -21,6 +26,7 @@ import {
   touchedWithinDays,
 } from "@/lib/scan-metrics";
 import { stackIcon } from "@/lib/icons";
+import { useProject } from "@/widgets/contexts/project-context";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 
 /** Last path segment of an absolute path — for root labels. Ported from the
@@ -42,7 +48,7 @@ export function ContextCard({
   return (
     <section
       aria-label={title}
-      className="meadow-panel flex flex-col gap-2 p-3.5"
+      className="meadow-panel flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden p-3.5"
     >
       <h3 className="flex items-center gap-1.5 text-[11px] font-semibold tracking-tight text-muted-foreground">
         <Icon aria-hidden className="size-3.5" />
@@ -295,5 +301,28 @@ export function DirectoriesCard() {
         />
       </Link>
     </ContextCard>
+  );
+}
+
+/** Project-scoped momentum — the design's MomentumCardBase over one project's
+ * touched-days curve (the project page's Activity tab). */
+export function ProjectMomentumCard() {
+  const { project, now } = useProject();
+  const scoped = useMemo(() => (project === null ? [] : [project]), [project]);
+  const activity = useMemo(
+    () => dailyActivity(scoped, 28, now),
+    [scoped, now],
+  );
+  const touches = useMemo(
+    () => touchedWithinDays(scoped, 7, now),
+    [scoped, now],
+  );
+  const total = activity.reduce((sum, v) => sum + v, 0);
+  return (
+    <MomentumCardBase
+      activity={activity}
+      touchedThisWeek={touches}
+      total={total}
+    />
   );
 }

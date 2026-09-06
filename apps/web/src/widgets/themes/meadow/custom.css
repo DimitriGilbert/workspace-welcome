@@ -7,9 +7,10 @@
  *
  * Ported from `components/designs/meadow/meadow.css` + the design route's
  * page composition: the morning-light glows, the soft panel shells with
- * their layered low-chroma shadows and hover lift, pill controls, the
- * active-tab register, and the two-panel board (mosaic | context rail)
- * with the design's proportions and whitespace.
+ * their layered low-chroma shadows and hover lift, pill controls, and the
+ * active-tab register. The design's resizable two-panel board split is
+ * deliberately NOT ported (owner verdict: the digests are their own widget
+ * kinds on one canvas) — regions stack as full-width bands.
  */
 
 /* ---------------------------------------------------------------------------
@@ -180,7 +181,9 @@
    cell — they carry the design's block heights instead (one widget row per
    region, so the footprint math keeps checking). Values step with the
    content's wrap points: the header row, the attention band, the identity
-   block, the stat strip, and the tabbed sections. */
+   block, the stat strip, and the tabbed sections. The attention band's
+   compact steps leave room for its chip wrap (the summary line plus the
+   preview chips at ~3 per row on phone, ~5 on tablet). */
 [data-ww-theme="meadow"] [data-region="masthead"] {
   grid-auto-rows: 44px !important;
 }
@@ -198,7 +201,7 @@
     grid-auto-rows: 88px !important;
   }
   [data-ww-theme="meadow"] [data-region="attention"] {
-    grid-auto-rows: 72px !important;
+    grid-auto-rows: 116px !important;
   }
   [data-ww-theme="meadow"] [data-region="identity"] {
     grid-auto-rows: 156px !important;
@@ -212,7 +215,7 @@
     grid-auto-rows: 124px !important;
   }
   [data-ww-theme="meadow"] [data-region="attention"] {
-    grid-auto-rows: 116px !important;
+    grid-auto-rows: 148px !important;
   }
   [data-ww-theme="meadow"] [data-region="identity"] {
     grid-auto-rows: 212px !important;
@@ -222,41 +225,12 @@
   }
 }
 
-/* Wide board: the design's two-panel split — mosaic left (76%), context
-   rail right (24%), the hairline separator between them. */
-@media (min-width: 1024px) {
-  [data-ww-theme="meadow"] [data-widget-board] {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 24%);
-    grid-template-rows: auto auto auto;
-    gap: 16px 24px;
-    align-items: start;
-  }
-  [data-ww-theme="meadow"] [data-region="masthead"] {
-    grid-area: 1 / 1 / 2 / 3;
-  }
-  [data-ww-theme="meadow"] [data-region="attention"] {
-    grid-area: 2 / 1 / 3 / 3;
-  }
-  [data-ww-theme="meadow"] [data-region="projects"] {
-    grid-area: 3 / 1 / 4 / 2;
-  }
-  [data-ww-theme="meadow"] [data-region="context"] {
-    grid-area: 3 / 2 / 4 / 3;
-    border-left: 1px solid var(--border);
-    padding-left: 24px;
-  }
-
-  /* Project page: the design stacks full-width rows with a 16px gap. */
-  [data-ww-theme="meadow"][data-ww-page="project"] [data-widget-board] {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="identity"],
-  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="report-glance"],
-  [data-ww-theme="meadow"][data-ww-page="project"] [data-region="sections"] {
-    grid-area: auto;
-  }
+/* Digest band: the report + momentum/rhythm/stacks/directories kinds each
+   sit one per row (full-width placements), so the region steps its row unit
+   to 148px — the design's card heights (the 104px mosaic unit would crop
+   the momentum card's trend). */
+[data-ww-theme="meadow"] [data-region="digests"] {
+  grid-auto-rows: 148px !important;
 }
 
 /* The design's project page paddings (`px-5 pt-6 pb-8 md:px-8 2xl:px-12`). */

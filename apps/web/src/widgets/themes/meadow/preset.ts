@@ -1,25 +1,35 @@
 /**
  * Meadow's theme preset (master plan §5 T1-meadow shell, populated at
- * T2-meadow; the project page at T3-meadow).
+ * T2-meadow; the project page at T3-meadow; dashboard reworked after the
+ * owner's verdict on the T2 split — the context rail is gone, every digest
+ * is its own widget kind).
  *
- * The dashboard ports the design route's surfaces widget-for-widget:
+ * The dashboard composes the design route's surfaces as canvas widgets:
  * the masthead row (greeting + counts + search) and the attention band are
  * theme kinds in their own stack regions, the recency-sized project grid is
  * the `"projects"` flow (the shared algo sizes every tile off the canonical
- * ladder — meadow's hero/feature/large/medium/compact tiers), and the
- * context panel is a theme kind below the mosaic carrying the workspace
- * report + the momentum/rhythm/stacks/directories digests. The design's
- * resizable two-panel split (mosaic | context) lives INSIDE the context
- * kind as a react-resizable-panels composition, because the runtime's
- * region grids stack vertically — the design's narrow presentation, with
- * the desktop drag identity preserved in the kind.
+ * ladder — meadow's tiers remapped to even spans, see below), and the five
+ * workspace digests (report / momentum / rhythm / stacks / directories)
+ * follow as individual kinds in the `"digests"` band region — the design's
+ * context content, now ordinary placeable widgets instead of one monolithic
+ * panel.
+ *
+ * Tier span mapping. The canonical ladder (3x3 hero → 1x1 compact) tiles
+ * 12 columns only for lucky tier mixes — odd spans leave unfillable
+ * one-column remainders that read as holes (the owner's screenshot). The
+ * template remaps every tier to an EVEN span, so each breakpoint's row
+ * width (12/8/2) is a sum of 4s and 2s and the packer's line-filling rule
+ * always completes a row: hero 4x3, feature 4x2, large 2x2, medium 2x1,
+ * compact 2x1. The tile kind reads its tier off the footprint
+ * (`tile.tsx` `tierOf`), so bodies follow the rungs unchanged.
  *
  * Constants ported from the design: `routes/designs/meadow/index.tsx`
  * `useMosaicConfig` steps the mosaic 2 → 8 → 12 columns (≥768 / ≥1280)
  * and `meadow.css` `.meadow-mosaic` steps the row unit 84px → 100px →
  * 104px at the same breakpoints — 104 is the desktop density (§3.3:
  * 92–104 px observed; the phone 84px sits below the ladder floor by
- * design, the runtime's cell unit is the desktop row).
+ * design, the runtime's cell unit is the desktop row). The digest band
+ * steps its row unit to 148px (`custom.css`) to host the cards' cadence.
  */
 import "./tokens.css";
 
@@ -56,13 +66,30 @@ export const meadowPreset: ThemePreset = {
         kind: "flow",
         id: "projects",
         from: "projects",
-        template: { widget: "meadow-project-tile" },
+        template: {
+          widget: "meadow-project-tile",
+          ladders: {
+            "3x3": ["4x3"],
+            "2x3": ["4x2"],
+            "2x2": ["2x2"],
+            "2x1": ["2x1"],
+            "1x1": ["2x1"],
+          },
+        },
       },
       {
         kind: "stack",
-        id: "context",
+        id: "digests",
         widgets: [
-          { id: "meadow-context", widget: "meadow-context", size: "12x12" },
+          { id: "digest-report", widget: "meadow-report", size: "12x3" },
+          { id: "digest-momentum", widget: "meadow-momentum", size: "12x1" },
+          { id: "digest-rhythm", widget: "meadow-rhythm", size: "12x1" },
+          { id: "digest-stacks", widget: "meadow-stacks", size: "12x1" },
+          {
+            id: "digest-directories",
+            widget: "meadow-directories",
+            size: "12x1",
+          },
         ],
       },
     ],

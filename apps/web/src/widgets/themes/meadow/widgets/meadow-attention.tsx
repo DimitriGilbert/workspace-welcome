@@ -101,7 +101,10 @@ export function MeadowAttention(_props: RegisteredWidgetProps) {
         </span>
       </span>
 
-      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+      {/* Chips take the summary's leftover line at wide widths, their own
+          full line below it when narrow (flex-basis wrap) — so compact
+          viewports get a wrapping chip flow, not a squeezed column. */}
+      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1 basis-full sm:basis-auto">
         {visible.map((p) => {
           const worst = p.alerts.some((a) => a.severity === "critical")
             ? "critical"
