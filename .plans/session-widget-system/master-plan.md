@@ -1010,12 +1010,26 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 - [x] **T1-mc** — committed `3406fe2`. 47 token declarations, real oklch values; 12/8/4 columns; harness 6 pass 0 warn.
 - [x] **T1-bento** — committed `a18f857`. 38/38 + recency mid-tiers; 12/6/2 columns, cell.h 96.
 - [x] **harness** — invariant-2 exemption for theme tokens.css declaration lines (overlap with invariant 3 fixed); committed `a957af3`; all 7 invariants green.
-- [~] **T1-meadow** tokens+preset — dispatched
+- [x] **T1-meadow** — committed `b2aeacb`. 38/38 + 4 ride-along washes; 12/8/2 columns, cell.h 104; color-scheme: light.
 - [x] **D8** provider-stack wiring — gates green, committed `5c5036b`. DOM-verified document-order data-providers on both shells; real-root binding proven (reports.command/commitLog/touch fired live); SSR-NUL grep gotcha (use grep -a).
-- [~] **P4-fix** rest-prop forwarding in parts — dispatched (definePart stamps reach DOM)
-- [ ] **V1** wave-1 validator — blocked on T1-* + P5
+- [x] **P4-fix** rest-prop forwarding — committed `aebe669` (all 10 parts + led/file-browser/artifacts composite roots).
+- [x] **V1** wave-1 validator — PASS after fix. First run 10/11; defect D1 (P5 FloorCell chrome starved part boxes 10px) fixed `f8ae542`; re-run: part-min 378 boxes ≥ floors across 3 scopes. Commonality verified 3/3, 0 local implementations. Report: v1-report.md.
+- [x] **T2-meadow** dashboard — committed `dc0dda1`. Probes 6/6 at 1440p/3440/1280/390 + bare. Escalated: FlowInput lacked filter (W5-fix dispatched); interaction-suite gaps are harness calibration (G1 #3, console-keys counting, no-op pin stamp).
+- [x] **T2-bento** dashboard — committed `6f59346`. 7 widget kinds, preset 3+6+3 / 8+4 / 12x3 / projects-flow, carousel report band, 5-rung project tiles. Harness PASS x3 viewports + full board + bare; zero invariants findings. ~1460 lines (over estimate — future mc-scale dispatches should pre-split).
+- [x] **T2-mc** dashboard — committed `25c75ea` + consoleViews wiring `5f1ac7a`. 13 mc-* kinds, zones preset-authored. Probes 6/6 ×4 viewports + bare; invariants 7/7. Escalated → fixed: DataTable sort stamps, consoleViews wiring; row-click nav seam noted (ledger anchors cover units).
+- [x] **W5-fix (runtime)** — committed `14ffefd`. FlowInput.filter additive; projects flow narrows via matchProject before scoring/packing; render-layout passes Workspace filter. Themes adopt in their fix-loops.
+- [~] **V2** wave-2 validator — first run: **PASS** (zero product-code FAILs). Probes 6/0/0 ×3 themes ×3 viewports + bare ×3; commonality 3/3 Chart-from-parts, 0 local implementations; invariants 7/7; sentinel 3/3. 4 defects all HARNESS-CALIBRATION (owner: harness) — calibration agent dispatched; interactions re-run pending. Report: v2-report.md.
+- [~] **T2-meadow** dashboard — committed `dc0dda1`. Probes 6/6 at 1440p/3440/1280/390 + bare. Escalated: FlowInput lacked filter (W5-fix dispatched); interaction-suite gaps are harness calibration (G1 #3, console-keys counting, no-op pin stamp).
+- [x] **T2-bento** dashboard — committed `6f59346`. 7 widget kinds, preset 3+6+3 / 8+4 / 12x3 / projects-flow, carousel report band, 5-rung project tiles. Harness PASS x3 viewports + full board + bare; zero invariants findings. ~1460 lines (over estimate — future mc-scale dispatches should pre-split).
+- [x] **W5-fix (runtime)** — committed `14ffefd`. FlowInput.filter additive; projects flow narrows via matchProject before scoring/packing; render-layout passes Workspace filter. Themes adopt in their fix-loops.
 - [~] **P4-fix** rest-prop forwarding — committed with this ledger update
-- [ ] **T2** dashboards → V2 → **T3** project pages → V3 → **C1** → **G1** (owner) → **K1–K4**
+
+- [x] **harness calibration** — committed `40f57dd`. mc interactions 14/0/0; bento/meadow 11/0/2 (residual WARNs are T3 pendings). All V2 FAILs pass.
+- [x] **T3-bento** project page — committed `f2be410`. 6 kinds, grouped state tile, pulse band w/ carousel, live-verified. Escalations: pin-toggle/recency-ring metrics off import surface (chip + ProjectLed substitutions); ?ideation=new deep-link unparseable (routes frozen post-M1) — both G1/C1 items.
+- [ ] **V3** wave-3 validator — blocked on T3-*
+- [ ] **C1** compliance — blocked on V3
+- [ ] **G1** OWNER GATE — blocked on C1
+- [ ] **K1–K4** cleanup — blocked on G1
 
 The migration is done when ALL of the following hold:
 
