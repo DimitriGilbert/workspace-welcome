@@ -12,8 +12,6 @@
  * time-dependent function takes `now` as a defaulted parameter (SSR-safe).
  */
 
-import { format } from "date-fns";
-
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { freshness, tierFromFreshness } from "@/lib/recency";
@@ -95,58 +93,6 @@ export function activityCounts(
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
-}
-
-/** 0..4 fill level from a daily count, log-ish so single hits register. */
-export function heatLevel(count: number): number {
-  if (count <= 0) return 0;
-  if (count === 1) return 1;
-  if (count === 2) return 2;
-  if (count <= 4) return 3;
-  return 4;
-}
-
-export interface HeatCell {
-  date: Date;
-  count: number;
-  /** Cell sits after today (bottom-right corner of a partial final week). */
-  future: boolean;
-  label: string;
-}
-
-/** Local Monday of the week containing `date`, at local midnight. */
-function startOfWeek(date: Date): Date {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const shift = (d.getDay() + 6) % 7;
-  return new Date(d.getTime() - shift * DAY_MS);
-}
-
-/**
- * Heatmap grid from the Map activityCounts produces: columns are weeks
- * (oldest first), rows Monday..Sunday. Promoted verbatim from mission-control.
- */
-export function activityGridFromCounts(
-  counts: Map<string, number>,
-  weeks: number = 12,
-  now: number = Date.now(),
-): HeatCell[][] {
-  const firstMonday = startOfWeek(new Date(now)).getTime() - (weeks - 1) * 7 * DAY_MS;
-  const grid: HeatCell[][] = [];
-  for (let w = 0; w < weeks; w++) {
-    const column: HeatCell[] = [];
-    for (let d = 0; d < 7; d++) {
-      const date = new Date(firstMonday + (w * 7 + d) * DAY_MS);
-      const count = counts.get(dayKey(date.getTime())) ?? 0;
-      column.push({
-        date,
-        count,
-        future: date.getTime() > now,
-        label: `${format(date, "EEE, MMM d")} · ${count} active`,
-      });
-    }
-    grid.push(column);
-  }
-  return grid;
 }
 
 export interface WeeklyActivityPoint {
