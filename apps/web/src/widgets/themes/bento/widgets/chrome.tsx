@@ -122,7 +122,16 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
               <FolderPlus className="size-3.5" />
               <span className="hidden sm:inline">Add directory</span>
             </Button>
-            <Button variant="ghost" size="icon-sm" render={<Link to="/settings" aria-label="Settings" />}>
+            {/* The canvas renders a live 2rem×2rem resize hit zone on every
+                widget corner (z-20, pointer-events always on) — flush at the
+                top-right it swallows clicks meant for the gear, so park the
+                button exactly one corner-depth in from the edge. */}
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="mr-8"
+              render={<Link to="/settings" aria-label="Settings" />}
+            >
               <Settings className="size-3.5" />
             </Button>
           </div>
