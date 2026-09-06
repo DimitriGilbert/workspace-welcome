@@ -1,7 +1,6 @@
 /**
- * THE snitch-report view model — meadow's `toReportView` promoted out of
- * `components/designs/meadow/report-data.ts` (copied + extended there, this
- * is the one normalizer for the widget system; the design file is frozen).
+ * THE snitch-report view model — the one normalizer for the widget
+ * system.
  *
  * Folds a `ReportExport` (repo single-entry or scan comparative) into one
  * directly-consumable shape so parts never re-map: `cadence`, `alerts`,
