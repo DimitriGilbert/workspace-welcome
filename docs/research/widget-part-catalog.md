@@ -1,5 +1,13 @@
 # Widget & Part Catalog — the four dashboard concepts
 
+> **SUPERSEDED.** This catalog documents the six pre-system design prototypes
+> (`apps/web/src/components/designs/{mission-control,bento,meadow,mission-bento,ledger,swiss}/`),
+> which are deleted on the `widgets/system` branch (recoverable in git history). The live
+> widget system is `apps/web/src/widgets/` (`runtime/`, `contexts/`, `parts/`, `themes/`)
+> plus the shared primitives in `packages/ui` — see `docs/research/parts-reference.md` for
+> the current parts surface. The catalog is preserved as research; the owner reuses the
+> cataloging principle on other projects.
+
 Raw material for the widget-system redesign (blank canvas + widgets + parts architecture).
 Everything below was read out of the code on branch `redesign/dashboard-concepts`; every
 entry carries file paths so the planner can jump straight to the source. Design keys used
