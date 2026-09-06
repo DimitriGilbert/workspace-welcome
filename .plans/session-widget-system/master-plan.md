@@ -1018,16 +1018,22 @@ chart reading — ruling 5 overrides it (settled #9 as written), and the option 
 - [x] **T2-bento** dashboard — committed `6f59346`. 7 widget kinds, preset 3+6+3 / 8+4 / 12x3 / projects-flow, carousel report band, 5-rung project tiles. Harness PASS x3 viewports + full board + bare; zero invariants findings. ~1460 lines (over estimate — future mc-scale dispatches should pre-split).
 - [x] **T2-mc** dashboard — committed `25c75ea` + consoleViews wiring `5f1ac7a`. 13 mc-* kinds, zones preset-authored. Probes 6/6 ×4 viewports + bare; invariants 7/7. Escalated → fixed: DataTable sort stamps, consoleViews wiring; row-click nav seam noted (ledger anchors cover units).
 - [x] **W5-fix (runtime)** — committed `14ffefd`. FlowInput.filter additive; projects flow narrows via matchProject before scoring/packing; render-layout passes Workspace filter. Themes adopt in their fix-loops.
-- [~] **V2** wave-2 validator — first run: **PASS** (zero product-code FAILs). Probes 6/0/0 ×3 themes ×3 viewports + bare ×3; commonality 3/3 Chart-from-parts, 0 local implementations; invariants 7/7; sentinel 3/3. 4 defects all HARNESS-CALIBRATION (owner: harness) — calibration agent dispatched; interactions re-run pending. Report: v2-report.md.
-- [~] **T2-meadow** dashboard — committed `dc0dda1`. Probes 6/6 at 1440p/3440/1280/390 + bare. Escalated: FlowInput lacked filter (W5-fix dispatched); interaction-suite gaps are harness calibration (G1 #3, console-keys counting, no-op pin stamp).
-- [x] **T2-bento** dashboard — committed `6f59346`. 7 widget kinds, preset 3+6+3 / 8+4 / 12x3 / projects-flow, carousel report band, 5-rung project tiles. Harness PASS x3 viewports + full board + bare; zero invariants findings. ~1460 lines (over estimate — future mc-scale dispatches should pre-split).
-- [x] **W5-fix (runtime)** — committed `14ffefd`. FlowInput.filter additive; projects flow narrows via matchProject before scoring/packing; render-layout passes Workspace filter. Themes adopt in their fix-loops.
-- [~] **P4-fix** rest-prop forwarding — committed with this ledger update
-
-- [x] **harness calibration** — committed `40f57dd`. mc interactions 14/0/0; bento/meadow 11/0/2 (residual WARNs are T3 pendings). All V2 FAILs pass.
-- [x] **T3-bento** project page — committed `f2be410`. 6 kinds, grouped state tile, pulse band w/ carousel, live-verified. Escalations: pin-toggle/recency-ring metrics off import surface (chip + ProjectLed substitutions); ?ideation=new deep-link unparseable (routes frozen post-M1) — both G1/C1 items.
-- [ ] **V3** wave-3 validator — blocked on T3-*
-- [ ] **C1** compliance — blocked on V3
+- [x] **V2** wave-2 validator — **PASS** (zero product-code FAILs; 4 defects all harness-calibration, landed `40f57dd`). Probes 6/0/0 ×3 themes ×3 viewports + bare ×3; commonality 3/3 Chart-from-parts, 0 local implementations; invariants 7/7; sentinel 3/3. Report: v2-report.md.
+- [x] **T2-meadow** dashboard — committed `dc0dda1`. Probes 6/6 at 1440p/3440/1280/390 + bare.
+- [x] **T2-bento** dashboard — committed `6f59346`. 7 widget kinds, preset 3+6+3 / 8+4 / 12x3 / projects-flow, carousel report band, 5-rung tiles. ~1460 lines (pre-split next time).
+- [x] **T2-mc** dashboard — committed `25c75ea` + consoleViews wiring `5f1ac7a` + sort stamps via P4a. 13 mc-* kinds; probes 6/6 ×4 viewports + bare; invariants 7/7.
+- [x] **W5-fix (runtime)** — committed `14ffefd`. FlowInput.filter additive (matchProject narrowing before scoring/packing); render-layout passes Workspace filter.
+- [x] **harness calibration** — committed `40f57dd`. mc interactions 14/0/0; bento/meadow 11/0/2 (residual WARNs were T3 pendings). All V2 FAILs pass.
+- [x] **T3-bento** project page — committed `f2be410`. 6 kinds, grouped state tile, pulse band w/ carousel, live-verified. Escalations: pin-toggle/recency-ring off import surface (chip + ProjectLed used); ?ideation=new deep-link unparseable (routes frozen post-M1) — both G1/C1 items.
+- [x] **T3-meadow** project page — committed `70829c2`. 3 kinds (header/stats/7-tab sections), honey AI-cost cell, live-verified zero console errors. ~770 lines (split-rule flag).
+- [x] **T3-mc** project page — committed `ce463ca`. 4 kinds (state band/pulse/console/note) + fixed nested-shell 1x1 collapse via documented size prop (dashboard report rungs render correctly now). Live-verified full band + report channels + tabs; bare ok.
+- [~] **V3** wave-3 validator — first run: mc 6/6 ×3 viewports + bare + interactions 12/0/1; bento 6/6 + 11/0/2; meadow 6/6 at 3440/1280 but FAIL no-inner-scroll at 390 (D-V3-1) + harness --path gap (D-V3-2). Commonality 3/3; accepted deviations verified in code.
+- [x] **D-V3-1 fix (theme-meadow)** — committed `44a5469`. WidgetTabs in-content with flex-wrap at compact rung; 0 inner-scroll at 390, desktop single-row unchanged.
+- [x] **D-V3-2 fix (harness)** — committed `46b2614`. run.mjs --path flag + repo-root default; live 6/6 on the real project page.
+- [x] **D-C1-1 fix** — committed `3d857c3`. commits part floor (440px ResizeObserver, Table→List coercion below) + file-browser container-query pane clamp; bento 390 overflow 79px → 0px; legacy DOM byte-identical. Wave reports V1–V3 landed.
+- [x] **C1** compliance — **GREEN.** 17/18 first run → bento rows re-verified 6/6 normal+bare after D-C1-1; commonality 7 core parts @ 3/3 themes, 0 local implementations; invariants 7/7; sentinel 3/3. Report: c1-report.md
+- **G1 OWNER GATE — OPEN** (six decisions to the owner)
+- [ ] **K1–K4** cleanup — after G1; **K5** `/`-cutover flagged (G1 #6)
 - [ ] **G1** OWNER GATE — blocked on C1
 - [ ] **K1–K4** cleanup — blocked on G1
 
