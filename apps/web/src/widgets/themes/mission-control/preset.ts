@@ -2,7 +2,7 @@
  * Mission Control's theme preset (master plan §5 T1/T2).
  *
  * T2 dashboard port: the design's 3-zone console identity — a command band
- * (masthead vitals + the command bar), the fleet stage (triage board over
+ * (masthead vitals + the command bar + the action band), the fleet stage (triage board over
  * the ledger), the context zone (the tabbed root report) and the analytics
  * column (heatmap, donuts, dirty leaders, roots) — composed as stack
  * regions per §3.3 on the design's 12 column / 96px cell grid. Zones are
@@ -73,6 +73,10 @@ export const missionControlPreset: ThemePreset = {
         widgets: [
           { id: "masthead", widget: "mc-vitals", size: "12x1" },
           { id: "command-bar", widget: "mc-command-bar", size: "12x1" },
+          // The action band (owner gap): the workspace verbs as a
+          // first-class widget kind — reading order keeps it directly
+          // under the command bar, first-screen on every width.
+          { id: "actions", widget: "mc-actions", size: "12x1" },
         ],
       },
       {

@@ -11,22 +11,60 @@
  *
  * The board places this on the canvas ground beside the masthead (the shell
  * chrome is stripped for the `command-bar` node in custom.css), completing
- * the design's sticky header band.
+ * the design's sticky header band. The Actions menu keeps the workspace verbs
+ * reachable from the band's keyboard-and-filter home: it opens the same
+ * token-styled form parts the `mc-actions` band renders — one set of flows,
+ * two doors (§3.5: themes compose form parts, no new dialogs).
  */
-import { useMemo } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  FolderPlus,
+  PackagePlus,
+  Plus,
+  RefreshCw,
+  Search,
+  Terminal,
+  Zap,
+} from "lucide-react";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace-welcome/ui/components/dropdown-menu";
 
 import { relativeTime } from "@/lib/format";
+import { FormAddRoot } from "@/widgets/parts/form/add-root";
+import { FormCloneScript } from "@/widgets/parts/form/clone-script";
+import { FormCreateProject } from "@/widgets/parts/form/create-project";
+import { FormReportRun } from "@/widgets/parts/form/report-run";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
 import { fleetMatches } from "./fleet-ledger";
 
+/**
+ * The console's action-button register — square, hairline, mono micro-caps,
+ * accent on hover (the design's command-button treatment, shared with the
+ * `mc-actions` band so the two doors read as one register).
+ */
+export const MC_ACTION_BUTTON = cn(
+  "inline-flex h-8 items-center gap-1.5 border border-(--mc-line) px-2.5",
+  "font-mono text-[10px] uppercase tracking-[0.14em] text-foreground outline-none transition-colors",
+  "hover:border-(--mc-accent) hover:text-(--mc-accent)",
+  "focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+);
+
 export function McCommandBar(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
+
+  const [addRootOpen, setAddRootOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [cloneOpen, setCloneOpen] = useState(false);
 
   const visibleCount = useMemo(
     () => workspace.projects.filter((p) => fleetMatches(p, workspace.filter)).length,
@@ -43,7 +81,8 @@ export function McCommandBar(_props: RegisteredWidgetProps) {
   const scanning = workspace.scan.isFetching;
 
   return (
-    <WidgetShell className="h-full w-full">
+    <>
+      <WidgetShell className="h-full w-full">
       <div className="flex h-full min-h-0 w-full min-w-0 flex-wrap items-center content-center gap-x-4 gap-y-2.5 overflow-hidden px-4 pb-2 min-[2200px]:px-6">
         <div className="relative min-w-0">
           <Search
@@ -80,16 +119,35 @@ export function McCommandBar(_props: RegisteredWidgetProps) {
           <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground xl:inline">
             {scanning ? "Syncing…" : `Synced ${syncedLabel}`}
           </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button type="button" className={MC_ACTION_BUTTON}>
+                  <Plus aria-hidden className="size-3" />
+                  Actions
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem onClick={() => setAddRootOpen(true)}>
+                <FolderPlus className="size-4" /> Add directory
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+                <PackagePlus className="size-4" /> Create project
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setReportOpen(true)}>
+                <Zap className="size-4" /> Generate report
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setCloneOpen(true)}>
+                <Terminal className="size-4" /> Clone script
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={() => workspace.refresh()}
             disabled={scanning}
-            className={cn(
-              "inline-flex h-8 items-center gap-1.5 border border-(--mc-line) px-2.5",
-              "font-mono text-[10px] uppercase tracking-[0.14em] text-foreground outline-none transition-colors",
-              "hover:border-(--mc-accent) hover:text-(--mc-accent)",
-              "focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-            )}
+            className={MC_ACTION_BUTTON}
           >
             <RefreshCw aria-hidden className={cn("size-3", scanning && "animate-spin")} />
             Rescan
@@ -97,5 +155,18 @@ export function McCommandBar(_props: RegisteredWidgetProps) {
         </div>
       </div>
     </WidgetShell>
+    <FormAddRoot
+      open={addRootOpen}
+      onOpenChange={setAddRootOpen}
+      onAdded={() => workspace.refresh()}
+    />
+    <FormCreateProject
+      open={createOpen}
+      onOpenChange={setCreateOpen}
+      onCreated={() => workspace.refresh()}
+    />
+    <FormReportRun open={reportOpen} onOpenChange={setReportOpen} />
+    <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />
+    </>
   );
 }

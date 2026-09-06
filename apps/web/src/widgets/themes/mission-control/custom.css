@@ -13,9 +13,10 @@
  * Chrome decisions (ported from the design):
  * - Panel widgets (reports, analytics, pulse, note) read as the design's
  *   `mc-panel`: raised flat panel, hairline border, micro-caps header.
- * - Stage widgets (masthead, command bar, triage, ledger, state band) sit
- *   on the canvas — their shells strip to transparent; the widgets carry
- *   the design's own surfaces (the triage panel, the joined state band).
+ * - Stage widgets (masthead, command bar, actions band, triage, ledger,
+ *   state band) sit on the canvas — their shells strip to transparent; the
+ *   widgets carry the design's own surfaces (the triage panel, the joined
+ *   state band).
  * - Tabs render as the design's `mc-tabs` register; tables as `mc-th`
  *   ledgers with the faint zebra.
  */
@@ -76,6 +77,7 @@
 
 [data-ww-theme="mission-control"] [data-widget="masthead"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="command-bar"] > [data-slot="widget-shell"],
+[data-ww-theme="mission-control"] [data-widget="actions"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="triage"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="ledger"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="state-band"] > [data-slot="widget-shell"] {
@@ -85,6 +87,7 @@
 
 [data-ww-theme="mission-control"] [data-widget="masthead"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="command-bar"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="actions"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="triage"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="ledger"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="state-band"] [data-slot="widget-shell-header"],

@@ -16,9 +16,15 @@
  * The report channels (`mc-report-*`, T2) are reused on the project page:
  * they read `ReportContext`, which the project stack provides per-project
  * (`{ kind: "repo", path }`).
+ *
+ * The action band (`mc-actions`, owner gap) makes the workspace verbs a
+ * first-class kind: it composes the token-styled form parts (§3.5) — the
+ * same parts the command bar's Actions menu opens — so every flow has a
+ * board surface without a second flow implementation.
  */
 import type { WidgetDef } from "@/widgets/registry";
 
+import { McActions } from "./actions";
 import { McActivityHeatmap, McAlertsDonut, McDirtyLeaders, McStackMix } from "./analytics";
 import { McCommandBar } from "./command-bar";
 import { McFleetLedger } from "./fleet-ledger";
@@ -45,13 +51,22 @@ export const widgetDefs: readonly WidgetDef[] = [
     hosts: [],
   },
   {
+    id: "mc-actions",
+    title: "Actions",
+    component: McActions,
+    requires: ["workspace"],
+    defaultSize: "3x1",
+    min: "2x1",
+    hosts: ["form-add-root", "form-create-project", "form-report-run", "form-clone-script"],
+  },
+  {
     id: "mc-command-bar",
     title: "Command bar",
     component: McCommandBar,
     requires: ["workspace"],
     defaultSize: "2x1",
     min: "1x1",
-    hosts: [],
+    hosts: ["form-add-root", "form-create-project", "form-report-run", "form-clone-script"],
   },
   {
     id: "mc-triage",
