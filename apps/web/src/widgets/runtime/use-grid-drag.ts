@@ -22,7 +22,10 @@
  *
  * Clamps: motion never exceeds the grid (x within `[0, columns - cols]`,
  * y ≥ 0) and resize never goes below the registry `min` (supplied per widget
- * by the canvas via the registry lookup). No new dependencies — hand-rolled
+ * by the canvas via the registry lookup). Moves that would overlap an
+ * immovable widget (authored anchor or session-pinned) are REFUSED — the
+ * widget stays at its pre-move placement and the refusal is announced; the
+ * packer never pushes fixed blocks. No new dependencies — hand-rolled
  * (settled).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -56,6 +59,20 @@ export interface DragPlacement {
   y: number;
   cols: number;
   rows: number;
+  /** Immovable for move-collision: authored `at` anchors and session-pinned
+   * widgets never yield their cells (owner decision — the packer has no
+   * pushing), so a move landing on one is REFUSED. Absent = movable. */
+  fixed?: boolean;
+}
+
+/** Axis-aligned rectangle overlap in grid cells — the move-collision test. */
+function placementsOverlap(a: DragPlacement, b: DragPlacement): boolean {
+  return (
+    a.x < b.x + b.cols &&
+    b.x < a.x + a.cols &&
+    a.y < b.y + b.rows &&
+    b.y < a.y + a.rows
+  );
 }
 
 export interface UseGridDragOptions {
@@ -158,6 +175,21 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
     setMessage(text);
   }, []);
 
+  /**
+   * The first immovable widget (`fixed: true` — authored anchor or pinned)
+   * whose cells the target would overlap, or null. Movable widgets are never
+   * blockers: the re-pack relocates them around the committed anchor without
+   * pushing (owner decision — refuse rather than displace fixed blocks).
+   */
+  const findFixedBlocker = useCallback((target: DragPlacement): DragPlacement | null => {
+    for (const other of latest.current.placements) {
+      if (other.id === target.id || other.regionId !== target.regionId) continue;
+      if (other.fixed !== true) continue;
+      if (placementsOverlap(target, other)) return other;
+    }
+    return null;
+  }, []);
+
   const commitPlacement = useCallback((next: DragPlacement, mode: DragMode): void => {
     const { pageId, widgets } = latest.current;
     const current = latest.current.placements.find((p) => p.id === next.id);
@@ -252,10 +284,23 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
       if (interaction === null || event.pointerId !== interaction.pointerId) return;
       const preview = interaction.preview;
       const mode = interaction.mode;
+      const { widgets } = latest.current;
       endInteraction();
+      if (mode === "move") {
+        const blocker = findFixedBlocker(preview);
+        if (blocker !== null) {
+          // Refuse: the drop target would overlap a widget that can't move.
+          // Nothing was committed during the gesture, so the widget is still
+          // at its pre-drag placement — only the ghost needs to go.
+          const label = widgets.get(interaction.widgetId)?.label ?? interaction.widgetId;
+          const blockerLabel = widgets.get(blocker.id)?.label ?? blocker.id;
+          announce(`${label} can't move there — ${blockerLabel} occupies that spot`);
+          return;
+        }
+      }
       commitPlacement(preview, mode);
     },
-    [commitPlacement, endInteraction],
+    [announce, commitPlacement, endInteraction, findFixedBlocker],
   );
 
   const onPointerCancel = useCallback(
@@ -370,9 +415,16 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
         announce(`${label} is already at the ${step.word} edge`);
         return;
       }
-      commitPlacement({ ...origin, x, y }, "move");
+      const next = { ...origin, x, y };
+      const blocker = findFixedBlocker(next);
+      if (blocker !== null) {
+        const blockerLabel = widgets.get(blocker.id)?.label ?? blocker.id;
+        announce(`${label} can't move ${step.word} — ${blockerLabel} occupies that spot`);
+        return;
+      }
+      commitPlacement(next, "move");
     },
-    [announce, commitPlacement, findPlacement, revertToSessionStart],
+    [announce, commitPlacement, findFixedBlocker, findPlacement, revertToSessionStart],
   );
 
   const resizeKeyDown = useCallback(

@@ -29,6 +29,10 @@
  *
  * Affordances (drag handle + E/S/SE resize handles) are canvas-rendered
  * buttons inside the frame, wired to `useGridDrag` — the dnd-kit-swap seam.
+ * The frame's stretch selector targets non-button children only, so the
+ * affordance buttons keep their authored hit-zone sizes instead of being
+ * stretched across the widget (which once made edge clicks trigger drag/
+ * resize everywhere — content must win everywhere but the small zones).
  * The drag ghost is a snapped outline positioned by `calc` over the same
  * grid metrics; it exists only during a pointer gesture, i.e. client-only.
  *
@@ -201,10 +205,19 @@ function GripGlyph() {
   );
 }
 
+/**
+ * Resize hit zones (W3): small, precise, invisible strip buttons — the
+ * CENTERED 20% of the E/S edge, 2rem deep inward; the SE corner is 2rem ×
+ * 2rem. They are live for pointers unconditionally (`pointer-events: auto`,
+ * never container-level pointer math), so ONLY these zones intercept resize
+ * gestures and all content elsewhere (buttons, links, charts, tabs) receives
+ * pointer events normally. They remain focusable <button>s — the keyboard
+ * resize path depends on it.
+ */
 const RESIZE_HANDLES: readonly { edge: ResizeEdge; word: string; className: string }[] = [
-  { edge: "e", word: "east", className: "top-3 right-0 bottom-3 w-2 cursor-ew-resize" },
-  { edge: "s", word: "south", className: "right-3 bottom-0 left-3 h-2 cursor-ns-resize" },
-  { edge: "se", word: "south-east", className: "right-0 bottom-0 size-4 cursor-nwse-resize" },
+  { edge: "e", word: "east", className: "top-[40%] right-0 bottom-[40%] w-8 cursor-ew-resize" },
+  { edge: "s", word: "south", className: "right-[40%] bottom-0 left-[40%] h-8 cursor-ns-resize" },
+  { edge: "se", word: "south-east", className: "right-0 bottom-0 size-8 cursor-nwse-resize" },
 ];
 
 /** Snapped ghost outline — pointer-gesture preview only (client-only by
@@ -299,6 +312,9 @@ export function GridCanvas({
           y: placed.y,
           cols: placed.cols,
           rows: placed.rows,
+          // Authored anchors and session-pinned widgets can't be displaced,
+          // so moves landing on them are refused by the controller.
+          fixed: placed.pinned || placed.node.at !== undefined,
         })),
       ),
     [packed],
@@ -353,7 +369,7 @@ export function GridCanvas({
                 data-size={sizeClass}
                 data-pinned={placed.pinned ? "" : undefined}
                 data-dragging={dragging ? "" : undefined}
-                className="group relative min-h-0 min-w-0 [&>*]:h-full [&>*]:min-h-0 [&>*]:min-w-0"
+                className="group relative min-h-0 min-w-0 [&>*:not(button)]:h-full [&>*]:min-h-0 [&>*]:min-w-0"
                 style={{
                   gridColumn: `${placed.x + 1} / span ${placed.cols}`,
                   gridRow: `${placed.y + 1} / span ${placed.rows}`,
@@ -383,8 +399,11 @@ export function GridCanvas({
                         data-resize-handle={handle.edge}
                         aria-label={`Resize ${label} ${handle.word}. Arrow keys adjust by one cell; Escape returns to the session start position.`}
                         className={cn(
-                          "absolute z-20 touch-none rounded-sm opacity-0 pointer-events-none",
-                          "group-hover:pointer-events-auto group-hover:opacity-100 hover:bg-muted/40",
+                          // Live hit zone: always pointer-events-auto (small
+                          // by construction above), visually revealed on
+                          // hover/focus only.
+                          "absolute z-20 touch-none rounded-sm opacity-0",
+                          "group-hover:opacity-100 hover:bg-muted/40",
                           "focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-(--pinned-accent,var(--primary)) focus-visible:outline-none",
                           handle.className,
                         )}
