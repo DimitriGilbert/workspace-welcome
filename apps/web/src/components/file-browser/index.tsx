@@ -207,14 +207,19 @@ export function FileBrowser({
           </p>
         ) : null}
         {/* Fixed shared height so both panes are equal and scroll
-            independently; the resize handle stretches the full height. */}
+            independently; the resize handle stretches the full height. The
+            row is the pane queries' container: under a narrow container
+            (widget tile, phone viewport) the fixed-width tree pane yields —
+            max-width clamps the persisted/dragged px width to a 55% share so
+            the min-w-0 viewer pane keeps the rest. Wide containers never
+            match the query and keep the exact legacy split. */}
         <div
           ref={splitRef}
-          className="flex min-w-0 items-stretch gap-0"
+          className="flex min-w-0 items-stretch gap-0 @container"
           style={{ height }}
         >
           <div
-            className="shrink-0 overflow-y-auto"
+            className="shrink-0 overflow-y-auto @max-[640px]:min-w-0 @max-[640px]:max-w-[55%]"
             style={{ width: `${treeWidth}px` }}
           >
             <FileTree

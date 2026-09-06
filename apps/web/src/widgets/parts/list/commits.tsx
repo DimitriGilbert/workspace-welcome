@@ -1,5 +1,5 @@
-import type { ComponentPropsWithoutRef } from "react";
-import { useState } from "react";
+import type { ComponentPropsWithoutRef, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CommitGraph } from "@workspace-welcome/ui/components/commit-graph";
 import type { CommitGraphEntry } from "@workspace-welcome/ui/components/commit-graph";
@@ -28,9 +28,20 @@ import { useProject } from "@/widgets/contexts/project-context";
  * With `view` set the part renders that one view; without it a WidgetTabs
  * switcher (the ONE tabs implementation) picks among all three. No inner
  * scroller lives here — height is the widget ladder's job.
+ *
+ * The table presentation has a hard floor: the DataTable's min-content is
+ * ~420px (three columns of commit register), so below `TABLE_FLOOR_PX` of
+ * rendered width the part self-degrades — the default becomes the list
+ * register and the switcher drops the Table tab (the shell ruling's part
+ * half: pixel variance WITHIN a rung is the part's job). Above the floor
+ * nothing changes.
  */
 
 export type CommitsView = "table" | "graph" | "list";
+
+/** Rendered width under which the DataTable cannot fit a container
+ * (~420px min-content + slack) — micro rungs get non-table views. */
+const TABLE_FLOOR_PX = 440;
 
 export interface CommitsListProps extends ComponentPropsWithoutRef<"div"> {
   /** Commit cap; default 200 — the provider's cached entry. */
@@ -86,6 +97,23 @@ function commitAge(timestamp: number): string {
   return relativeTime(new Date(timestamp * 1000).toISOString());
 }
 
+/** Observe an element's content-box width; `null` until the first
+ * observation (SSR / first frame renders the wide-container default). */
+function useObservedWidth(ref: RefObject<HTMLDivElement | null>): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) setWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return width;
+}
+
 export function CommitsList({
   limit = 200,
   view,
@@ -94,15 +122,20 @@ export function CommitsList({
 }: CommitsListProps) {
   const path = useProject().path;
   const commitLog = useCommitLogQuery(path, limit);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const width = useObservedWidth(rootRef);
+  const tableFits = width === null || width >= TABLE_FLOOR_PX;
   const [tab, setTab] = useState<CommitsView>("table");
-  const active: CommitsView = view ?? tab;
+  const tabs = tableFits ? VIEW_TABS : VIEW_TABS.filter((t) => t.id !== "table");
+  const active: CommitsView =
+    view ?? (tab === "table" && !tableFits ? "list" : tab);
   const commits = commitLog.data ?? [];
 
   return (
-    <div className={cn("flex min-h-0 min-w-0 flex-col gap-2", className)} {...rest}>
+    <div ref={rootRef} className={cn("flex min-h-0 min-w-0 flex-col gap-2", className)} {...rest}>
       {view === undefined ? (
         <WidgetTabs
-          tabs={VIEW_TABS}
+          tabs={tabs}
           active={active}
           onChange={(id) => {
             const next = toView(id);
