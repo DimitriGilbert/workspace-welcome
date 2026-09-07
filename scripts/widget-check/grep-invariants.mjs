@@ -171,13 +171,16 @@ function scanColorLiterals() {
     ...walkFiles(UI_COMPONENTS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file)) || file.endsWith(".css")),
   ];
   for (const file of files) {
-    // Theme tokens.css files declare the preset's token VALUES — literals on
-    // custom-property declaration lines are their purpose (§3.6.1/invariant 3).
-    // Consumption sites (property: var/color literals) stay zero-tolerance.
-    const isThemeTokens =
-      file.includes(`${path.sep}themes${path.sep}`) && file.endsWith("tokens.css");
+    // Theme tokens.css AND scheme-*.css files declare the preset's token
+    // VALUES — literals on custom-property declaration lines are their
+    // purpose (§3.6.1/invariant 3; schemes ship the full manifest per color
+    // scheme). Consumption sites (property: var/color literals) stay
+    // zero-tolerance.
+    const isThemeTokenSheet =
+      file.includes(`${path.sep}themes${path.sep}`) &&
+      (file.endsWith("tokens.css") || path.basename(file).startsWith("scheme-"));
     const lines = readLines(file);
-    const scanned = isThemeTokens
+    const scanned = isThemeTokenSheet
       ? lines.filter((line) => !/^\s*--[a-z0-9-]+\s*:/i.test(line))
       : lines;
     const hits = countColorLiterals(scanned);

@@ -81,6 +81,37 @@ export function providerStackKeys(layout: Pick<PageLayout, "context" | "report">
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/** Format + registry-min check shared by a node's base size and its v2
+ * per-breakpoint overrides (`label` names the field in the message). */
+function validateFootprint(
+  size: SizeClass,
+  label: string,
+  def: WidgetMeta,
+  region: string,
+  nodeId: string,
+  violations: Violations,
+): void {
+  const parsed = parseSize(size);
+  if (parsed === null) {
+    violations.add({
+      region,
+      node: nodeId,
+      kind: "size-format",
+      message: `${label} "${size}" is not a well-formed SizeClass`,
+    });
+    return;
+  }
+  const min = def.min === undefined ? null : parseSize(def.min);
+  if (min !== null && rankOf(parsed) < rankOf(min)) {
+    violations.add({
+      region,
+      node: nodeId,
+      kind: "below-min",
+      message: `${label} "${size}" is below the registry min "${def.min}" for "${def.id}"`,
+    });
+  }
+}
+
 class Violations {
   readonly list: LayoutViolation[] = [];
 
@@ -135,24 +166,15 @@ function validateNode(
         message: `widget "${def.id}" requires [${missing.join(", ")}] — not in the page provider stack`,
       });
     }
-    const parsed = parseSize(node.size);
-    if (parsed === null) {
-      violations.add({
-        region,
-        node: node.id,
-        kind: "size-format",
-        message: `size "${node.size}" is not a well-formed SizeClass`,
-      });
-    } else {
-      const min = def.min === undefined ? null : parseSize(def.min);
-      if (min !== null && rankOf(parsed) < rankOf(min)) {
-        violations.add({
-          region,
-          node: node.id,
-          kind: "below-min",
-          message: `size "${node.size}" is below the registry min "${def.min}" for "${def.id}"`,
-        });
-      }
+    validateFootprint(node.size, `size`, def, region, node.id, violations);
+    // v2 per-breakpoint overrides pack at the narrower boards — same format
+    // and registry-min rules as the base size; an override may not cheat the
+    // widget's honest floor by naming a footprint the registry rejects.
+    if (node.tablet !== undefined) {
+      validateFootprint(node.tablet, "tablet size", def, region, node.id, violations);
+    }
+    if (node.phone !== undefined) {
+      validateFootprint(node.phone, "phone size", def, region, node.id, violations);
     }
   }
 
@@ -226,11 +248,15 @@ export function validatePageLayout(input: ValidateLayoutInput): LayoutViolation[
   const violations = new Violations(input.label);
   const { layout } = input;
 
-  if (layout.version !== 1) {
+  // Format generations 1|2 — v2 adds the per-breakpoint node overrides. No
+  // saved-layout store exists (grid-session is module memory), so presets
+  // always re-pack from code; the version is the contract a future
+  // persistence layer stores and checks against.
+  if (layout.version !== 1 && layout.version !== 2) {
     violations.add({
       region: "(page)",
       kind: "version",
-      message: `unsupported PageLayout version ${String(layout.version)}`,
+      message: `unsupported PageLayout version ${String(layout.version)} (supported: 1, 2)`,
     });
   }
   if (layout.context !== "workspace" && layout.context !== "project") {

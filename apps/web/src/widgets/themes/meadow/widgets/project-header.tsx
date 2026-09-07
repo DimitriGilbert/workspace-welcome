@@ -44,8 +44,8 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
 
   const back = (
     <Link
-      to="/app/$theme"
-      params={{ theme: "meadow" }}
+      to="/"
+      search={{ preset: "meadow" }}
       className="meadow-focus group inline-flex shrink-0 items-center gap-1.5 rounded-full text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       aria-label="Back to the Meadow dashboard"
     >
@@ -99,8 +99,8 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
       </span>
     );
 
-  const commands = (
-    <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+  const commandButtons = (
+    <>
       <Button size="sm" onClick={() => project.open("editor")}>
         <FolderOpen className="size-3.5" /> Open editor
       </Button>
@@ -123,6 +123,12 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
         )}
         {project.ide.installingLabel ?? (project.ide.starting ? "Starting IDE…" : "Open IDE")}
       </Button>
+    </>
+  );
+
+  const commands = (
+    <div className="ml-auto flex shrink-0 flex-wrap items-center gap-2">
+      {commandButtons}
     </div>
   );
 
@@ -175,6 +181,67 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
     </div>
   );
 
+  /** The right-rail identity card (the preset's 4x3 placement): trail over
+   * identity over touched/alerts, with the command cluster as a 2x2 grid
+   * pinned to the card's foot — a real design for the rail footprint, not
+   * the wrapping full-width row squeezed narrow. */
+  const railCard = (
+    <div className="flex h-full w-full min-w-0 flex-col gap-3 overflow-hidden">
+      <div className="flex shrink-0 items-center gap-3">
+        {back}
+        <span
+          className="min-w-0 truncate text-[11px] text-muted-foreground"
+          title={project.path}
+        >
+          {pathBasename(project.path)}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          render={<Link to="/settings" />}
+          aria-label="Settings"
+          title="Settings"
+          className="ml-auto"
+        >
+          <Settings aria-hidden className="size-3.5" />
+        </Button>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            aria-hidden
+            className="flex size-10 shrink-0 items-center justify-center rounded-full"
+            style={{
+              color: "var(--recency-fresh)",
+              background:
+                "color-mix(in oklch, var(--recency-fresh) 9%, transparent)",
+            }}
+          >
+            <StackIcon className="size-5" />
+          </span>
+          {identity}
+          {/* Touched + alert chips ride the identity line (subtitle ban:
+              no standalone metadata row under the title). */}
+          <span className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+            {touched}
+            {p !== null
+              ? p.alerts.map((a) => (
+                  <AlertBadge
+                    key={a.code}
+                    severity={a.severity}
+                    message={a.message}
+                  />
+                ))
+              : null}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid shrink-0 grid-cols-2 gap-2">{commandButtons}</div>
+    </div>
+  );
+
   return (
     <WidgetShell
       size={{ cols: size.cols, rows: size.rows }}
@@ -187,8 +254,12 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
             </span>
           </div>
         ),
-        // Every placement above 1x1 renders the ONE wrapping identity block
-        // (trail, name, touched, commands, alerts) — the design's single
+        // The rail rung (authored at the preset's exact 4x3 footprint — the
+        // area-ranked ladder puts 4x3 above 12x1, so wide short placements
+        // keep the wrapping row): identity card for the 4-column rail.
+        "4x3": railCard,
+        // Wide placements render the ONE wrapping identity block (trail,
+        // name, touched, commands, alerts) — the design's single
         // presentation at every width.
         "2x1": full,
       }}

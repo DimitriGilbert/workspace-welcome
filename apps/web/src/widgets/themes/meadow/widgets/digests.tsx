@@ -140,8 +140,13 @@ function ReportNumeralsRung() {
 }
 
 /** The tabbed snitch report as its own widget. The full presentation is
- * report.tsx's `MeadowReport` — band placements and everything from 2x3 up. */
+ * report.tsx's `MeadowReport` — band placements and everything from 2x3 up.
+ * The heading follows the page's report scope: the dashboard's scan scope
+ * reads "Workspace report", a project page's repo scope reads "Project
+ * report" (the same kind is a rail card there). */
 export function MeadowReportDigest({ size }: RegisteredWidgetProps) {
+  const kind = useReport().scope.kind;
+  const title = kind === "repo" ? "Project report" : "Workspace report";
   return (
     <WidgetShell
       size={{ cols: size.cols, rows: size.rows }}
@@ -152,13 +157,13 @@ export function MeadowReportDigest({ size }: RegisteredWidgetProps) {
         "2x2": <ReportNumeralsRung />,
         "2x3": (
           <Fill>
-            <MeadowReport title="Workspace report" />
+            <MeadowReport title={title} />
           </Fill>
         ),
       }}
     >
       <Fill>
-        <MeadowReport title="Workspace report" />
+        <MeadowReport title={title} />
       </Fill>
     </WidgetShell>
   );

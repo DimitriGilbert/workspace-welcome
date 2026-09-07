@@ -1,5 +1,5 @@
 /**
- * PageLayout v1 — the preset format (master plan §3.3).
+ * PageLayout — the preset format (master plan §3.3), format generations 1|2.
  *
  * Pure data, JSON-shape by construction: presets reference widgets by registry id and
  * carry only serializable values. `props` is `Record<string, JsonValue>` — never JSX;
@@ -21,6 +21,13 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
  * - `widget` — registry key (must resolve in `widgetRegistry` at W4).
  * - `size` — authored footprint as a `SizeClass`; validate-layout asserts it exists
  *   on the ladder or resolves down it.
+ * - `tablet` / `phone` — optional v2 footprint overrides for the narrower boards.
+ *   The canvas packs with the override that matches the ACTIVE breakpoint
+ *   (`size` stays the desktop footprint); validate-layout runs every defined
+ *   override through the same format + registry-min checks as `size`. This is
+ *   the sizing-law seam: static desktop spans need not degenerate when the
+ *   board narrows — a preset re-rungs the node instead (bento v2 signals band,
+ *   project hero).
  * - `at` — optional anchor `{ x, y }` in cells; when omitted the packer places the
  *   node in reading order. Manual drags shadow `at` for the session.
  * - `slots` — authored composite children (settled #3): named groups of child
@@ -31,9 +38,25 @@ export interface WidgetNode {
   id: string;
   widget: string;
   size: SizeClass;
+  tablet?: SizeClass;
+  phone?: SizeClass;
   at?: { x: number; y: number };
   props?: Record<string, JsonValue>;
   slots?: Record<string, WidgetNode[]>;
+}
+
+/** The board widths a preset's `columns` names — also the override keys. */
+export type BoardBreakpoint = "desktop" | "tablet" | "phone";
+
+/**
+ * The footprint a node packs with at one board width: the breakpoint override
+ * when defined, else the base `size`. Pure lookup — the packer and the canvas
+ * resolve through this so overrides shadow `size` exactly once, in one place.
+ */
+export function nodeSizeForBreakpoint(node: WidgetNode, breakpoint: BoardBreakpoint): SizeClass {
+  if (breakpoint === "tablet" && node.tablet !== undefined) return node.tablet;
+  if (breakpoint === "phone" && node.phone !== undefined) return node.phone;
+  return node.size;
 }
 
 /**
@@ -52,8 +75,15 @@ export type RegionNode =
     };
 
 /**
- * A page preset (v1).
+ * A page preset (v1 | v2).
  *
+ * - `version` — format generation. v1 is the original shape; v2 adds the
+ *   per-breakpoint `WidgetNode.tablet`/`phone` overrides. There is NO saved-layout
+ *   store today (the session placement store is module memory by settled #4), so
+ *   every load re-packs from preset code and a version bump can never go stale —
+ *   the field is the contract a future persistence layer must store alongside
+ *   saved layouts and drop entries whose stored version ≠ the preset's current
+ *   version. validate-layout accepts exactly 1 and 2.
  * - `context` — drives the provider stack (§3.4): `"workspace"` mounts
  *   Settings > Workspace > Report(scan); `"project"` mounts
  *   Settings > Project (nests Workspace) > Report(repo).
@@ -64,7 +94,7 @@ export type RegionNode =
  * - `regions` — ordered page regions (stack | flow).
  */
 export interface PageLayout {
-  version: 1;
+  version: 1 | 2;
   context: "workspace" | "project";
   report?: false;
   columns: { desktop: number; tablet: number; phone: number };

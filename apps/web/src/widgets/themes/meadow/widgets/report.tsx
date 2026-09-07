@@ -20,7 +20,6 @@
  */
 
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import type { LucideIcon } from "lucide-react";
 import {
   BadgeCheck,
@@ -45,7 +44,7 @@ import {
   RatioBar,
 } from "./bits";
 import type { ReportView } from "@/lib/report-view";
-import { ageMs, formatCost, formatTokens, relativeTime } from "@/lib/format";
+import { ageMs, formatCost, formatTokens } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
 
 /** git-snitch period presets; "all" = no period flag (full history). */
@@ -92,7 +91,7 @@ export function MeadowReport({ title }: MeadowReportProps) {
   return (
     <section
       aria-labelledby={reportTitleId(title)}
-      className="meadow-panel flex flex-col gap-3 p-4"
+      className="meadow-panel flex h-full min-h-0 w-full flex-col gap-3 p-4"
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <span
@@ -339,14 +338,16 @@ const SEVERITY_BAR: Record<"info" | "warning" | "critical", string> = {
 };
 
 function ReportCharts({ view, tab }: { view: ReportView; tab: ReportTab }) {
-  const report = useReport();
   return (
-    <div role="tabpanel" className="flex flex-col gap-3">
+    // Fills the card's remaining height so the band placement's cadence
+    // area grows with the box (the sizing law: the chart renders whenever
+    // the box fits it) instead of leaving dead space under the panel.
+    <div role="tabpanel" className="flex min-h-0 flex-1 flex-col gap-3">
       {tab === "activity" ? (
         <>
           <CadenceArea
             data={view.cadence}
-            className="h-28 min-h-0"
+            className="min-h-20 flex-1"
             label={`Commits per period across ${view.projectCount} ${view.projectCount === 1 ? "repository" : "repositories"}`}
           />
           <div className="grid grid-cols-3 gap-2">
@@ -447,23 +448,6 @@ function ReportCharts({ view, tab }: { view: ReportView; tab: ReportTab }) {
             </div>
           </div>
         )
-      ) : null}
-
-      {report.generatedAt !== null ? (
-        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[9px] text-muted-foreground">
-          Generated {relativeTime(report.generatedAt)} ·{" "}
-          {report.key !== null ? (
-            <Link
-              to="/reports/$key"
-              params={{ key: report.key }}
-              className="meadow-focus inline-flex items-center gap-1 rounded-full font-medium hover:underline"
-              style={{ color: "var(--recency-fresh)" }}
-            >
-              <FileText aria-hidden className="size-3" />
-              Full HTML report
-            </Link>
-          ) : null}
-        </p>
       ) : null}
     </div>
   );

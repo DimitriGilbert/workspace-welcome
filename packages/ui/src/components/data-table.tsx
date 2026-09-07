@@ -99,6 +99,12 @@ export function DataTable<TData extends RowData>({
     data,
     state: { sorting },
     onSortingChange: setSorting,
+    // Ratio engine: authored `size` is the width contract. The library's
+    // built-in minSize default (20px) would silently clamp every small
+    // authored size toward a uniform width — erasing content-tight ratios
+    // (SEV/VALUE columns relaxing into void-heavy thirds). The floor is
+    // therefore 0 unless a column sets its own `minSize`.
+    defaultColumn: { minSize: 0 },
   });
 
   const totalSize = Math.max(table.getTotalSize(), 1);

@@ -10,7 +10,8 @@
  */
 import type { ConsoleView } from "../runtime/render-layout";
 import type { PageLayout, WidgetNode } from "../runtime/layout-types";
-import { SIZE_LADDER } from "../runtime/size-class";
+import { SIZE_LADDER, parseSize, rankOf } from "../runtime/size-class";
+import type { SizeClass } from "../runtime/size-class";
 import { widgetRegistry } from "../registry";
 
 /** The lab scope's slug — `lab-tokens.css` declares its fallback tokens. */
@@ -30,11 +31,23 @@ function ladderCatalogNodes(): WidgetNode[] {
   const nodes: WidgetNode[] = [];
   for (const [id, def] of widgetRegistry) {
     if (def.requires.includes("project")) continue;
+    // Rungs below a kind's authored floor would fail validate-layout's min
+    // check (e.g. mc-actions min "2x1") — the lab exercises every LEGAL
+    // rung, which is the placement contract the ladder exists to prove.
+    const minRank = rankOfSizeClass(def.min);
     for (const rung of SIZE_LADDER) {
+      if (rankOfSizeClass(rung) < minRank) continue;
       nodes.push({ id: `lab-${id}-${rung}`, widget: id, size: rung });
     }
   }
   return nodes;
+}
+
+/** The ladder's deterministic order (`rankOf`) as a comparable rank. */
+function rankOfSizeClass(size: SizeClass | undefined): number {
+  if (size === undefined) return 0;
+  const parsed = parseSize(size);
+  return parsed === null ? 0 : rankOf(parsed);
 }
 
 export const labPreset: PageLayout = {

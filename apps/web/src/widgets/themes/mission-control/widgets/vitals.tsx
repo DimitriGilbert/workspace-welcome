@@ -1,20 +1,17 @@
 /**
- * McVitals — the console masthead (verbatim port of the design's
- * `VitalsBoard` + `AnimatedNumeral`, `components/designs/mission-control/
- * command-bar.tsx`). The fleet reports itself in six tabular figures before
- * a single project name appears — units, live-this-week, triage, pins,
- * uncommitted files, unpushed commits — color only where a threshold trips.
+ * McVitals — the console masthead (port of the design's `VitalsBoard` +
+ * `AnimatedNumeral`, `components/designs/mission-control/command-bar.tsx`).
+ *
+ * Owner verdict (verbatim: "the values we had before were fine"): the band
+ * is the compact SIX-figure cluster — Units, Active 7d, Attention, Pinned,
+ * Dirty files, Unpushed — full words, content-sized cells, tight left-packed
+ * rhythm with hairline dividers. No additional statistics, no stretching:
+ * the node is sized to what the six figures need.
  *
  * Each numeral's spring chases the incoming value so a rescan makes the
  * masthead count itself up/down instead of snapping. DOM order stays dt
- * (label) then dd (value); flex-col-reverse puts the numeral on top
- * visually while keeping valid description-list semantics.
- *
- * The board places this on the canvas ground (the shell chrome is stripped
- * for the `masthead` node in custom.css), so the band reads exactly like
- * the design's sticky header vitals. The band fills its box (`h-full`
- * flex, items end-aligned) — the density contract — while the type scale
- * is the design's own.
+ * (label) then dd (value); the cell renders row-reverse so the numeral
+ * leads visually while the description list stays valid.
  */
 import { useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
@@ -46,7 +43,8 @@ function AnimatedNumeral({
   return (
     <motion.dd
       className={cn(
-        "font-mono text-[22px] leading-none font-medium tracking-tighter tabular-nums @[640px]:text-[28px] min-[2200px]:text-[34px]",
+        "font-mono text-[18px] leading-none font-medium tracking-tighter tabular-nums",
+        "@[800px]:text-[30px]",
         tone === "warn" && "text-(--sev-warning)",
         tone === "accent" && "text-(--mc-accent)",
         !tone && "text-foreground",
@@ -54,6 +52,39 @@ function AnimatedNumeral({
     >
       {text}
     </motion.dd>
+  );
+}
+
+/**
+ * One instrument cell: numeral leading, caps label beside it, hairline
+ * divider at the left edge (except the first cell) — content-sized.
+ */
+function InstrumentCell({
+  label,
+  value,
+  tone,
+  divider,
+}: {
+  label: string;
+  value: number;
+  tone?: "warn" | "accent";
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        // Row-reverse: the numeral leads visually while DOM order stays
+        // dt → dd for valid description-list semantics. The divider only
+        // applies on the wide strip (the narrow grid needs no dividers).
+        "flex min-w-0 flex-row-reverse items-baseline gap-2",
+        divider && "@[800px]:border-l @[800px]:border-(--mc-line) @[800px]:pl-4",
+      )}
+    >
+      <dt className="min-w-0 truncate font-mono text-[9px] uppercase leading-tight tracking-[0.14em] text-muted-foreground @[800px]:text-[10px]">
+        {label}
+      </dt>
+      <AnimatedNumeral value={value} tone={tone} />
+    </div>
   );
 }
 
@@ -83,14 +114,19 @@ function VitalsBoard({
   ];
 
   return (
-    <dl className="flex min-h-0 w-full min-w-0 flex-wrap items-end gap-x-5 gap-y-2 @[640px]:gap-x-8 @[640px]:gap-y-4 min-[2200px]:gap-x-12">
-      {cells.map((cell) => (
-        <div key={cell.label} className="flex flex-col-reverse gap-1">
-          <dt className="font-mono text-[8.5px] uppercase tracking-[0.18em] text-muted-foreground @[640px]:text-[9.5px]">
-            {cell.label}
-          </dt>
-          <AnimatedNumeral value={cell.value} tone={cell.tone} />
-        </div>
+    // Narrow node (below the strip's 800px container floor — e.g. the 4-col
+    // masthead at 1280): a 3-wide grid packs the six figures into two rows
+    // with full labels — the grid cell always holds numeral + label uncut.
+    // Wider: the strip (the FINAL owner image's register).
+    <dl className="grid min-h-0 w-full min-w-0 grid-cols-3 gap-x-3 gap-y-3 @[800px]:flex @[800px]:items-baseline @[800px]:gap-x-6 overflow-hidden">
+      {cells.map((cell, i) => (
+        <InstrumentCell
+          key={cell.label}
+          label={cell.label}
+          value={cell.value}
+          tone={cell.tone}
+          divider={i > 0}
+        />
       ))}
     </dl>
   );
@@ -101,7 +137,8 @@ export function McVitals(_props: RegisteredWidgetProps) {
 
   return (
     <WidgetShell className="h-full w-full">
-      <div className="flex h-full min-h-0 w-full min-w-0 items-start overflow-hidden px-3 pt-3 pb-2 @[640px]:px-4 @[640px]:pt-5 @[640px]:pb-3 min-[2200px]:px-6">
+      {/* Centered in the band: the register reads as one flush strip. */}
+      <div className="flex h-full min-h-0 w-full min-w-0 items-center overflow-hidden px-3 py-3 @[800px]:px-4 @[800px]:py-4">
         <VitalsBoard
           total={vitals.total}
           activeWeek={vitals.activeWeek}

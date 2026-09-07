@@ -110,7 +110,7 @@ export function ReportGate({
             <span className="font-mono text-[10px] tracking-[0.1em] text-muted-foreground uppercase">
               No report
             </span>
-            <GenerateButton />
+            {!report.commandFailed && <GenerateButton />}
           </span>
         </GateRoot>
       );
@@ -123,7 +123,7 @@ export function ReportGate({
             alerts, and languages.
           </span>
           <div className="flex items-center gap-2">
-            <GenerateButton />
+            {!report.commandFailed && <GenerateButton />}
             <CopyCommand />
           </div>
         </div>

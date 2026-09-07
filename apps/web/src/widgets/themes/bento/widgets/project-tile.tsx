@@ -250,7 +250,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
                 {
                   label: "table",
                   content: (
-                    <dl className="grid grid-cols-2 content-center gap-x-5 gap-y-2">
+                    // h-full lets content-center actually center: the dl
+                    // stretches with the card, so the stat grid sits mid-tile
+                    // instead of pinning to the top above dead space.
+                    <dl className="grid h-full grid-cols-2 content-center gap-x-5 gap-y-2">
                       <TileStat icon={GitCommitHorizontal} label="commits" value={formatCompact(entry.totalCommits)} />
                       <TileStat icon={Users} label="contrib." value={String(entry.contributors)} />
                       <TileStat icon={BrainCircuit} label="AI cost" value={formatCost(entry.aiUsage?.cost ?? 0)} accent />

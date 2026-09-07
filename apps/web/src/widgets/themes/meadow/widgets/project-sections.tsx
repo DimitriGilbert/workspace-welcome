@@ -13,10 +13,15 @@
  * The section strip keeps the landed 390px fix: `flex-wrap` lets the seven
  * pills reflow at compact widths instead of inner-scrolling, and stays one
  * row once they fit on desktop.
+ *
+ * First-class widget framing (owner bento order): the shell header shows —
+ * title + titlebar meta (branch, report age) — so the body reads as one
+ * chrome-framed canvas widget, not a free page; the old in-content footer
+ * ("meadow view" / all-concepts link) is gone, its metadata living in the
+ * titlebar slot. The theme's custom.css un-hides this kind's header only.
  */
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
@@ -32,13 +37,13 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Donut, HBars, RatioBar, CadenceArea } from "./bits";
+import { Donut, HBars, RatioBar, CadenceArea, SLICE_COLORS } from "./bits";
 import { ProjectMomentumCard } from "./context-cards";
 import { MeadowReport } from "./report";
 import { Button } from "@workspace-welcome/ui/components/button";
 
 import { IdeationPanel } from "@/components/ideation/ideation-panel";
-import { absoluteDate, formatCost, formatTokens, relativeTime } from "@/lib/format";
+import { absoluteDate, ageMs, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import { hostLabel } from "@/lib/icons";
 import { useProject } from "@/widgets/contexts/project-context";
 import { useReport } from "@/widgets/contexts/report-context";
@@ -78,15 +83,6 @@ const SEVERITY_COLOR: Record<ReportAlertRow["severity"], string> = {
   warning: "var(--sev-warning)",
   info: "var(--sev-info)",
 };
-
-/** Soft pastel ramp for distribution slices (top-N + "other"). */
-const SLICE_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
 
 function VitalRow({
   label,
@@ -190,7 +186,7 @@ function LastCommitAndNote() {
           Last commit
         </h2>
         {last ? (
-          <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
             <p className="line-clamp-3 text-xs leading-relaxed text-foreground">
               {last.message}
             </p>
@@ -198,7 +194,7 @@ function LastCommitAndNote() {
               {last.author} · {relativeTime(last.date)}
             </span>
             {git?.remote ? (
-              <div className="mt-auto flex flex-wrap gap-1 pt-1">
+              <div className="flex flex-wrap gap-1 pt-1">
                 <Button
                   size="xs"
                   variant="outline"
@@ -249,7 +245,7 @@ function LastCommitAndNote() {
         <NoteEditor
           rows={4}
           placeholder="What were you doing? What's next?"
-          className="[&>span:first-child]:hidden [&_textarea]:resize-y [&_textarea]:rounded-2xl [&_textarea]:border-border/70 [&_textarea]:bg-card/60 [&_textarea]:font-sans"
+          className="flex-1 [&>span:first-child]:hidden [&_textarea]:resize-y [&_textarea]:rounded-2xl [&_textarea]:border-border/70 [&_textarea]:bg-card/60 [&_textarea]:font-sans"
         />
       </section>
     </>
@@ -259,11 +255,15 @@ function LastCommitAndNote() {
 function OverviewPane() {
   return (
     <>
-      <div className="grid w-full flex-1 gap-3 lg:grid-cols-2">
+      {/* The overview's two bands split the bento body 3:2 (min-h-0 so the
+          cadence svg's aspect-derived intrinsic height can't bloat the row
+          and starve the last-commit/note band — the charts shrink to the
+          band instead). */}
+      <div className="grid w-full min-h-0 flex-[3] gap-3 lg:grid-cols-2">
         <GitPanel />
         <MeadowReport title="Project report" />
       </div>
-      <div className="grid w-full flex-1 gap-3 lg:grid-cols-2">
+      <div className="grid w-full min-h-0 flex-[2] gap-3 lg:grid-cols-2">
         <LastCommitAndNote />
       </div>
     </>
@@ -273,11 +273,17 @@ function OverviewPane() {
 function ActivityPane() {
   const view = useReport().view;
   return (
-    <div className="grid w-full flex-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div className="flex flex-col gap-3">
+    // The desktop band is ONE bounded row (minmax(0,1fr)): content-sized rows
+    // would let the history table's min-content stretch the pane past the
+    // bento and clip the momentum card under the cadence chart (fill law).
+    <div className="grid w-full min-h-0 flex-1 gap-3 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+      {/* Both columns fill the taller bento (fill law): the cadence panel
+          flexes over the momentum card, the history panel stretches with the
+          grid row and its list distributes the body. */}
+      <div className="flex min-h-0 flex-col gap-3">
         <section
           aria-label="Commit cadence"
-          className="meadow-panel flex min-h-0 flex-col gap-2 p-4"
+          className="meadow-panel flex min-h-0 flex-1 flex-col gap-2 p-4"
         >
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
@@ -303,27 +309,35 @@ function ActivityPane() {
           ) : (
             <CadenceArea
               data={view.cadence}
-              className="h-80"
+              className="min-h-40 flex-1"
               label={`${view.export.targetPath}: commits per period`}
             />
           )}
         </section>
-        <ProjectMomentumCard />
+        {/* ContextCard is an h-full fill box — unwrapped it would claim the
+            whole column and collapse the cadence chart to its header; in an
+            auto-height wrapper it keeps its natural card height and the
+            cadence panel flexes over the rest. */}
+        <div className="shrink-0">
+          <ProjectMomentumCard />
+        </div>
       </div>
       <section
         aria-label="History"
-        className="meadow-panel flex flex-col gap-2 self-start p-4"
+        className="meadow-panel flex min-h-0 flex-col gap-2 overflow-hidden p-4"
       >
         <h2 className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           History
         </h2>
-        <CommitsList />
+        <CommitsList className="min-h-0 flex-1" />
       </section>
     </div>
   );
 }
 
-/** Alert cards carrying their full summaries — the CODE right column. */
+/** Alert cards carrying their full summaries — the CODE right column. Cards
+ * distribute the column so the list fills its box (fill law) instead of
+ * drifting to the top and leaving a void under the last card. */
 function AlertCards({ alerts }: { alerts: readonly ReportAlertRow[] }) {
   if (alerts.length === 0) {
     return (
@@ -333,11 +347,11 @@ function AlertCards({ alerts }: { alerts: readonly ReportAlertRow[] }) {
     );
   }
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       {alerts.map((a) => (
         <article
           key={`${a.label}-${a.value}`}
-          className="meadow-panel flex flex-col gap-1.5 p-3.5"
+          className="meadow-panel flex min-h-0 flex-1 flex-col justify-center gap-1.5 p-3.5"
           style={{
             borderColor: `color-mix(in oklch, ${SEVERITY_COLOR[a.severity]} 30%, var(--border))`,
           }}
@@ -395,7 +409,7 @@ function CodePane() {
   const totalLines = languages.reduce((sum, l) => sum + l.lines, 0);
 
   return (
-    <div className="grid w-full flex-1 gap-3 xl:grid-cols-2">
+    <div className="grid w-full min-h-0 flex-1 gap-3 xl:grid-cols-2">
       <section
         aria-label="Language distribution"
         className="meadow-panel flex min-h-0 flex-col gap-3 p-4"
@@ -404,20 +418,21 @@ function CodePane() {
           Language mix
         </h2>
         {languages.length === 0 ? (
-          <p className="flex flex-1 items-center justify-center py-6 text-xs text-muted-foreground">
+          <p className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
             No language data in this report.
           </p>
         ) : (
-          <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="flex justify-center">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 sm:flex-row sm:items-stretch">
+            <div className="mx-auto aspect-square w-full max-w-56 shrink-0 sm:h-full sm:max-h-72 sm:w-auto sm:max-w-none">
               <Donut
+                fill
                 slices={slices}
                 centerValue={formatTokens(totalLines)}
                 centerLabel="lines"
                 label="Language share by lines of code"
               />
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center self-center [&>ul]:flex-1 [&>ul>li]:flex-1 [&>ul>li]:justify-center">
               <HBars
                 data={languages.slice(0, 6).map((l) => ({
                   label: l.language,
@@ -430,7 +445,10 @@ function CodePane() {
           </div>
         )}
       </section>
-      <section aria-label="Health alerts" className="flex min-w-0 flex-1 flex-col gap-2">
+      <section
+        aria-label="Health alerts"
+        className="flex min-h-0 min-w-0 flex-1 flex-col gap-2"
+      >
         <div className="flex flex-wrap items-center gap-2">
           <span
             aria-hidden
@@ -457,13 +475,13 @@ function AiPane() {
   const view = useReport().view;
   if (view === null) return null;
   return view.aiUsage === null ? (
-    <div className="meadow-panel flex min-h-56 w-full items-center justify-center p-6 text-sm text-muted-foreground">
+    <div className="meadow-panel flex h-full min-h-0 w-full items-center justify-center p-6 text-sm text-muted-foreground">
       No AI usage recorded for this project in the current report.
     </div>
   ) : (
     <section
       aria-label="AI usage"
-      className="meadow-panel flex min-h-56 w-full flex-col justify-center gap-6 p-6"
+      className="meadow-panel flex h-full min-h-0 w-full flex-col justify-evenly gap-6 p-6"
       style={{
         background: "color-mix(in oklch, var(--pinned-accent) 4%, var(--card))",
       }}
@@ -484,13 +502,13 @@ function AiPane() {
           AI usage
         </h3>
       </div>
-      <div className="flex flex-wrap items-end gap-x-12 gap-y-4">
+      <div className="flex w-full flex-wrap items-end justify-between gap-x-12 gap-y-4">
         <div className="flex flex-col">
           <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
             Subsidized cost (recorded)
           </span>
           <span
-            className="text-5xl leading-tight font-semibold tracking-tight"
+            className="text-[clamp(2.5rem,5cqi,4.5rem)] leading-tight font-semibold tracking-tight"
             style={{ color: "var(--pinned-accent)" }}
           >
             {formatCost(view.aiUsage.cost)}
@@ -500,7 +518,7 @@ function AiPane() {
           <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
             Tokens total
           </span>
-          <span className="text-2xl leading-tight font-semibold tabular-nums text-foreground">
+          <span className="text-[clamp(1.4rem,2.5cqi,2.1rem)] leading-tight font-semibold tabular-nums text-foreground">
             {formatTokens(view.aiUsage.tokens.total)}
           </span>
         </div>
@@ -508,7 +526,7 @@ function AiPane() {
           <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
             Records
           </span>
-          <span className="text-2xl leading-tight font-semibold tabular-nums text-foreground">
+          <span className="text-[clamp(1.4rem,2.5cqi,2.1rem)] leading-tight font-semibold tabular-nums text-foreground">
             {view.aiUsage.records.toLocaleString()}
           </span>
         </div>
@@ -544,15 +562,17 @@ function SectionsFull({ tab }: { tab: PageTab }) {
     );
   }
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col gap-3">
+    <div className="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col gap-3">
       {tab === "overview" ? <OverviewPane /> : null}
       {tab === "activity" ? <ActivityPane /> : null}
       {tab === "code" ? <CodePane /> : null}
       {tab === "ai" ? <AiPane /> : null}
-      {tab === "files" ? <FilesList height="640px" /> : null}
+      {tab === "files" ? (
+        <FilesList height="100%" className="meadow-files-fill min-h-0 flex-1" />
+      ) : null}
       {tab === "artifacts" ? (
         <div className="flex min-h-0 w-full flex-1 flex-col">
-          <ArtifactsList className="min-h-0 flex-1" />
+          <ArtifactsList className="meadow-artifacts-fill min-h-0 flex-1" />
         </div>
       ) : null}
       {tab === "ideation" ? (
@@ -560,24 +580,27 @@ function SectionsFull({ tab }: { tab: PageTab }) {
           <IdeationPanel key={project.path} project={project.path} />
         </div>
       ) : null}
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-foreground/5 pt-5">
-        <p className="text-[11px] text-muted-foreground">
-          {project.project.name} — meadow view
-        </p>
-        <Link
-          to="/designs"
-          className="meadow-focus inline-flex items-center gap-1 rounded-full text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          All concepts
-        </Link>
-      </footer>
     </div>
   );
 }
 
 export function MeadowProjectSections({ size }: RegisteredWidgetProps) {
   const [tab, setTab] = useState<PageTab>("overview");
-  const branch = useProject().project?.git.branch ?? "—";
+  const project = useProject();
+  const branch = project.project?.git.branch ?? "—";
+  const { generatedAt } = useReport();
+  const compact = size.cols <= 1 && size.rows <= 1;
+
+  /** Titlebar meta (sizing law: metadata lives in the shell's meta slot):
+   * the branch plus the report's age, silent until there is a report. */
+  const meta = (
+    <span className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+      <span className="truncate font-mono">{branch}</span>
+      {generatedAt !== null ? (
+        <span className="shrink-0">· report {ageMs(generatedAt)} ago</span>
+      ) : null}
+    </span>
+  );
 
   /** The design's pill tab strip (icons + meadow-tab-active register), with
    * the landed 390px fix: `flex-wrap` reflows the seven pills at compact
@@ -621,16 +644,18 @@ export function MeadowProjectSections({ size }: RegisteredWidgetProps) {
     <WidgetShell
       size={{ cols: size.cols, rows: size.rows }}
       className="h-full w-full"
+      title={compact ? undefined : "Project sections"}
+      meta={compact ? undefined : meta}
+      chrome="px-1"
       sizes={{
-        "1x1": withTabs(
+        "1x1": (
           <div className="flex h-full w-full min-w-0 items-center overflow-hidden px-1">
             <span className="truncate font-mono text-xs">{branch}</span>
-          </div>,
+          </div>
         ),
         // Every placement above 1x1 renders the ONE tabbed body — the pill
         // strip wraps (the landed 390px fix) and panes reflow to the width.
         "2x2": withTabs(<SectionsFull tab={tab} />),
-        "12x6": withTabs(<SectionsFull tab={tab} />),
       }}
     >
       {withTabs(<SectionsFull tab={tab} />)}

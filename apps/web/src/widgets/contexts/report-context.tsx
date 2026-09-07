@@ -76,6 +76,14 @@ export interface ReportContextValue {
   /** Copyable CLI command that would produce this report. */
   command: string | null;
   commandError: string | null;
+  /**
+   * True when the command resolution itself failed (e.g. the scope path was
+   * rejected as "not a known project") — the scope can't produce a report at
+   * all, so the machine reports `missing` with `commandError` instead of
+   * hanging in `loading`, `generate()` is a no-op, and the gate drops its
+   * Generate CTA rather than offering a click that can only re-fail.
+   */
+  commandFailed: boolean;
   generatedAt: string | null;
   /** Scope staleness input: max updatedAt of the scan projects in scope. */
   latestUpdated: string | null;
@@ -151,11 +159,16 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
   );
 
   const value = useMemo<ReportContextValue>(() => {
+    const commandFailed = commandQuery.isError;
     let status: ReportStatus;
     if (!hasScope) {
       status = "no-scope";
     } else if (generating) {
       status = "running";
+    } else if (commandFailed) {
+      // The scope was rejected server-side (unknown path, unreachable CLI
+      // resolution) — an honest missing-with-error, never an infinite load.
+      status = "missing";
     } else if (commandQuery.isPending || (key !== null && exportQuery.isPending)) {
       status = "loading";
     } else if (exportData === null) {
@@ -173,7 +186,10 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
       entry: (entryPath: string) => byPath.get(entryPath) ?? null,
       key,
       command: commandQuery.data?.command ?? null,
-      commandError: commandQuery.data?.error ?? null,
+      commandError: commandFailed
+        ? (commandQuery.error?.message ?? "Report command failed.")
+        : (commandQuery.data?.error ?? null),
+      commandFailed,
       generatedAt: exportData?.generatedAt ?? null,
       latestUpdated,
       isEntryStale: (entryPath: string) =>
@@ -185,7 +201,7 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
       period,
       setPeriod,
       generate: (options?: { force?: boolean }) => {
-        if (!hasScope) return;
+        if (!hasScope || commandFailed) return;
         runPipeline(options?.force ?? false);
       },
       generating,
@@ -194,6 +210,8 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
   }, [
     byPath,
     commandQuery.data,
+    commandQuery.error,
+    commandQuery.isError,
     commandQuery.isPending,
     exportData,
     exportQuery.isPending,

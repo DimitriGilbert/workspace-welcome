@@ -7,8 +7,11 @@
  *
  * The heatmap window covers the repo's real log span (capped 12–26 weeks so
  * an old repo doesn't render an all-dark void — the design's `pulseWeeks`
- * rule verbatim). Ladder: "2x2" carries heatmap + numerals; "1x1" degrades
- * to the logged-commits numeral.
+ * rule verbatim) and runs the Heatmap's `fill` register: the cells flex
+ * through the widget's box instead of centering a capped mosaic that strands
+ * a dead margin beside the legend (owner fill law — the box is the chart's).
+ * Ladder: "2x2" carries heatmap + numerals; "1x1" degrades to the
+ * logged-commits numeral.
  */
 import { useMemo } from "react";
 
@@ -83,6 +86,7 @@ export function McProjectPulse(props: RegisteredWidgetProps) {
                   weeks={weeks}
                   now={now}
                   cellMax={26}
+                  fill
                   ariaLabel={`${project.project?.name ?? "project"} commit-day heatmap, trailing ${weeks} weeks`}
                 />
               </div>

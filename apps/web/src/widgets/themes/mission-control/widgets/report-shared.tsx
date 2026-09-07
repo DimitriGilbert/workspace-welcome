@@ -13,7 +13,6 @@ import type { ReactNode } from "react";
 
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
-import { relativeTime } from "@/lib/format";
 import { ReportGate } from "@/widgets/parts";
 import { useReport } from "@/widgets/contexts/report-context";
 
@@ -74,28 +73,5 @@ export function McReportGate({ children }: { children: ReactNode }) {
     >
       {children}
     </ReportGate>
-  );
-}
-
-/** Shell-meta line: generated age + the HTML report link (design's status). */
-export function ReportGeneratedMeta() {
-  const report = useReport();
-  if (report.generatedAt === null) return null;
-  return (
-    <span className="flex items-center gap-2 font-mono text-[9.5px] tabular-nums text-muted-foreground">
-      <span title={`Generated ${relativeTime(report.generatedAt)}`}>
-        {relativeTime(report.generatedAt)}
-      </span>
-      {report.key !== null ? (
-        <a
-          href={`/reports/${report.key}`}
-          target="_blank"
-          rel="noreferrer"
-          className="uppercase transition-colors hover:text-(--mc-accent)"
-        >
-          html ↗
-        </a>
-      ) : null}
-    </span>
   );
 }

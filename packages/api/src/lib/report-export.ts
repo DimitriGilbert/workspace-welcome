@@ -63,14 +63,43 @@ export const reportExportCadencePointSchema = z.object({
   commits: z.number(),
 });
 
+/** One AI token-class census — the CLI counts cache and reasoning traffic
+ * beyond the input/output pair; the pair alone understates usage ~27x. */
+export const reportExportAiTokensSchema = z.object({
+  input: z.number(),
+  output: z.number(),
+  total: z.number(),
+  cacheRead: z.number().nullish(),
+  cacheWrite: z.number().nullish(),
+  reasoning: z.number().nullish(),
+});
+
+/** One AI-usage breakdown row (per day / model / client), verbatim keys. */
+export const reportExportAiBreakdownRowSchema = z.object({
+  key: z.string(),
+  records: z.number(),
+  tokens: reportExportAiTokensSchema,
+  cost: z.number(),
+  unsubsidizedCost: z.number().nullish(),
+});
+
 export const reportExportAiUsageSchema = z.object({
   records: z.number(),
   cost: z.number(),
-  tokens: z.object({
-    input: z.number(),
-    output: z.number(),
-    total: z.number(),
-  }),
+  tokens: reportExportAiTokensSchema,
+  /** The CLI's own estimated cost WITHOUT the plan subsidy — the honest
+   * dollar figure (`cost` is the subsidized constant $0). Null on exports
+   * from CLIs that don't ship it. */
+  unsubsidizedCost: z.number().nullish(),
+  /** Per-day / per-model / per-client census when the CLI provides it.
+   * Nullish: exports persisted before this field existed stay valid. */
+  breakdowns: z
+    .object({
+      byDay: z.array(reportExportAiBreakdownRowSchema),
+      byModel: z.array(reportExportAiBreakdownRowSchema),
+      byClient: z.array(reportExportAiBreakdownRowSchema),
+    })
+    .nullish(),
 });
 
 /** One chartable project entry — the unit of every report. */
@@ -307,6 +336,40 @@ function mapCadence(
     .filter((point): point is NonNullable<typeof point> => point !== null);
 }
 
+function mapAiTokens(value: unknown): z.infer<typeof reportExportAiTokensSchema> | null {
+  const tokens = asRecord(value);
+  if (tokens === null) return null;
+  const input = asNumber(tokens.input);
+  const output = asNumber(tokens.output);
+  const total = asNumber(tokens.total);
+  if (input === null || output === null || total === null) return null;
+  return {
+    input,
+    output,
+    total,
+    cacheRead: asNumber(tokens.cacheRead) ?? 0,
+    cacheWrite: asNumber(tokens.cacheWrite) ?? 0,
+    reasoning: asNumber(tokens.reasoning) ?? 0,
+  };
+}
+
+/** One breakdown group (byDay / byModel / byClient); null when absent or
+ * shapeless — old CLIs and odd payloads degrade, never throw. */
+function mapAiBreakdown(value: unknown): z.infer<typeof reportExportAiBreakdownRowSchema>[] {
+  return asArray(value)
+    .map((raw): z.infer<typeof reportExportAiBreakdownRowSchema> | null => {
+      const row = asRecord(raw);
+      if (row === null) return null;
+      const key = asString(row.key);
+      const records = asNumber(row.records);
+      const cost = asNumber(row.cost);
+      const tokens = mapAiTokens(row.tokens);
+      if (key === null || records === null || cost === null || tokens === null) return null;
+      return { key, records, tokens, cost, unsubsidizedCost: asNumber(row.unsubsidizedCost) };
+    })
+    .filter((row): row is z.infer<typeof reportExportAiBreakdownRowSchema> => row !== null);
+}
+
 function mapAiUsage(
   value: unknown,
 ): z.infer<typeof reportExportAiUsageSchema> | null {
@@ -314,13 +377,22 @@ function mapAiUsage(
   if (usage === null) return null;
   const records = asNumber(usage.records);
   const cost = asNumber(usage.cost);
-  const tokens = asRecord(usage.tokens);
+  const tokens = mapAiTokens(usage.tokens);
   if (records === null || cost === null || tokens === null) return null;
-  const input = asNumber(tokens.input);
-  const output = asNumber(tokens.output);
-  const total = asNumber(tokens.total);
-  if (input === null || output === null || total === null) return null;
-  return { records, cost, tokens: { input, output, total } };
+  const rawBreakdowns = asRecord(usage.breakdowns);
+  const byDay = rawBreakdowns === null ? [] : mapAiBreakdown(rawBreakdowns.byDay);
+  const byModel = rawBreakdowns === null ? [] : mapAiBreakdown(rawBreakdowns.byModel);
+  const byClient = rawBreakdowns === null ? [] : mapAiBreakdown(rawBreakdowns.byClient);
+  return {
+    records,
+    cost,
+    tokens,
+    unsubsidizedCost: asNumber(usage.unsubsidizedCost),
+    breakdowns:
+      byDay.length > 0 || byModel.length > 0 || byClient.length > 0
+        ? { byDay, byModel, byClient }
+        : null,
+  };
 }
 
 /** Newest commit of a raw commits array, by committer then author date. */

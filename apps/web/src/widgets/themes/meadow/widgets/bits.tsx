@@ -224,6 +224,8 @@ interface AreaTrendProps {
   label: string;
   /** Stroke/fill color; defaults to the sage recency token. */
   color?: string;
+  /** Box classes for the svg (`h-14` default; fill rungs pass `flex-1`). */
+  className?: string;
 }
 
 const TREND_W = 280;
@@ -232,7 +234,7 @@ const TREND_TOP = 10;
 const TREND_BOTTOM = 4;
 
 /** Soft area chart: sage stroke, translucent gradient wash, hairline guides. */
-export function AreaTrend({ values, label, color }: AreaTrendProps) {
+export function AreaTrend({ values, label, color, className = "h-14" }: AreaTrendProps) {
   const gradientId = useId();
   const stroke = color ?? "var(--recency-fresh)";
   if (values.length === 0) return null;
@@ -249,7 +251,7 @@ export function AreaTrend({ values, label, color }: AreaTrendProps) {
   return (
     <svg
       viewBox={`0 0 ${TREND_W} ${TREND_H}`}
-      className="h-14 w-full"
+      className={`${className} w-full`}
       preserveAspectRatio="none"
       role="img"
       aria-label={label}
@@ -390,10 +392,21 @@ export interface DonutSlice {
   color: string;
 }
 
+/** Soft pastel ramp for distribution slices (top-N + "other"). */
+export const SLICE_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+] as const;
+
 /**
  * Soft donut for a distribution (language share, severity mix). Zero-value
  * slices vanish; non-zero slices keep a small gap so pastels never merge.
- * The center carries the total.
+ * The center carries the total. With `fill` the donut sizes to its parent
+ * box (square, both axes — the fill law) instead of a fixed pixel size; the
+ * svg's meet framing keeps the ring round in non-square boxes.
  */
 export function Donut({
   slices,
@@ -401,12 +414,14 @@ export function Donut({
   centerLabel,
   centerValue,
   label,
+  fill = false,
 }: {
   slices: DonutSlice[];
   size?: number;
   centerLabel: string;
   centerValue: string;
   label: string;
+  fill?: boolean;
 }) {
   const stroke = 18;
   const r = (size - stroke) / 2;
@@ -425,11 +440,15 @@ export function Donut({
   });
 
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+    <div
+      className={fill ? "relative h-full w-full min-h-0 min-w-0" : "relative shrink-0"}
+      style={fill ? undefined : { width: size, height: size }}
+    >
       <svg
         viewBox={`0 0 ${size} ${size}`}
-        width={size}
-        height={size}
+        className={fill ? "h-full w-full" : undefined}
+        width={fill ? undefined : size}
+        height={fill ? undefined : size}
         role="img"
         aria-label={label}
       >

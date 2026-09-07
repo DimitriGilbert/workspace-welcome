@@ -31,7 +31,11 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoChrome,
     requires: ["workspace"],
     defaultSize: "12x1",
-    min: "1x1",
+    // The bar's honest floor is TWO rows: the brand/action row plus the
+    // palette search (the phone preset override `2x2` — the design's
+    // <1024px header stacks all three rows). A one-row 2-col placement
+    // clips the wrapped stack; anything wider than two columns fits.
+    min: "2x2",
   },
   {
     id: "bento-mosaic-header",
@@ -39,7 +43,9 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoMosaicHeader,
     requires: ["workspace"],
     defaultSize: "12x1",
-    min: "1x1",
+    // The size legend is a nowrap, fixed-shape key (~291px) — the widget's
+    // honest cell floor; narrower placements overflow (lab part-min).
+    min: "3x3",
   },
   {
     id: "bento-health",
@@ -47,7 +53,8 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoHealth,
     requires: ["workspace"],
     defaultSize: "3x3",
-    min: "1x1",
+    // The gauge is a fixed 170px ring — it cannot compress into one column.
+    min: "2x1",
   },
   {
     id: "bento-activity",
@@ -55,7 +62,9 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoActivity,
     requires: ["workspace"],
     defaultSize: "6x3",
-    min: "1x1",
+    // A 16-week area chart (axes fold away below 200px) — one column cannot
+    // hold the chart or the header line.
+    min: "2x1",
   },
   {
     id: "bento-stacks",
@@ -63,7 +72,8 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoStacks,
     requires: ["workspace"],
     defaultSize: "3x3",
-    min: "1x1",
+    // The donut is a fixed 112px ring — one column (104px) clips it.
+    min: "2x1",
   },
   {
     id: "bento-attention",
@@ -71,15 +81,20 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoAttention,
     requires: ["workspace"],
     defaultSize: "8x3",
-    min: "1x1",
+    // The hero row (30px roll number + mono captions) and the list rows
+    // (w-32 name + glyphs + mono numerals, ~240px) are fixed-content —
+    // two-column placements clip them.
+    min: "3x3",
   },
   {
     id: "bento-signals",
-    title: "Signal mix",
+    title: "Signals",
     component: BentoSignals,
     requires: ["workspace"],
     defaultSize: "4x3",
-    min: "1x1",
+    // List rows carry a fixed w-24 name + numeral pair (~200px) — one
+    // column clips them.
+    min: "2x1",
   },
   {
     id: "bento-pulse",
@@ -87,7 +102,9 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoPulse,
     requires: ["workspace", "report"],
     defaultSize: "12x3",
-    min: "1x1",
+    // The loading skeleton row is a fixed w-64 (~296px with chrome) — below
+    // three columns it clips.
+    min: "3x3",
   },
   {
     id: "bento-project-tile",

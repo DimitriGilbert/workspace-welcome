@@ -28,7 +28,7 @@
  * content; validate-layout flags them before anything ships.
  */
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { ThemeScope } from "@workspace-welcome/ui/components/theme-scope";
 
@@ -38,8 +38,11 @@ import type { PlacedRegion } from "./grid-canvas";
 import type { PageLayout, RegionNode, WidgetNode } from "./layout-types";
 import { resolveSizeClass } from "./size-class";
 import type { SizeClass } from "./size-class";
+import { ThemePicker } from "./theme-picker";
 import { useConsoleKeys } from "./use-console-keys";
 import { WidgetShell, WidgetTabs } from "./widget-shell";
+import { getThemePreset } from "../themes";
+import type { ThemeScheme } from "../themes";
 import { ProjectProvider } from "../contexts/project-context";
 import { ReportProvider } from "../contexts/report-context";
 import { SettingsProvider } from "../contexts/settings-context";
@@ -69,6 +72,22 @@ export interface RenderLayoutProps {
   headerMeta?: ReactNode;
   /** Digit-switchable views; keys 1..N, Escape restores the first. */
   consoleViews?: readonly ConsoleView[];
+  /**
+   * The page's ACTIVE color scheme (owner order: per-preset multi-CSS
+   * schemes). The scope is stamped `data-ww-scheme="<id>"` — ALWAYS, the
+   * default included: the scope attribute is the ground truth of what the
+   * board renders, and chrome-hosted theme pickers read it to keep
+   * next-themes aligned. Leaving the default unstamped made a chrome-hosted
+   * picker fall back to the SAVED selection; when that disagreed with the
+   * active scheme (a `?scheme=` deep link), the two pickers pushed opposite
+   * appearances into next-themes and the html class + color-scheme — the
+   * app chrome: scrollbar, buttons, header — oscillated dark/light tens of
+   * times a second (the light-theme chrome flashing). The stamp renders
+   * nothing new: the default scheme ships no scheme stylesheet, so
+   * `tokens.css` still declares it under the plain `[data-ww-theme]`
+   * selector and the computed tokens are unchanged.
+   */
+  scheme?: ThemeScheme;
   /** Drag/resize affordances on placed widgets. Default true. */
   interactive?: boolean;
   className?: string;
@@ -274,11 +293,20 @@ export function RenderLayout({
   headerLabel,
   headerMeta,
   consoleViews,
+  scheme,
   interactive = true,
   className,
 }: RenderLayoutProps) {
+  // The active scheme is always stamped — default included — so the scope
+  // attribute stays the complete ground truth (see the `scheme` prop doc
+  // for the oscillation this prevents).
+  const themePreset = getThemePreset(theme);
   return (
-    <ThemeScope theme={theme} data-ww-page={page}>
+    <ThemeScope
+      theme={theme}
+      data-ww-page={page}
+      {...(scheme !== undefined ? { "data-ww-scheme": scheme.id } : {})}
+    >
       <PageProviders context={preset.context} report={preset.report !== false} projectPath={projectPath}>
         <PageBody
           theme={theme}
@@ -287,6 +315,8 @@ export function RenderLayout({
           headerLabel={headerLabel}
           headerMeta={headerMeta}
           consoleViews={consoleViews}
+          scheme={scheme}
+          headerCommand={themePreset?.headerCommand}
           interactive={interactive}
           className={className}
         />
@@ -302,9 +332,11 @@ function PageBody({
   headerLabel,
   headerMeta,
   consoleViews,
+  scheme,
+  headerCommand: HeaderCommand,
   interactive,
   className,
-}: RenderLayoutProps) {
+}: RenderLayoutProps & { headerCommand?: ComponentType }) {
   const workspace = useWorkspace();
   const [activeView, setActiveView] = useState<string | null>(consoleViews?.[0]?.id ?? null);
   useConsoleKeys({
@@ -326,6 +358,11 @@ function PageBody({
     return regions.filter((region) => allowed.has(region.id));
   }, [regions, view]);
 
+  // The system-header theme picker: preset list + scheme toggle, rendered on
+  // every registered preset (the lab's synthetic scope hides it honestly).
+  // Themes that hide the console header (meadow, bento) host the same picker
+  // in their own chrome widgets.
+
   useRequiresAssertion(theme, useMemo(() => regions.flatMap((r) => r.nodes), [regions]));
 
   return (
@@ -340,12 +377,21 @@ function PageBody({
           </p>
         )}
         {headerMeta}
+        <ThemePicker theme={theme} activeScheme={scheme} />
         {consoleViews !== undefined && consoleViews.length > 0 && (
           <WidgetTabs
             tabs={consoleViews}
             activeTab={activeView ?? undefined}
             onTabChange={setActiveView}
           />
+        )}
+        {/* The theme's page-level command register (owner mod 1): header
+            chrome at the right edge, before the one common filter. Themes
+            that replace the header entirely (bento) declare none. */}
+        {HeaderCommand !== undefined && (
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end">
+            <HeaderCommand />
+          </div>
         )}
         <input
           data-console-filter=""

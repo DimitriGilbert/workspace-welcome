@@ -40,6 +40,7 @@ import { FormCloneScript } from "@/widgets/parts/form/clone-script";
 import { FormCreateProject } from "@/widgets/parts/form/create-project";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
+import { ThemePicker } from "@/widgets/runtime/theme-picker";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
 /** Time-of-day greeting for the one-row header, by local hour. Ported from
@@ -122,6 +123,10 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
 
   const commands = (
     <div className="flex shrink-0 items-center gap-2">
+      {/* The meadow chrome hides the runtime's console header (the masthead
+          IS the header), so the system theme picker hosts here — preset +
+          color scheme survive reloads. */}
+      <ThemePicker theme="meadow" />
       <Button
         variant="outline"
         size="icon-sm"

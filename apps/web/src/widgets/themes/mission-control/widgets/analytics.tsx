@@ -7,9 +7,11 @@
  *   (`activityCounts` → ui `Heatmap`, the design's promoted instrument).
  * - `mc-alerts-donut` — the alert census: severity slices around the
  *   open-count numeral, the design's err/wrn/inf register + per-code
- *   rollup legend (verbatim body).
+ *   rollup legend — one shape-aware unit (ui `Donut` legend slot: donut
+ *   left, rollup rows beside on wide containers, stacked below on narrow).
  * - `mc-stack-mix` — the stack census (`stackDistribution`, Other-folding)
- *   over the default chart ramp with the design's icon-keyed legend row.
+ *   over the default chart ramp with the icon-keyed legend beside the
+ *   donut (same shape-aware unit).
  * - `mc-dirty-leaders` — the uncommitted-work leaders (`dirtyLeaders`) as
  *   `HBars` rows (the sanctioned bars engine; the design's chart-library
  *   import is not available to themes) with the files meta.
@@ -100,11 +102,11 @@ export function McActivityHeatmap(_props: RegisteredWidgetProps) {
 // --- mc-alerts-donut ---------------------------------------------------------
 
 /**
- * Half-width pairs: the preset packs the analytics donuts ONE PER ZONE
- * COLUMN (the design's [alerts | stack] / [dirty | roots] pairs), so the
- * full body gates on the shell's container width (≥ ~240px) rather than a
- * column count — a 1-col placement renders the donut on desktop canvases
- * and degrades to the numeral on tablet/phone.
+ * The alert census as ONE shape-aware unit: the donut sized to the box it is
+ * given (fill, capped for the 5-row pair placement) with the severity rollup
+ * as its legend — beside on wide containers, stacked below on narrow ones
+ * (ui `Donut` owns the shape decision). Half-width pair placement on the
+ * FINAL board renders donut left, five tight rollup rows right.
  */
 export function McAlertsDonut(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
@@ -114,63 +116,72 @@ export function McAlertsDonut(_props: RegisteredWidgetProps) {
   const total = rows.reduce((sum, r) => sum + r.count, 0);
   const open = rows.filter((r) => r.count > 0);
 
-  const fullBody = (
-    <div className="hidden h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-3.5 pb-3 @[240px]:flex">
-      {total === 0 ? (
-        <div className="flex items-center gap-2 py-1">
-          <span aria-hidden className="size-1.5 bg-(--state-positive)" />
-          <p className="font-mono text-[11px] text-muted-foreground">
-            0 open — fleet nominal
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="flex min-h-0 min-w-0 justify-center py-1">
-            <Donut
-              size={104}
-              ariaLabel="Open alerts by severity"
-              center={{ value: String(total), label: "open" }}
-              slices={open.map((r) => ({
-                label: r.severity,
-                value: r.count,
-                color: SEV_SLICE_COLOR[r.severity],
-              }))}
-            />
-          </div>
-          <div className="flex min-w-0 flex-col">
-            {open.map((row) => (
-              <div
-                key={row.severity}
-                className="flex items-baseline gap-2.5 border-t border-(--mc-line) py-1.5 first:border-t-0"
+  // Severity blocks with their per-code rollups — the FINAL image's five
+  // tight rows (wrn 16 35% / stale-wip ×14 / no-remote ×2 / inf 30 65% /
+  // dirty ×38), blocks distributing the legend column's height.
+  const legend =
+    total === 0 ? (
+      <div className="flex items-center gap-2 py-1">
+        <span aria-hidden className="size-1.5 bg-(--state-positive)" />
+        <p className="font-mono text-[11px] text-muted-foreground">0 open — fleet nominal</p>
+      </div>
+    ) : (
+      <div className="flex h-full min-h-0 min-w-0 flex-col">
+        {open.map((row) => (
+          <div key={row.severity} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 items-center gap-2.5 border-t border-(--mc-line)">
+              <span
+                aria-hidden
+                className="size-1.5 shrink-0"
+                style={{ background: SEV_SLICE_COLOR[row.severity] }}
+              />
+              <span className="w-8 shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {SEV_GLYPH[row.severity]}
+              </span>
+              <span
+                className="font-mono text-[20px] leading-none tabular-nums"
+                style={{ color: SEV_SLICE_COLOR[row.severity] }}
               >
-                <span
-                  aria-hidden
-                  className="size-1.5 self-center"
-                  style={{ background: SEV_SLICE_COLOR[row.severity] }}
-                />
-                <span className="w-8 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                  {SEV_GLYPH[row.severity]}
+                {row.count}
+              </span>
+              <span className="ml-auto shrink-0 font-mono text-[12px] uppercase tracking-[0.14em] tabular-nums text-muted-foreground">
+                {Math.round((row.count / Math.max(1, total)) * 100)}%
+              </span>
+            </div>
+            {row.codes.slice(0, 3).map((c) => (
+              <div key={c.code} className="flex min-h-0 flex-1 items-center gap-2.5 border-t border-(--mc-line)">
+                <span className="ml-5 w-3 shrink-0 text-center font-mono text-[9px] text-muted-foreground/60">·</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground" title={c.code}>
+                  {c.code}
                 </span>
-                <span
-                  className="font-mono text-base leading-none tabular-nums"
-                  style={{ color: SEV_SLICE_COLOR[row.severity] }}
-                >
-                  {row.count}
-                </span>
-                <span className="ml-auto max-w-[15ch] truncate text-right font-mono text-[9.5px] text-muted-foreground">
-                  {row.codes
-                    .slice(0, 2)
-                    .map((c) => `${c.code}×${c.count}`)
-                    .join("  ")}
-                  {row.codes.length > 2 ? "…" : ""}
+                <span className="shrink-0 font-mono text-[11px] tabular-nums text-foreground">
+                  ×{c.count}
                 </span>
               </div>
             ))}
           </div>
-        </>
-      )}
-    </div>
-  );
+        ))}
+      </div>
+    );
+
+  const body =
+    total === 0 ? (
+      legend
+    ) : (
+      <Donut
+        className="min-h-0 min-w-0 flex-1"
+        fill
+        size={200}
+        ariaLabel="Open alerts by severity"
+        center={{ value: String(total), label: "open" }}
+        slices={open.map((r) => ({
+          label: r.severity,
+          value: r.count,
+          color: SEV_SLICE_COLOR[r.severity],
+        }))}
+        legend={legend}
+      />
+    );
 
   return (
     <WidgetShell
@@ -182,12 +193,9 @@ export function McAlertsDonut(_props: RegisteredWidgetProps) {
       }
     >
       {tall ? (
-        <>
-          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2 @[240px]:hidden">
-            <Stat label="Open alerts" value={total} tone={total > 0 ? "warning" : "positive"} />
-          </div>
-          {fullBody}
-        </>
+        <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden px-3.5 pb-3">
+          {body}
+        </div>
       ) : (
         <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
           <Stat label="Open alerts" value={total} tone={total > 0 ? "warning" : "positive"} />
@@ -207,41 +215,58 @@ function rampFill(i: number): string {
 export function McStackMix(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
   const placed = useWidgetSize();
-  const tall = placed.rows >= 3;
+  // The donut form is the form: it renders from the 2-row rung up — never a
+  // lone numeral.
+  const tall = placed.rows >= 2;
   const slices = useMemo(() => stackDistribution(workspace.projects), [workspace.projects]);
   const total = slices.reduce((sum, s) => sum + s.count, 0);
 
-  const fullBody =
+  // Legend rows (the FINAL composition: swatch, label, share, count) —
+  // distributed over the legend column's height beside the donut.
+  const legend =
     total === 0 ? (
-      <div className="hidden h-full min-h-0 w-full items-center px-3.5 pb-2 @[240px]:flex">
-        <p className="font-mono text-[11px] text-muted-foreground">No units scanned yet.</p>
-      </div>
+      <p className="font-mono text-[11px] text-muted-foreground">No units scanned yet.</p>
     ) : (
-      <div className="hidden h-full min-h-0 w-full min-w-0 items-center gap-3 overflow-hidden px-3.5 pb-3 @[240px]:flex">
-        <div className="relative h-24 w-24 shrink-0">
-          <Donut
-            size={92}
-            ariaLabel="Stack mix across the fleet"
-            center={{ value: String(total), label: "units" }}
-            slices={slices.map((s) => ({ label: s.label, value: s.count }))}
-          />
-        </div>
-        <ul className="m-0 min-w-0 flex-1 list-none p-0">
-          {slices.map((s, i) => (
-            <li key={s.id} className="flex items-baseline gap-2 py-[3px]">
-              <span
-                aria-hidden
-                className="size-2 shrink-0 self-center"
-                style={{ background: rampFill(i) }}
-              />
-              <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground" title={s.label}>
-                {s.label}
-              </span>
-              <span className="font-mono text-[11px] tabular-nums text-foreground">{s.count}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ul className="m-0 flex min-h-0 min-w-0 list-none flex-col justify-center p-0">
+        {slices.map((s, i) => (
+          <li
+            key={s.id}
+            className="flex items-center gap-2 border-t border-(--mc-line) py-6 first:border-t-0 @[420px]:py-12"
+          >
+            <span
+              aria-hidden
+              className="size-2 shrink-0"
+              style={{ background: rampFill(i) }}
+            />
+            <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-muted-foreground" title={s.label}>
+              {s.label}
+            </span>
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
+              {Math.round((s.count / Math.max(1, total)) * 100)}%
+            </span>
+            <span className="w-8 shrink-0 text-right font-mono text-[13px] tabular-nums text-foreground">
+              {s.count}
+            </span>
+          </li>
+        ))}
+      </ul>
+    );
+
+  const body =
+    total === 0 ? (
+      legend
+    ) : (
+      // Donut + legend as ONE shape-aware unit (beside on wide containers,
+      // stacked below on narrow ones — ui `Donut` owns the shape decision).
+      <Donut
+        className="min-h-0 min-w-0 flex-1"
+        fill
+        size={240}
+        ariaLabel="Stack mix across the fleet"
+        center={{ value: String(total), label: "units" }}
+        slices={slices.map((s) => ({ label: s.label, value: s.count }))}
+        legend={legend}
+      />
     );
 
   return (
@@ -254,12 +279,9 @@ export function McStackMix(_props: RegisteredWidgetProps) {
       }
     >
       {tall ? (
-        <>
-          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2 @[240px]:hidden">
-            <Stat label="Stacks" value={slices.length} />
-          </div>
-          {fullBody}
-        </>
+        <div className="flex h-full min-h-0 w-full min-w-0 overflow-hidden px-3.5 pb-3">
+          {body}
+        </div>
       ) : (
         <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
           <Stat label="Stacks" value={slices.length} />
@@ -269,23 +291,16 @@ export function McStackMix(_props: RegisteredWidgetProps) {
   );
 }
 
-// --- mc-dirty-leaders --------------------------------------------------------
+// --- mc-dirty-leaders ------------------------------------------------------------
 
 export function McDirtyLeaders(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
   const placed = useWidgetSize();
   const tall = placed.rows >= 2;
   const leaders = useMemo(() => dirtyLeaders(workspace.projects, LEADER_LIMIT), [workspace.projects]);
-  const dirtySum = useMemo(
-    () => leaders.reduce((sum, r) => sum + r.dirty, 0),
-    [leaders],
-  );
-
-  const statBody = (
-    <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
-      <Stat label="Dirty files" value={dirtySum} tone={dirtySum > 0 ? "warning" : undefined} />
-    </div>
-  );
+  // The headline total is the fleet's uncommitted truth (the masthead's
+  // figure); the leaders below it rank the heaviest units.
+  const dirtySum = workspace.vitals.dirtySum;
 
   return (
     <WidgetShell
@@ -298,8 +313,32 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
     >
       {tall ? (
         <>
-          <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2 @[240px]:hidden">
-            <Stat label="Dirty files" value={dirtySum} tone={dirtySum > 0 ? "warning" : undefined} />
+          {/* Narrow column (below the bars' container floor): the total over
+              the top leaders as a mini-ledger — never a lone numeral. */}
+          <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-3.5 pb-2 @[240px]:hidden">
+            {leaders.length === 0 ? (
+              <p className="flex min-h-0 flex-1 items-center font-mono text-[11px] text-muted-foreground">
+                No uncommitted work — the tree is clean.
+              </p>
+            ) : (
+              <>
+                <p className="flex shrink-0 items-baseline gap-2 border-b border-(--mc-shell-hairline) py-2 font-mono text-[13px] leading-none font-medium tabular-nums text-foreground">
+                  {dirtySum} <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">dirty files</span>
+                </p>
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {leaders.slice(0, 4).map((r) => (
+                    <div key={r.name} className="flex min-h-0 flex-1 items-center gap-2 border-t border-(--mc-line) first:border-t-0">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground" title={r.name}>
+                        {r.name}
+                      </span>
+                      <span className="font-mono text-[10.5px] tabular-nums text-(--sev-warning)">
+                        {r.dirty}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           {leaders.length === 0 ? (
             <div className="hidden h-full min-h-0 w-full items-center px-3.5 pb-2 @[240px]:flex">
@@ -308,8 +347,9 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
               </p>
             </div>
           ) : (
-            <div className="hidden h-full min-h-0 w-full min-w-0 flex-col justify-center gap-1 overflow-hidden px-3.5 pb-3 @[240px]:flex">
+            <div className="hidden h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-3.5 pb-3 @[240px]:flex">
               <HBars
+                className="min-h-0 flex-1"
                 rows={leaders.map((r) => ({
                   label: r.name,
                   value: r.dirty,
@@ -326,7 +366,9 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
           )}
         </>
       ) : (
-        statBody
+        <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
+          <Stat label="Dirty files" value={dirtySum} tone={dirtySum > 0 ? "warning" : undefined} />
+        </div>
       )}
     </WidgetShell>
   );

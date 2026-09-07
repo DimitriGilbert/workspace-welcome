@@ -1,19 +1,20 @@
 /**
- * Session placement store (master plan §5 W3; settled decision #4).
+ * Session arrangement store (master plan §5 W3; settled #4, owner rounds 3-5).
  *
- * Module-scope, keyed by page id. A manual drag/resize shadows the authored
- * layout for the SESSION only: the store lives in module memory — never in
- * `sessionStorage`/`localStorage` — so a reload resets it (settled #4). Every
- * value is plain JSON ({@link SessionPlacement}), so a persistence layer can
- * serialize the exact same shape later without translation.
+ * Module-scope, keyed by page id. A manual move/resize commits the WHOLE
+ * region arrangement (the settled board after the mutation) — an explicit
+ * user drop is never refused for occupancy: the dragged widget lands exactly
+ * at its preview and widgets it displaced are re-homed by the packer's
+ * `settleArrangement` before the commit. The arrangement renders verbatim —
+ * pins protect placements from automatic reflow, they never block a user.
+ * The store lives in module memory — never `sessionStorage`/`localStorage` —
+ * so a reload resets it and the authored preset re-packs (settled #4).
  *
- * The store is a tiny observable: the grid canvas subscribes per page through
+ * The store is a tiny observable: the grid canvas subscribes per page via
  * `useSyncExternalStore`, and every write replaces the page snapshot
- * immutably (stable identity while unchanged — the external-store contract).
- *
- * SSR: the server never writes, and reads before the first client commit
- * return the shared EMPTY snapshot, so server HTML is the authored layout and
- * hydration matches pixel for pixel.
+ * immutably. SSR: the server never writes, and reads before the first client
+ * commit return null, so server HTML is the authored layout — hydration
+ * matches pixel for pixel.
  */
 
 /** One manually-committed footprint + position, in grid cells. */
@@ -24,17 +25,20 @@ export interface SessionPlacement {
   rows: number;
 }
 
-/** Current session overrides for one page, keyed by widget instance id. */
-export type SessionPlacements = Readonly<Record<string, SessionPlacement>>;
-
-/** Shared empty snapshot — also the `useSyncExternalStore` server snapshot. */
-export const EMPTY_SESSION_PLACEMENTS: SessionPlacements = Object.freeze({});
+/** The committed arrangement of one region: every widget's placement. */
+export interface RegionArrangement {
+  /** Grid width the arrangement was made at; a breakpoint change falls back
+   * to the authored pack until the next edit re-records it. */
+  columns: number;
+  /** Widget id → placement, for EVERY widget of the region. */
+  items: Record<string, SessionPlacement>;
+}
 
 interface PageSession {
-  /** Placement of each edited widget at its FIRST edit this session. */
+  regions: Record<string, RegionArrangement>;
+  /** Placement of each edited widget at its FIRST edit this session — the
+   * baseline "Escape reverts to". */
   baselines: Record<string, SessionPlacement>;
-  /** Current overrides — the snapshot subscribers see. */
-  overrides: Record<string, SessionPlacement>;
 }
 
 const sessions = new Map<string, PageSession>();
@@ -46,74 +50,63 @@ function emit(pageId: string): void {
   for (const listener of set) listener();
 }
 
-/** Current overrides for a page (empty when the session has no edits). */
-export function getSessionPlacements(pageId: string): SessionPlacements {
-  return sessions.get(pageId)?.overrides ?? EMPTY_SESSION_PLACEMENTS;
+/** The page's whole session snapshot (null before the first commit) —
+ * reference-stable while unchanged, the external-store contract. */
+export function getPageSession(pageId: string): PageSession | null {
+  return sessions.get(pageId) ?? null;
 }
 
-/** Subscribe to a page's overrides; returns the unsubscribe function. */
+/** Subscribe to a page's arrangement; returns the unsubscribe function. */
 export function subscribeSession(pageId: string, listener: () => void): () => void {
   let set = listeners.get(pageId);
   if (set === undefined) {
     set = new Set();
     listeners.set(pageId, set);
   }
-  const subscribers = set;
-  subscribers.add(listener);
+  set.add(listener);
   return () => {
-    subscribers.delete(listener);
+    set.delete(listener);
   };
 }
 
 /**
- * Commit a manual move/resize: the widget is pinned at `placement` (moved
- * widgets lead the re-pack as fixed items) and shadows any authored `at`
- * anchor until reload. `sessionStart` is the widget's placement at the
- * moment of its FIRST edit — the baseline "Escape reverts to" — and is
- * captured once, on that first commit.
+ * Commit the settled arrangement of one region after a mutation. `editedIds`
+ * are the widgets the mutation touched (the moved/resized one plus anything
+ * it displaced) — their baseline ("Escape reverts to") is captured on their
+ * first edit and never overwritten.
  */
-export function commitSessionPlacement(
+export function commitArrangement(
   pageId: string,
-  widgetId: string,
-  placement: SessionPlacement,
-  sessionStart: SessionPlacement,
+  regionId: string,
+  columns: number,
+  items: Readonly<Record<string, SessionPlacement>>,
+  editedIds: readonly string[],
 ): void {
-  const previous =
-    sessions.get(pageId) ?? { baselines: {}, overrides: {} };
-  const baselines =
-    previous.baselines[widgetId] === undefined
-      ? { ...previous.baselines, [widgetId]: { ...sessionStart } }
-      : previous.baselines;
+  // IMMUTABLE snapshot swap: the canvas subscribes through
+  // useSyncExternalStore — mutating the page object in place would keep the
+  // snapshot reference identical and React would skip the re-render.
+  const previous = sessions.get(pageId) ?? { regions: {}, baselines: {} };
+  const baselines = { ...previous.baselines };
+  for (const id of editedIds) {
+    if (baselines[id] === undefined) {
+      const item = items[id];
+      if (item !== undefined) baselines[id] = { ...item };
+    }
+  }
   sessions.set(pageId, {
+    regions: { ...previous.regions, [regionId]: { columns, items: { ...items } } },
     baselines,
-    overrides: { ...previous.overrides, [widgetId]: { ...placement } },
   });
   emit(pageId);
 }
 
-/**
- * Revert one widget to its session-start placement: the override is re-pinned
- * at the recorded baseline so the widget lands EXACTLY where the session
- * found it, regardless of how other widgets re-packed around it. Returns the
- * restored baseline, or null when the widget has no session edits to revert.
- */
-export function revertSessionPlacement(
-  pageId: string,
-  widgetId: string,
-): SessionPlacement | null {
-  const page = sessions.get(pageId);
-  const baseline = page?.baselines[widgetId];
-  if (page === undefined || baseline === undefined) return null;
-  sessions.set(pageId, {
-    ...page,
-    overrides: { ...page.overrides, [widgetId]: { ...baseline } },
-  });
-  emit(pageId);
-  return { ...baseline };
+/** The placement a widget had at its first edit this session (Escape target). */
+export function getBaseline(pageId: string, widgetId: string): SessionPlacement | null {
+  return sessions.get(pageId)?.baselines[widgetId] ?? null;
 }
 
-/** Drop a page's whole session (edits + baselines) — used on unmount in
- * principle, and by tests; the store also resets naturally on reload. */
+/** Drop a page's whole session — used by tests; the store also resets
+ * naturally on reload. */
 export function clearPageSession(pageId: string): void {
   if (!sessions.has(pageId)) return;
   sessions.delete(pageId);

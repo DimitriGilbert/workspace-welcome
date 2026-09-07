@@ -65,7 +65,9 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: McCommandBar,
     requires: ["workspace"],
     defaultSize: "2x1",
-    min: "1x1",
+    // The register row (sync + actions + rescan + settings) needs ~420px —
+    // below two columns it wraps past its row.
+    min: "2x1",
     hosts: ["form-add-root", "form-create-project", "form-report-run", "form-clone-script"],
   },
   {
@@ -93,7 +95,7 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace", "report"],
     defaultSize: "2x2",
     min: "1x1",
-    hosts: ["report-gate", "chart", "data-table", "stat"],
+    hosts: ["report-gate", "chart", "stat"],
   },
   {
     id: "mc-report-ai",

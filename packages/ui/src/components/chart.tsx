@@ -1,6 +1,4 @@
 import { useEffect, useId, useState } from "react";
-
-import { useReducedMotion } from "motion/react";
 import {
   Area,
   AreaChart,
@@ -91,7 +89,6 @@ export function Chart({
   className,
 }: ChartProps) {
   const gradientId = useId();
-  const reduceMotion = useReducedMotion();
   const [mounted, setMounted] = useState(false);
 
   // Client-only gate: the first client render must equal the server HTML.
@@ -105,7 +102,10 @@ export function Chart({
     return <ChartPlaceholder ariaLabel={ariaLabel} className={className} />;
   }
 
-  const animate = !reduceMotion;
+  // Mount animation disabled (ui grant): board captures and harness frames
+  // must never catch a mid-animation empty/flat chart — the series renders
+  // filled on first paint.
+  const animate = false;
 
   const tooltipProps = {
     cursor: { stroke: "var(--border)" },

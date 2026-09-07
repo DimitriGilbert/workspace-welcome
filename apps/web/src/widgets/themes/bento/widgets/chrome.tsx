@@ -32,6 +32,7 @@ import { matchProject } from "@/lib/search";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
+import { ThemePicker } from "@/widgets/runtime/theme-picker";
 
 import { AddRootDialog, CloneScriptDialog, CreateProjectDialog, ReportRunDialog } from "../dialogs";
 
@@ -84,6 +85,10 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
           </Link>
 
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
+            {/* The bento chrome hides the runtime's console header (the
+                command bar replaces it), so the system theme picker hosts
+                here — preset + color scheme survive reloads. */}
+            <ThemePicker theme="bento" />
             <Button
               variant="ghost"
               size="sm"

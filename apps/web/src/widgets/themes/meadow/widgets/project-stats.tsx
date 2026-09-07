@@ -1,11 +1,14 @@
 /**
- * Meadow project report strip, ported from the design's `ProjectReportStats`
+ * Meadow project report widgets, ported from the design's `ProjectReportStats`
  * (`components/designs/meadow/report-section.tsx`) into the theme namespace
- * (owner correction: theme widgets carry the prototype's presentation): five
- * warm figures from this repo's report — commits, contributors, top
- * language, the subsidized AI cost as the honey-tinted loud cell, and the
- * token total. The report state machine (missing/stale/running/fresh) is
- * ReportProvider's; the numbers read the context's normalized view.
+ * (owner correction: theme widgets carry the prototype's presentation).
+ *
+ * Two presentations over this repo's report: the wide stat strip (five warm
+ * figures — commits, contributors, top language, the honey-tinted subsidized
+ * AI cost, the token total) and the right-rail glance card (compact figures
+ * over the language donut + bars — the sizing law's "charts render whenever
+ * the box fits them"). The report state machine (missing/stale/running/fresh)
+ * is ReportProvider's; the numbers read the context's normalized view.
  */
 import { useState } from "react";
 import { Check, Copy, FlaskConical, Loader2 } from "lucide-react";
@@ -13,7 +16,7 @@ import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 
-import { SoftNumber } from "./bits";
+import { Donut, HBars, SLICE_COLORS, SoftNumber } from "./bits";
 import { formatCost, formatTokens } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
@@ -24,19 +27,38 @@ function StatCell({
   label,
   value,
   sub,
+  accent = false,
+  compact = false,
 }: {
   label: string;
   value: string | number;
   sub?: string;
+  /** The honey-tinted loud register (the subsidized AI cost). */
+  accent?: boolean;
+  /** Rail-card register: tighter padding, smaller figure. */
+  compact?: boolean;
 }) {
   return (
-    <div className="meadow-panel flex flex-col gap-0.5 p-4">
+    <div
+      className={`meadow-panel flex min-w-0 flex-col gap-0.5 ${compact ? "p-3" : "p-4"}`}
+      style={
+        accent
+          ? {
+              background:
+                "color-mix(in oklch, var(--pinned-accent) 6%, var(--card))",
+              borderColor:
+                "color-mix(in oklch, var(--pinned-accent) 22%, var(--border))",
+            }
+          : undefined
+      }
+    >
       <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
         {label}
       </span>
       <SoftNumber
         value={value}
-        className="truncate text-2xl leading-tight font-semibold tracking-tight text-foreground"
+        className={`truncate leading-tight font-semibold tracking-tight ${compact ? "text-lg" : "text-2xl"} ${accent ? "" : "text-foreground"}`}
+        style={accent ? { color: "var(--pinned-accent)" } : undefined}
       />
       {sub ? (
         <span className="text-[10px] text-muted-foreground">{sub}</span>
@@ -59,35 +81,16 @@ function StatsStrip({ view }: { view: ReportView }) {
         value={top?.language ?? "—"}
         sub={top ? `${formatTokens(top.lines)} lines` : undefined}
       />
-      <div
-        className="meadow-panel flex flex-col gap-0.5 p-4"
-        style={{
-          background:
-            "color-mix(in oklch, var(--pinned-accent) 6%, var(--card))",
-          borderColor:
-            "color-mix(in oklch, var(--pinned-accent) 22%, var(--border))",
-        }}
-      >
-        <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-          AI cost · subsidized
-        </span>
-        {view.aiUsage ? (
-          <>
-            <SoftNumber
-              value={formatCost(view.aiUsage.cost)}
-              className="text-2xl leading-tight font-semibold tracking-tight"
-              style={{ color: "var(--pinned-accent)" }}
-            />
-            <span className="text-[10px] text-muted-foreground">
-              across {formatTokens(view.aiUsage.records)} tracked records
-            </span>
-          </>
-        ) : (
-          <span className="py-1 text-sm text-muted-foreground">
-            no AI usage recorded
-          </span>
-        )}
-      </div>
+      <StatCell
+        accent
+        label="AI cost · subsidized"
+        value={view.aiUsage ? formatCost(view.aiUsage.cost) : "—"}
+        sub={
+          view.aiUsage
+            ? `across ${formatTokens(view.aiUsage.records)} tracked records`
+            : "no AI usage recorded"
+        }
+      />
       <StatCell
         label="AI tokens"
         value={view.aiUsage ? formatTokens(view.aiUsage.tokens.total) : "—"}
@@ -97,6 +100,97 @@ function StatsStrip({ view }: { view: ReportView }) {
             : undefined
         }
       />
+    </div>
+  );
+}
+
+/**
+ * The right-rail glance card (the preset's 4x4 placement): four compact
+ * figures over the language mix — the donut and bars render because the box
+ * fits them, so the rail carries the report's shape, not just its totals.
+ */
+function StatsGlance({ view }: { view: ReportView }) {
+  const languages = view.languageRows;
+  const top = languages.slice(0, 4);
+  const restLines = languages.slice(4).reduce((sum, l) => sum + l.lines, 0);
+  const slices = [
+    ...top.map((l, i) => ({
+      label: l.language,
+      value: l.lines,
+      color: SLICE_COLORS[i] ?? "var(--muted)",
+    })),
+    ...(restLines > 0
+      ? [
+          {
+            label: "Other",
+            value: restLines,
+            color:
+              "color-mix(in oklch, var(--muted-foreground) 35%, var(--muted))",
+          },
+        ]
+      : []),
+  ];
+  const totalLines = languages.reduce((sum, l) => sum + l.lines, 0);
+
+  return (
+    <div className="flex h-full w-full min-w-0 flex-col gap-2.5 overflow-hidden">
+      <div className="grid shrink-0 grid-cols-2 gap-2.5">
+        <StatCell
+          compact
+          label="commits"
+          value={view.totals.commits.toLocaleString()}
+        />
+        <StatCell
+          compact
+          label={
+            view.totals.contributors === 1 ? "contributor" : "contributors"
+          }
+          value={view.totals.contributors}
+        />
+        <StatCell
+          compact
+          accent
+          label="AI cost · subsidized"
+          value={view.aiUsage ? formatCost(view.aiUsage.cost) : "—"}
+          sub={
+            view.aiUsage
+              ? `${formatTokens(view.aiUsage.records)} records`
+              : "none recorded"
+          }
+        />
+        <StatCell
+          compact
+          label="AI tokens"
+          value={view.aiUsage ? formatTokens(view.aiUsage.tokens.total) : "—"}
+        />
+      </div>
+      {languages.length > 0 ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center gap-x-5 gap-y-3">
+          <div className="aspect-square h-full max-w-44 shrink-0">
+            <Donut
+              fill
+              slices={slices}
+              centerValue={formatTokens(totalLines)}
+              centerLabel="lines"
+              label="Language share by lines of code"
+            />
+          </div>
+          <div className="min-h-0 min-w-0 flex-1">
+            <HBars
+              data={top.map((l) => ({
+                label: l.language,
+                value: l.lines,
+                display: `${formatTokens(l.lines)} ln · ${l.files} files`,
+              }))}
+              label="Lines of code by language"
+            />
+          </div>
+        </div>
+      ) : (
+        <p className="flex flex-1 items-center justify-center text-center text-xs text-muted-foreground">
+          No language data in this report.
+        </p>
+      )}
     </div>
   );
 }
@@ -179,7 +273,8 @@ function GenerateStrip() {
   );
 }
 
-function StatsFull() {
+/** Report-state gate shared by both presentations. */
+function StatsFull({ glance = false }: { glance?: boolean }) {
   const report = useReport();
   const view = report.view;
 
@@ -192,7 +287,7 @@ function StatsFull() {
     );
   }
   if (view === null) return <GenerateStrip />;
-  return <StatsStrip view={view} />;
+  return glance ? <StatsGlance view={view} /> : <StatsStrip view={view} />;
 }
 
 export function MeadowProjectStats({ size }: RegisteredWidgetProps) {
@@ -200,6 +295,7 @@ export function MeadowProjectStats({ size }: RegisteredWidgetProps) {
   const view = report.view;
 
   const gatedStrip = <StatsFull />;
+  const gatedGlance = <StatsFull glance />;
 
   return (
     <WidgetShell
@@ -213,9 +309,11 @@ export function MeadowProjectStats({ size }: RegisteredWidgetProps) {
             </span>
           </div>
         ),
-        // Every placement above 1x1 renders the ONE stat strip — its grid
-        // wraps to the width (2 cols on phones, 5 on desktop).
+        // Wide placements render the wrapping stat strip (2 cols on phones,
+        // 5 on desktop); from the 2x3 rung up the box fits the glance card's
+        // donut, so the rail placement carries the language charts too.
         "2x1": gatedStrip,
+        "2x3": gatedGlance,
       }}
     >
       {gatedStrip}

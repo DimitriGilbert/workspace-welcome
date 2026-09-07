@@ -40,8 +40,9 @@ export function MeadowAttention(_props: RegisteredWidgetProps) {
 
   const openProject = (path: string) => {
     void navigate({
-      to: "/app/$theme/project/$",
-      params: { theme: "meadow", _splat: path.replace(/^\/+/, "") },
+      to: "/project/$",
+      params: { _splat: path.replace(/^\/+/, "") },
+      search: { preset: "meadow" },
     });
   };
 

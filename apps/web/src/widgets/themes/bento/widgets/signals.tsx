@@ -113,7 +113,7 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                   <button
                     type="button"
                     onClick={() => openProject(p.path)}
-                    className="group flex w-full items-center gap-3 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]"
+                    className="group flex w-full min-w-0 items-center gap-3 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]"
                   >
                     <Icon
                       className="size-4 shrink-0"
@@ -122,11 +122,14 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                     <span className="w-32 shrink-0 truncate text-[0.82rem] font-semibold tracking-tight sm:w-64">
                       {p.name}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-wrap content-center gap-1.5">
+                    {/* Flexible column: the alert chips absorb the remaining
+                        width on one dense line (truncate, no wrap) — the row
+                        reads edge to edge with no mid-row voids. */}
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                       {blocking.map((a) => (
                         <span
                           key={a.code}
-                          className="inline-flex max-w-full items-center truncate rounded-md px-2 py-0.5 text-[0.7rem] font-medium"
+                          className="inline-flex min-w-0 items-center truncate rounded-md px-2 py-0.5 text-[0.7rem] font-medium"
                           style={
                             a.severity === "critical"
                               ? {
@@ -141,7 +144,7 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                                 }
                           }
                         >
-                          {a.message}
+                          <span className="truncate">{a.message}</span>
                         </span>
                       ))}
                     </span>

@@ -10,8 +10,16 @@
  *    last resort (no `sizes` entry resolved, or none authored).
  * 2. **Part self-degradation handles pixel variance WITHIN a rung** — cell density
  *    (84–104 px row units) and viewport width change the box without changing its
- *    class. Parts do that with container queries; the shell provides the query root
- *    (`container-type: inline-size` on this root).
+ *    class. Parts do that with container queries; the shell provides the query
+ *    root. Canvas-placed shells root a `container-type: size` container — the
+ *    grid tracks give the shell a provably definite height (fixed px
+ *    `grid-auto-rows` × rows, stretched `h-full` frame), so parts can run BOTH
+ *    width and height conditions against the same container for rich/compact
+ *    switching. Out-of-grid shells (composite slots, dialogs, the lab, explicit
+ *    `size` props) keep `container-type: inline-size`: their height may be
+ *    content-driven and size containment would collapse them. SSR-stable either
+ *    way — the placement context exists during render, so server and client
+ *    stamp the same class.
  *
  * The ladder is the author's tool; the container query is the part's. Both exist
  * because width can change without a class change.
@@ -206,7 +214,24 @@ export function WidgetShell({
           data-slot="widget-shell"
           data-tone={tone}
           data-interactive={isInteractive ? "true" : "false"}
-          className={cn("@container flex min-h-0 min-w-0 flex-col", className)}
+          // overflow-hidden = the shell owns its box: fixed-content widgets
+          // (nowrap legends, fixed gauges, recharts staleness) never spill
+          // into neighbouring cells or past the scope edge, at any footprint.
+          // Drag/resize affordances are siblings of this element (the canvas
+          // renders them), so clipping never touches them; popups portal out
+          // via the theme scope. Not auto/scroll, so the no-inner-scroll
+          // contract is untouched.
+          //
+          // Query root: canvas-placed shells get `container-type: size` —
+          // the grid tracks define the shell's height, so height-aware
+          // `@container` conditions are sound there (see the header note).
+          // Everywhere else the shell stays inline-size: its height may be
+          // content-driven, and size containment would collapse it.
+          className={cn(
+            gridItem !== null ? "[container-type:size]" : "@container",
+            "flex min-h-0 min-w-0 flex-col overflow-hidden",
+            className,
+          )}
           style={style}
         >
           {hasHeader ? (
@@ -234,8 +259,8 @@ export function WidgetShell({
           {hasTabs ? (
             <WidgetTabs tabs={tabs} activeTab={activeTab} onTabChange={onTabChange} className="mt-1" />
           ) : null}
-          {/* Stretches so the density probe measures the real box; height-based
-              container queries can target this definite-height box later. */}
+          {/* Stretches so the density probe measures the real box; height
+              conditions run against the shell root's size container above. */}
           <div data-slot="widget-shell-content" className="min-h-0 flex-1">
             {content}
           </div>

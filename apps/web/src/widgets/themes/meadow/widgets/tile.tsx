@@ -83,8 +83,9 @@ export function MeadowProjectTile({ node, size }: RegisteredWidgetProps) {
 
   const openProject = (target: string) => {
     void navigate({
-      to: "/app/$theme/project/$",
-      params: { theme: "meadow", _splat: target.replace(/^\/+/, "") },
+      to: "/project/$",
+      params: { _splat: target.replace(/^\/+/, "") },
+      search: { preset: "meadow" },
     });
   };
 

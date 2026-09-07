@@ -18,7 +18,7 @@
  * Behavior: settles the page (waits for `[data-ready]`, then double rAF),
  * runs the probes serially, prints `PASS|FAIL|WARN <check> <detail>` lines
  * and exits non-zero on any FAIL. `--suite self-test` targets the known-bad
- * panel (folded into the lab at W4: `/app/__lab?self-test=1`) and INVERTS
+ * panel (folded into the lab at W4: `/__lab?self-test=1`) and INVERTS
  * the contract: the run is only OK when every probe reported FAIL on it
  * (expected failures prove detection); a probe that passes there is a FAIL.
  *
@@ -69,7 +69,7 @@ function usage() {
   process.stdout.write(
     `usage: node scripts/widget-check/run.mjs [--suite theme|lab|parts-preview|self-test]\n` +
       `          [--theme <slug>] [--page dashboard|project] [--path <projectPath>]\n` +
-      `          [--viewport WxH]\n` +
+      `          [--scheme <id>] [--viewport WxH]\n` +
       `          [--bare] [--base-url <url>] [--out <path>] [--probe <name>]...\n`,
   );
 }
@@ -80,6 +80,7 @@ function parseArgs(argv) {
     theme: DEFAULT_THEME,
     page: "dashboard",
     path: undefined,
+    scheme: undefined,
     viewport: DEFAULT_VIEWPORT,
     suite: "theme",
     bare: false,
@@ -99,6 +100,7 @@ function parseArgs(argv) {
       case "--theme": options.theme = value(); break;
       case "--page": options.page = value(); break;
       case "--path": options.path = value(); break;
+      case "--scheme": options.scheme = value(); break;
       case "--viewport": options.viewport = value(); break;
       case "--suite": options.suite = value(); break;
       case "--bare": options.bare = true; break;
@@ -114,7 +116,7 @@ function parseArgs(argv) {
 
 /**
  * The project path behind `--page project` (D-V3-2): the splat route
- * `/app/<theme>/project/<path…>` carries the absolute project path minus its
+ * `/project/<path…>` carries the absolute project path minus its
  * leading "/" (see apps/web/src/lib/open-project.ts). Default when omitted:
  * this repo's own root — a real scanned project with a cached report, so the
  * page under test is a real project readout, not the null-project shell.
@@ -146,21 +148,29 @@ function parseViewport(spec) {
 
 function targetUrl(baseUrl, suiteName, options) {
   const suite = SUITES[suiteName];
-  const bareQuery = options.bare ? "?bare=1" : "";
+  const params = new URLSearchParams();
+  if (options.bare) params.set("bare", "1");
+  if (options.scheme !== undefined) params.set("scheme", options.scheme);
+  // Theme URLs are top-level (`/` dashboard, `/project/<path…>`); the dead
+  // `/app/<slug>` routes only redirect here carrying `?preset=<slug>` —
+  // targeting the top-level URLs directly keeps the harness on the app's
+  // real surfaces while staying theme-specific.
+  if (suite.target === "theme") params.set("preset", options.theme);
+  const query = params.size > 0 ? `?${params.toString()}` : "";
   switch (suite.target) {
     case "theme": {
       if (options.page === "project") {
         const splat = options.path.replace(/^\/+/, "");
-        return `${baseUrl}/app/${options.theme}/project/${splat}${bareQuery}`;
+        return `${baseUrl}/project/${splat}${query}`;
       }
-      return `${baseUrl}/app/${options.theme}${bareQuery}`;
+      return `${baseUrl}/${query}`;
     }
     case "lab":
-      return `${baseUrl}/app/__lab${bareQuery}`;
+      return `${baseUrl}/__lab${query}`;
     case "parts-preview":
       return `${baseUrl}/parts-preview`;
     case "self-test":
-      return `${baseUrl}/app/__lab?self-test=1`;
+      return `${baseUrl}/__lab?self-test=1`;
     default:
       throw new Error(`unknown suite target: ${suite.target}`);
   }
@@ -220,6 +230,7 @@ const body = async () => {
       theme: options.theme,
       page: options.page,
       ...(projectPath !== undefined ? { projectPath } : {}),
+      ...(options.scheme !== undefined ? { scheme: options.scheme } : {}),
       viewport: options.viewport,
       bare: options.bare,
     },
@@ -257,7 +268,7 @@ const body = async () => {
         if (outcome.ok) {
           report.fail(
             "self-test",
-            `probe ${probe.name} did NOT detect any known-bad element on /app/__lab?self-test=1 — detection is broken`,
+            `probe ${probe.name} did NOT detect any known-bad element on /__lab?self-test=1 — detection is broken`,
           );
         } else {
           report.pass("self-test", `probe ${probe.name} correctly reported failures (detection proven)`);

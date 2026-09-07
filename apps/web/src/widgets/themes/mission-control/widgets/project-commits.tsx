@@ -97,14 +97,7 @@ export function McProjectCommits(_props: RegisteredWidgetProps) {
   const overflow = rows.length - shown.length;
 
   return (
-    <WidgetShell
-      className="h-full w-full"
-      meta={
-        <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
-          newest first
-        </span>
-      }
-    >
+    <WidgetShell className="h-full w-full">
       <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-1 overflow-hidden px-3.5 pb-3">
         <div className="min-h-0 min-w-0">
           <DataTable

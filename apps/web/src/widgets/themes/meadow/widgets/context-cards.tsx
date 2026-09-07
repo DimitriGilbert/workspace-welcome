@@ -35,7 +35,11 @@ function pathBasename(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
 }
 
-/** Card shell shared by every digest — the design's `ContextCard`. */
+/** Card shell shared by every digest — the design's `ContextCard`. The body
+ * wraps in a filling, centered column so sparse rungs (the 148px band rows)
+ * hold their content as a deliberate block instead of drifting to the top
+ * with dead space under it; fill rungs (the momentum trend) stretch through
+ * it unchanged. */
 export function ContextCard({
   icon: Icon,
   title,
@@ -54,7 +58,9 @@ export function ContextCard({
         <Icon aria-hidden className="size-3.5" />
         {title}
       </h3>
-      {children}
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-2">
+        {children}
+      </div>
     </section>
   );
 }
@@ -89,6 +95,7 @@ export function MomentumCardBase({
       <AreaTrend
         values={activity}
         label={`Projects touched per day over the last four weeks, ${total} total`}
+        className="min-h-12 flex-1"
       />
     </ContextCard>
   );

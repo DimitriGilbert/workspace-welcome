@@ -99,7 +99,9 @@ export function ReportPanel({ title = "Workspace pulse", className }: ReportPane
               {data.totals.languages.length > 0
                 ? ` · ${data.totals.languages.length} languages`
                 : ""}
-              {data.aiUsage ? ` · AI $${data.aiUsage.cost.toFixed(2)}` : ""}
+              {data.aiUsage && data.aiUsage.cost > 0
+                ? ` · AI $${data.aiUsage.cost.toFixed(2)}`
+                : ""}
             </span>
             {stale ? (
               <button
@@ -268,8 +270,15 @@ function ActivityTab({ data, seed }: { data: ReportExport; seed: string }) {
         {
           label: "table",
           content: (
-            <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden rounded-xl border border-border">
-              <table className="w-full border-collapse text-xs">
+            <div
+              className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border [mask-image:linear-gradient(to_bottom,var(--foreground)_calc(100%_-_28px),transparent)]"
+            >
+              {/* h-full makes the table a real design for the box it is in:
+                  in tall bands (12x5) the rows distribute through the full
+                  height instead of clustering with a void; where the months
+                  outrun the height the crop fades out instead of cutting a
+                  row mid-glyph. */}
+              <table className="h-full w-full border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-border text-left">
                     <th className="px-4 py-2.5 font-medium text-muted-foreground">month</th>
@@ -397,7 +406,7 @@ function CodeTab({ data }: { data: ReportExport }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:gap-8">
-      <div className="relative mx-auto size-[190px] shrink-0 lg:mx-0">
+      <div className="relative aspect-square h-full max-h-[190px] w-auto max-w-full shrink-0 lg:mx-0">
         <svg viewBox="0 0 140 140" className="block size-full" aria-hidden>
           <circle cx="70" cy="70" r={R} fill="none" stroke="var(--bento-track-soft)" strokeWidth={16} />
           {segments.map((seg) => (

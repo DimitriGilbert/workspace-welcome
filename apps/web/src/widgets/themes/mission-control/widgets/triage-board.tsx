@@ -3,7 +3,10 @@
  * `AttentionBoard`, `components/designs/mission-control/attention-board.tsx`
  * — the console "never renders this band when the fleet is clean"): every
  * project carrying an error or warn alert, worst first, one line each —
- * severity glyph register, name + alert message, pulse strip, update age.
+ * severity glyph register, name + alert message, update age. No decorative
+ * bars: the triage population shares one recency register, so a proportional
+ * bar renders identical slabs on every row (owner round-4 verdict) — the
+ * honest dense design is text-only.
  *
  * Row activation opens the project through the same-theme project route
  * (the design's `useOpenDesignProject` seam). The design's "Full triage"
@@ -15,18 +18,18 @@
 import { Pin } from "lucide-react";
 
 import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
+import { AlertIcons } from "@/components/git-badges";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { freshnessCounts } from "@/lib/scan-metrics";
-import { pulseCells } from "@/lib/scan-metrics";
-import { PulseStrip } from "@workspace-welcome/ui/components/pulse-strip";
+import { stackIcon } from "@/lib/icons";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { projectHref } from "./fleet-ledger";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
 
 const SEV_LABEL: Record<AlertSeverity, string> = {
   critical: "ERR",
@@ -55,8 +58,15 @@ function openProject(path: string): void {
   window.location.href = projectHref(path);
 }
 
-/** The design's six-row preview. */
-const PREVIEW = 6;
+/** Row rhythm of the triage band: py-[7px] + one text line + hairline — the
+ * FINAL owner image's airy register (~34px rows). */
+const ROW_PX = 34;
+/**
+ * Chrome above and below the rows: header, overflow footer, paddings —
+ * budgeted so the 4-row placement windows the FINAL image's eight rows
+ * (the console shows a window; the rows never stretch to fill).
+ */
+const TRIAGE_CHROME_PX = 120;
 
 /** The severity rows, worst first, freshest tiebreak — the design's sort. */
 function triagedProjects(projects: Project[]): Project[] {
@@ -91,8 +101,24 @@ function NominalCensus() {
   );
 }
 
+/** The unit's stack glyph (the ledger's StackCell register, inline size). */
+function StackIcon({ project }: { project: Project }) {
+  const Icon = stackIcon(project.stack?.id);
+  return (
+    <span className="flex items-center">
+      <Icon aria-hidden className="size-3.5 text-muted-foreground" />
+    </span>
+  );
+}
+
+/** Uncommitted-file count in the ledger's N register: quiet middot at zero. */
+function dirtyN(value: number | null): string {
+  return value === null || value === 0 ? "\u00b7" : String(value);
+}
+
 export function McTriage(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
+  const { rows: placedRows } = useWidgetSize();
   const triaged = triagedProjects(workspace.projects).filter(
     (p) => p.alerts.some((a) => a.severity === "critical") || p.alerts.some((a) => a.severity === "warning"),
   );
@@ -109,7 +135,14 @@ export function McTriage(_props: RegisteredWidgetProps) {
     );
   }
 
-  const preview = triaged.slice(0, PREVIEW);
+  // The visible window rides the placed height on the row's pixel budget —
+  // same contract as the fleet ledger's cap (placed px includes the canvas's
+  // 12px inter-row gaps).
+  const previewRows = Math.max(
+    3,
+    Math.floor((placedRows * 96 + (placedRows - 1) * 12 - TRIAGE_CHROME_PX) / ROW_PX),
+  );
+  const preview = triaged.slice(0, previewRows);
   const overflow = triaged.length - preview.length;
   const errors = triaged.filter((p) => worstSeverity(p) === "critical").length;
   const warns = triaged.length - errors;
@@ -137,7 +170,7 @@ export function McTriage(_props: RegisteredWidgetProps) {
               return (
                 <li
                   key={p.path}
-                  className="group flex shrink-0 cursor-pointer items-center gap-3 border-b border-(--mc-line) px-4 py-2 transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
+                  className="group flex cursor-pointer items-center gap-3 border-b border-(--mc-line) px-4 py-[7px] transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
                   onClick={() => openProject(p.path)}
                 >
                   <span
@@ -151,23 +184,43 @@ export function McTriage(_props: RegisteredWidgetProps) {
                   >
                     {worst ? SEV_LABEL[worst] : ""}
                   </span>
+                  {/* Severity + name + the alert message: the message is the
+                      FLEXIBLE column and absorbs the row's spare width. */}
                   <span className="flex min-w-0 flex-1 items-baseline gap-2">
                     <a
                       href={projectHref(p.path)}
                       onClick={(e) => e.stopPropagation()}
-                      className="flex min-w-0 shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+                      className="flex min-w-0 max-w-[16rem] shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       {p.name}
                       {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
                     </a>
-                    <span className="truncate text-xs text-muted-foreground">{primary?.message}</span>
+                    <span className="min-w-0 truncate text-xs text-muted-foreground">{primary?.message}</span>
                   </span>
-                  <PulseStrip
-                    cells={pulseCells(p, 24, workspace.now)}
-                    className="hidden w-32 shrink-0 xl:inline-flex"
-                  />
+                  {/* Real per-project data closes the row, content-proportioned
+                      like the fleet ledger: stack glyph, branch, uncommitted
+                      files, open alerts — then the update age. */}
                   <span
-                    className="hidden w-24 shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
+                    aria-hidden
+                    className="shrink-0"
+                    title={p.stack?.label ?? "No stack detected"}
+                  >
+                    <StackIcon project={p} />
+                  </span>
+                  <span
+                    className="hidden w-36 shrink-0 truncate font-mono text-[11px] text-muted-foreground min-[2200px]:block"
+                    title={p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
+                  >
+                    {p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
+                  </span>
+                  <span className="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums">
+                    {dirtyN(p.git.dirtyCount)}
+                  </span>
+                  <span className="flex shrink-0 items-center">
+                    {p.alerts.length > 0 ? <AlertIcons alerts={p.alerts} /> : null}
+                  </span>
+                  <span
+                    className="hidden shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
                     title={dateTooltip(p.updatedAt)}
                   >
                     {relativeTime(p.updatedAt)}

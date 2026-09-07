@@ -155,6 +155,72 @@
   display: none;
 }
 
+/* Exception — the bento kinds are chrome-framed (owner order: the bento is
+   a widget, not free canvas content): their shell headers — title +
+   titlebar meta — show above the content. The selector reaches only the
+   INNER shell (a header inside the outer shell's content slot), so the
+   canvas frame's duplicate registry title stays silent. */
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  [data-slot="widget-shell-content"]
+  [data-slot="widget-shell-header"],
+[data-ww-theme="meadow"]
+  [data-widget="project-bento"]
+  [data-slot="widget-shell-content"]
+  [data-slot="widget-shell-header"] {
+  display: flex;
+}
+
+/* The bento's file browser fills its tab body (fill law): the card becomes
+   a definite-height column, its content section flexes, so the split pane's
+   `height: 100%` tracks the box instead of a fixed pixel guess. */
+[data-ww-theme="meadow"] [data-widget="meadow-project-sections"] .meadow-files-fill {
+  display: flex;
+  flex-direction: column;
+}
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  .meadow-files-fill
+  > :last-child {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+/* The bento's ideation panel distributes its body through the box (fill law)
+   instead of stacking it at the top with a void under the last row. */
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  #ideation
+  > div:nth-child(2) {
+  flex: 1 1 0%;
+  min-height: 0;
+  justify-content: space-evenly;
+}
+
+/* The bento's artifacts panel fills its tab body (fill law): card column,
+   content section flexes, and the list / empty state stretches through it. */
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  .meadow-artifacts-fill {
+  display: flex;
+  flex-direction: column;
+}
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  .meadow-artifacts-fill
+  > :last-child {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+[data-ww-theme="meadow"]
+  [data-widget="meadow-project-sections"]
+  .meadow-artifacts-fill
+  > :last-child
+  > :last-child {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
 /* The board wrapper's page gutter: the design's `px-5 pt-5 pb-8` rhythm
    stepping to `md:px-8` / `2xl:px-12`. */
 [data-ww-theme="meadow"] [data-console-view] > div:has(> [data-widget-board]) {
@@ -180,21 +246,16 @@
 /* Block rhythm: the single-widget regions are not rungs of the 104px mosaic
    cell — they carry the design's block heights instead (one widget row per
    region, so the footprint math keeps checking). Values step with the
-   content's wrap points: the header row, the attention band, the identity
-   block, the stat strip, and the tabbed sections. The attention band's
-   compact steps leave room for its chip wrap (the summary line plus the
-   preview chips at ~3 per row on phone, ~5 on tablet). */
+   content's wrap points: the header row, the attention band, and the
+   project bento band. The attention band's compact steps leave room for its
+   chip wrap (the summary line plus the preview chips at ~3 per row on
+   phone, ~5 on tablet); the bento's phone step gives the wrapping tab strip
+   and the stacked panes room at the 2-column layout. */
 [data-ww-theme="meadow"] [data-region="masthead"] {
   grid-auto-rows: 44px !important;
 }
 [data-ww-theme="meadow"] [data-region="attention"] {
   grid-auto-rows: 44px !important;
-}
-[data-ww-theme="meadow"] [data-region="identity"] {
-  grid-auto-rows: 120px !important;
-}
-[data-ww-theme="meadow"] [data-region="report-glance"] {
-  grid-auto-rows: 104px !important;
 }
 @media (max-width: 1023px) {
   [data-ww-theme="meadow"] [data-region="masthead"] {
@@ -202,12 +263,6 @@
   }
   [data-ww-theme="meadow"] [data-region="attention"] {
     grid-auto-rows: 116px !important;
-  }
-  [data-ww-theme="meadow"] [data-region="identity"] {
-    grid-auto-rows: 156px !important;
-  }
-  [data-ww-theme="meadow"] [data-region="report-glance"] {
-    grid-auto-rows: 216px !important;
   }
 }
 @media (max-width: 639px) {
@@ -217,20 +272,9 @@
   [data-ww-theme="meadow"] [data-region="attention"] {
     grid-auto-rows: 148px !important;
   }
-  [data-ww-theme="meadow"] [data-region="identity"] {
-    grid-auto-rows: 212px !important;
+  [data-ww-theme="meadow"] [data-region="bento"] {
+    grid-auto-rows: 148px !important;
   }
-  [data-ww-theme="meadow"] [data-region="report-glance"] {
-    grid-auto-rows: 320px !important;
-  }
-}
-
-/* Digest band: the report + momentum/rhythm/stacks/directories kinds each
-   sit one per row (full-width placements), so the region steps its row unit
-   to 148px — the design's card heights (the 104px mosaic unit would crop
-   the momentum card's trend). */
-[data-ww-theme="meadow"] [data-region="digests"] {
-  grid-auto-rows: 148px !important;
 }
 
 /* The design's project page paddings (`px-5 pt-6 pb-8 md:px-8 2xl:px-12`). */

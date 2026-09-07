@@ -22,7 +22,7 @@
  * + placement commit — never gated on query completion (report widgets
  * legitimately render ReportGate skeletons). Placements are pure data, so
  * server HTML is pixel-identical and no measurement happens before
- * hydration: `useViewportColumns` initializes on the DESKTOP count and syncs
+ * hydration: `useViewportBoard` initializes on the DESKTOP count and syncs
  * via matchMedia in an effect (one reflow post-mount). Narrow viewports
  * re-pack: authored `at` anchors clamp inside the packer, session-pinned
  * widgets stay fixed, everything else re-packs in reading order.
@@ -54,7 +54,8 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { packGrid } from "@/lib/grid-layout/pack-grid";
 import type { PackItem } from "@/lib/grid-layout/pack-grid";
 
-import { EMPTY_SESSION_PLACEMENTS, getSessionPlacements, subscribeSession } from "./grid-session";
+import { getPageSession, subscribeSession } from "./grid-session";
+import { nodeSizeForBreakpoint } from "./layout-types";
 import type { WidgetNode } from "./layout-types";
 import { parseSize, resolveSizeClass, SIZE_LADDER } from "./size-class";
 import type { SizeClass } from "./size-class";
@@ -76,19 +77,39 @@ export interface ViewportColumns {
   phone: number;
 }
 
+/** The board the canvas currently packs into: the column count AND which
+ * preset breakpoint is active (v2 per-breakpoint node overrides key off the
+ * breakpoint, not off the column count — counts can coincide across keys). */
+export interface ViewportBoard {
+  columns: number;
+  breakpoint: "desktop" | "tablet" | "phone";
+}
+
 /**
  * THE centralized viewport-columns hook (§3.3): initializes on the DESKTOP
  * count (SSR renders desktop first paint everywhere, no measurement before
  * hydration) and syncs matchMedia in an effect — one reflow post-mount.
+ * Narrow viewports re-pack through the matching breakpoint key, so v2
+ * `tablet`/`phone` node overrides shadow the authored size exactly when
+ * their board is active.
  */
-export function useViewportColumns(columns: ViewportColumns): number {
-  const [gridColumns, setGridColumns] = useState(columns.desktop);
+export function useViewportBoard(columns: ViewportColumns): ViewportBoard {
+  const [board, setBoard] = useState<ViewportBoard>({
+    columns: columns.desktop,
+    breakpoint: "desktop",
+  });
   const { desktop, tablet, phone } = columns;
   useEffect(() => {
     const phoneQuery = window.matchMedia(PHONE_QUERY);
     const tabletQuery = window.matchMedia(TABLET_QUERY);
     const sync = (): void => {
-      setGridColumns(phoneQuery.matches ? phone : tabletQuery.matches ? tablet : desktop);
+      setBoard(
+        phoneQuery.matches
+          ? { columns: phone, breakpoint: "phone" }
+          : tabletQuery.matches
+            ? { columns: tablet, breakpoint: "tablet" }
+            : { columns: desktop, breakpoint: "desktop" },
+      );
     };
     sync();
     phoneQuery.addEventListener("change", sync);
@@ -98,7 +119,7 @@ export function useViewportColumns(columns: ViewportColumns): number {
       tabletQuery.removeEventListener("change", sync);
     };
   }, [desktop, tablet, phone]);
-  return gridColumns;
+  return board;
 }
 
 /** One region's resolved nodes — flow regions arrive already expanded (W4
@@ -145,29 +166,33 @@ interface PlacedWidget {
   pinned: boolean;
 }
 
-/** Pack one region at the current width: session overrides pin first as
- * fixed items, authored `at` anchors clamp inside the packer, everything
- * else packs in reading order. Pure data in, placements out. */
+/** Pack one region at the current width — the AUTHORED/global strategy:
+ * session overrides pin first as fixed items, authored `at` anchors clamp
+ * inside the packer, everything else packs in reading order. Each node packs
+ * with its active-breakpoint footprint (`nodeSizeForBreakpoint` — v2
+ * overrides shadow the base size).
+ *
+ * Authored anchors pin the DESKTOP board only — the arrangement the preset
+ * authors (its intentional holes included). Narrower boards re-pack through
+ * the sizing law: an anchor carries one shared `{x, y}`, which cannot
+ * re-band, so honoring it at the clamped narrower columns would overlap
+ * placements. */
 function packRegion(
   nodes: readonly WidgetNode[],
   columns: number,
-  overrides: Readonly<Record<string, { x: number; y: number; cols: number; rows: number }>>,
+  breakpoint: ViewportBoard["breakpoint"],
 ): PlacedWidget[] {
-  const byId = new Map(nodes.map((node) => [node.id, node]));
   const items: PackItem[] = nodes.map((node) => {
-    const override = overrides[node.id];
-    if (override !== undefined) {
-      return {
-        id: node.id,
-        cols: override.cols,
-        rows: override.rows,
-        pinned: true,
-        at: { x: override.x, y: override.y },
-      };
-    }
-    const footprint = parseSize(node.size) ?? { cols: 1, rows: 1 };
-    return { id: node.id, cols: footprint.cols, rows: footprint.rows, pinned: false, at: node.at };
+    const footprint = parseSize(nodeSizeForBreakpoint(node, breakpoint)) ?? { cols: 1, rows: 1 };
+    return {
+      id: node.id,
+      cols: footprint.cols,
+      rows: footprint.rows,
+      pinned: false,
+      at: breakpoint === "desktop" ? node.at : undefined,
+    };
   });
+  const byId = new Map(nodes.map((node) => [node.id, node]));
   return packGrid(items, { columns }).placements.flatMap((placement) => {
     const node = byId.get(placement.id);
     return node === undefined
@@ -185,7 +210,6 @@ function packRegion(
   });
 }
 
-/** The §3.3 container style: preset-driven vars + the grid template. */
 function gridStyle(columns: number, cellH: number, gap: number): CSSProperties {
   return {
     "--grid-cols": columns,
@@ -270,7 +294,7 @@ export function GridCanvas({
   interactive = true,
   className,
 }: GridCanvasProps) {
-  const gridColumns = useViewportColumns(columns);
+  const board = useViewportBoard(columns);
   const regionRefs = useRef(new Map<string, HTMLElement | null>());
 
   // Placement commit is synchronous (pure data → pack below); readiness is
@@ -280,20 +304,50 @@ export function GridCanvas({
     setReady(true);
   }, []);
 
-  const getPlacements = useCallback(() => getSessionPlacements(pageId), [pageId]);
+  const getSession = useCallback(
+    () => getPageSession(pageId),
+    [pageId],
+  );
   const subscribe = useCallback(
     (listener: () => void) => subscribeSession(pageId, listener),
     [pageId],
   );
-  const overrides = useSyncExternalStore(subscribe, getPlacements, () => EMPTY_SESSION_PLACEMENTS);
+  // The session snapshot (null on the server and before the first commit) —
+  // reference-stable while unchanged, the external-store contract.
+  const session = useSyncExternalStore(subscribe, getSession, () => null);
 
   const packed = useMemo(
     () =>
-      regions.map((region) => ({
-        id: region.id,
-        placements: packRegion(region.nodes, gridColumns, overrides),
-      })),
-    [regions, gridColumns, overrides],
+      regions.map((region) => {
+        // A committed arrangement renders VERBATIM — an explicit drop is never
+        // overridden. It governs only while the grid width matches the width
+        // it was made at and it covers every node of the region (a filter
+        // change re-packs globally until the next edit).
+        const arrangement = session?.regions[region.id];
+        const usable =
+          arrangement !== undefined &&
+          arrangement.columns === board.columns &&
+          region.nodes.every((node) => arrangement.items[node.id] !== undefined);
+        if (usable) {
+          const placements = region.nodes.map((node) => {
+            const item = arrangement.items[node.id];
+            return {
+              node,
+              x: item.x,
+              y: item.y,
+              cols: item.cols,
+              rows: item.rows,
+              pinned: true,
+            };
+          });
+          return { id: region.id, placements };
+        }
+        return {
+          id: region.id,
+          placements: packRegion(region.nodes, board.columns, board.breakpoint),
+        };
+      }),
+    [regions, board, session, pageId],
   );
 
   const widgetMeta = useMemo(() => {
@@ -322,7 +376,9 @@ export function GridCanvas({
           rows: placed.rows,
           // Authored anchors and session-pinned widgets can't be displaced,
           // so moves landing on them are refused by the controller.
-          fixed: placed.pinned || placed.node.at !== undefined,
+          // Authored anchors are the only immovable geometry — session pins
+          // never block an explicit user drop (owner round 5).
+          fixed: placed.node.at !== undefined,
         })),
       ),
     [packed],
@@ -330,7 +386,7 @@ export function GridCanvas({
 
   const drag = useGridDrag({
     pageId,
-    columns: gridColumns,
+    columns: board.columns,
     cellH: cell.h,
     gap,
     widgets: widgetMeta,
@@ -358,7 +414,7 @@ export function GridCanvas({
             regionRefs.current.set(region.id, element);
           }}
           className="relative grid"
-          style={gridStyle(gridColumns, cell.h, gap)}
+          style={gridStyle(board.columns, cell.h, gap)}
         >
           {region.placements.map((placed) => {
             const { node } = placed;
@@ -398,7 +454,17 @@ export function GridCanvas({
                       // 2rem×2rem zone (both z-20 siblings would otherwise
                       // order by DOM position) — the move affordance must
                       // stay reachable at the top-left corner.
-                      className="absolute top-1 left-1 z-30 flex size-6 cursor-grab touch-none items-center justify-center rounded-sm text-muted-foreground opacity-0 pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-(--pinned-accent,var(--primary)) focus-visible:outline-none hover:text-foreground"
+                      //
+                      // ALWAYS pointer-live: hover-gated pointer-events
+                      // (`group-hover:pointer-events-auto`) compiles into
+                      // `@media (hover: hover)` — headless/CDP drivers and
+                      // touch report hover:none, and the grip becomes
+                      // ungrabbable exactly when the harness needs it (the
+                      // always-live NW resize zone already claims this same
+                      // corner, so nothing new is blocked). Opacity stays
+                      // hover-gated: the affordance only needs to be
+                      // visible, not conditionally hittable.
+                      className="absolute top-1 left-1 z-30 flex size-6 cursor-grab touch-none items-center justify-center rounded-sm text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-(--pinned-accent,var(--primary)) focus-visible:outline-none hover:text-foreground"
                       onPointerDown={(event) => drag.startMove(node.id, region.id, event)}
                       onKeyDown={(event) => drag.moveKeyDown(node.id, event)}
                     >
@@ -429,7 +495,7 @@ export function GridCanvas({
             );
           })}
           {drag.ghost?.regionId === region.id ? (
-            <GhostMark ghost={drag.ghost} columns={gridColumns} cellH={cell.h} gap={gap} />
+            <GhostMark ghost={drag.ghost} columns={board.columns} cellH={cell.h} gap={gap} />
           ) : null}
         </div>
       ))}

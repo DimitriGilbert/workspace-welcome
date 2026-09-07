@@ -18,6 +18,10 @@ export interface HeatmapProps {
   now: number;
   /** Cap per-cell width in px and center the grid (default 26). */
   cellMax?: number;
+  /** Stretch the grid through the box (1fr tracks, cells flex to span)
+   * instead of the centered capped-square mosaic — for wide placements
+   * where the capped grid would strand a void beside its legend. */
+  fill?: boolean;
   ariaLabel?: string;
   className?: string;
 }
@@ -114,6 +118,7 @@ export function Heatmap({
   weeks = 18,
   now,
   cellMax = 26,
+  fill = false,
   ariaLabel,
   className,
 }: HeatmapProps) {
@@ -136,15 +141,22 @@ export function Heatmap({
       <div
         aria-hidden
         className="grid flex-1 grid-flow-col content-center gap-[3px]"
-        style={{
-          gridTemplateColumns: `repeat(${weekCount}, minmax(0, ${cellMax}px))`,
-          gridTemplateRows: "repeat(7, auto)",
-          justifyContent: "center",
-        }}
+        style={
+          fill
+            ? {
+                gridTemplateColumns: `repeat(${weekCount}, minmax(0, 1fr))`,
+                gridTemplateRows: "repeat(7, minmax(0, 1fr))",
+              }
+            : {
+                gridTemplateColumns: `repeat(${weekCount}, minmax(0, ${cellMax}px))`,
+                gridTemplateRows: "repeat(7, auto)",
+                justifyContent: "center",
+              }
+        }
       >
         {grid.map((col, w) =>
           col.map((cell, d) => {
-            const fill = cell.future
+            const fillStyle = cell.future
               ? heatFill(0)
               : heatFill(heatLevel(cell.count));
             return (
@@ -152,12 +164,13 @@ export function Heatmap({
                 key={`${w}-${d}`}
                 title={cell.future ? undefined : cell.title}
                 className={cn(
-                  "aspect-square w-full rounded-[1px]",
+                  "w-full rounded-[1px]",
+                  fill ? "h-full" : "aspect-square",
                   cell.future && "invisible",
                 )}
                 style={{
-                  backgroundColor: fill.color,
-                  opacity: cell.future ? 0 : fill.opacity,
+                  backgroundColor: fillStyle.color,
+                  opacity: cell.future ? 0 : fillStyle.opacity,
                 }}
               />
             );

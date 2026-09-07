@@ -13,10 +13,9 @@
  * Chrome decisions (ported from the design):
  * - Panel widgets (reports, analytics, pulse, note) read as the design's
  *   `mc-panel`: raised flat panel, hairline border, micro-caps header.
- * - Stage widgets (masthead, command bar, actions band, triage, ledger,
- *   state band) sit on the canvas — their shells strip to transparent; the
- *   widgets carry the design's own surfaces (the triage panel, the joined
- *   state band).
+ * - Stage widgets (masthead, command bar, triage, ledger, state band) sit on
+ *   the canvas — their shells strip to transparent; the widgets carry the
+ *   design's own surfaces (the triage panel, the joined state band).
  * - Tabs render as the design's `mc-tabs` register; tables as `mc-th`
  *   ledgers with the faint zebra.
  */
@@ -73,11 +72,37 @@
   tab-size: 4;
 }
 
+/* --- titlebar meta: the widget shell's header rides the title row ----------
+ *
+ * renderLayout wraps every placed widget in a shell that renders the
+ * registry title; theme widgets mount a second shell inside it whose header
+ * carries the meta slot. Stacked headers read as a standalone subtitle row —
+ * the one the owner banned — so the inner header is pinned onto the frame's
+ * title row (top-right of the canvas frame): metadata shares the line with
+ * the title, and content starts directly under the titlebar hairline. The
+ * equally-specific direct-child rule below re-asserts the outer header in
+ * flow; the stage register's headers stay display:none (they win on
+ * `display`, whatever the position). */
+[data-ww-theme="mission-control"] [data-widget] > [data-slot="widget-shell"] [data-slot="widget-shell-header"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  border-bottom: none;
+  background: transparent;
+  padding: 0.5rem 0.875rem;
+}
+
+[data-ww-theme="mission-control"] [data-widget] > [data-slot="widget-shell"] > [data-slot="widget-shell-header"] {
+  position: static;
+  border-bottom: 1px solid var(--mc-shell-hairline);
+  padding: 0.5rem 0.875rem;
+}
+
 /* --- the stage register: canvas widgets strip their shell chrome ---------- */
 
 [data-ww-theme="mission-control"] [data-widget="masthead"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="command-bar"] > [data-slot="widget-shell"],
-[data-ww-theme="mission-control"] [data-widget="actions"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="triage"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="ledger"] > [data-slot="widget-shell"],
 [data-ww-theme="mission-control"] [data-widget="state-band"] > [data-slot="widget-shell"] {
@@ -87,7 +112,6 @@
 
 [data-ww-theme="mission-control"] [data-widget="masthead"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="command-bar"] [data-slot="widget-shell-header"],
-[data-ww-theme="mission-control"] [data-widget="actions"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="triage"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="ledger"] [data-slot="widget-shell-header"],
 [data-ww-theme="mission-control"] [data-widget="state-band"] [data-slot="widget-shell-header"],
@@ -159,6 +183,14 @@
 
 [data-ww-theme="mission-control"] [data-part="data-table"] tbody tr:hover {
   background: color-mix(in oklch, var(--foreground) 3.5%, transparent);
+}
+
+/* The health node's ledger rows carry a little air so the signals ledger
+ * fills its tall narrow rung at real signal counts (≈49px rows — the FINAL
+ * owner image's health register). */
+[data-ww-theme="mission-control"] [data-widget="report-health"] [data-part="data-table"] tbody td {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
 }
 
 /* --- page chrome: the design's sticky console header ---------------------- */

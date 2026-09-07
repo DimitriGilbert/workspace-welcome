@@ -1,31 +1,37 @@
 /**
- * McCommandBar — search + rescan + sync clock (verbatim port of the
- * design's `CommandBar`, `components/designs/mission-control/command-bar.tsx`).
+ * The console's command register (the design's `CommandBar` sync/actions
+ * half, `components/designs/mission-control/command-bar.tsx`).
  *
- * The filter text is THE workspace filter (`WorkspaceContext.filter`) — the
- * page header's console input and this bar bind the same state, so every
- * widget narrows together (§3.4). The count readout keeps filtering honest;
- * Escape clears the field (the design's guard); Rescan rides the provider's
- * `refresh()`. The sync clock reads the provider's data-epoch — never
- * wall-clock during render.
+ * Owner mod 1: the register is PAGE HEADER chrome, not canvas content — the
+ * board's `command-bar` node is gone; `McCommandRegister` renders at the
+ * common header's right edge (ThemePreset.headerCommand → render-layout),
+ * beside the one common filter. It fills that slot: `h-8` controls centered
+ * in the header row, the register wrapping (never clipping) when the
+ * viewport narrows. The fleet filter lives in the page header itself
+ * (`data-console-filter`, focused by `/`) — the one filter the owner kept
+ * common — so this register carries no second search input: the sync clock
+ * reads the provider's data-epoch (never wall-clock during render), Rescan
+ * rides the provider's `refresh()`, and the Actions menu keeps the workspace
+ * verbs reachable, opening the same token-styled form parts the `mc-actions`
+ * band renders — one set of flows, two doors (§3.5: themes compose form
+ * parts, no new dialogs). The Settings link survives the collapsed action
+ * band here.
  *
- * The board places this on the canvas ground beside the masthead (the shell
- * chrome is stripped for the `command-bar` node in custom.css), completing
- * the design's sticky header band. The Actions menu keeps the workspace verbs
- * reachable from the band's keyboard-and-filter home: it opens the same
- * token-styled form parts the `mc-actions` band renders — one set of flows,
- * two doors (§3.5: themes compose form parts, no new dialogs).
+ * `McCommandBar` keeps the kind alive as a canvas-ground wrapper (the lab
+ * exercises every registered kind): the same register inside a chrome-stripped
+ * shell, sized by its placed footprint.
  */
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
+  ArrowUpRight,
   FolderPlus,
   PackagePlus,
   Plus,
   RefreshCw,
-  Search,
   Terminal,
   Zap,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
 import {
@@ -44,8 +50,6 @@ import { useWorkspace } from "@/widgets/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
 import { WidgetShell } from "@/widgets/runtime/widget-shell";
 
-import { fleetMatches } from "./fleet-ledger";
-
 /**
  * The console's action-button register — square, hairline, mono micro-caps,
  * accent on hover (the design's command-button treatment, shared with the
@@ -58,18 +62,18 @@ export const MC_ACTION_BUTTON = cn(
   "focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
 );
 
-export function McCommandBar(_props: RegisteredWidgetProps) {
+/**
+ * The register itself — sync state, the Actions menu, Rescan, Settings —
+ * plus the four flow dialogs it opens. Renders wherever the theme seats it:
+ * the common page header (production) or a canvas shell (the lab kind).
+ */
+export function McCommandRegister({ className }: { className?: string }) {
   const workspace = useWorkspace();
 
   const [addRootOpen, setAddRootOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [cloneOpen, setCloneOpen] = useState(false);
-
-  const visibleCount = useMemo(
-    () => workspace.projects.filter((p) => fleetMatches(p, workspace.filter)).length,
-    [workspace.projects, workspace.filter],
-  );
 
   const syncedLabel = (() => {
     const updatedAt = workspace.scan.dataUpdatedAt;
@@ -82,91 +86,73 @@ export function McCommandBar(_props: RegisteredWidgetProps) {
 
   return (
     <>
-      <WidgetShell className="h-full w-full">
-      <div className="flex h-full min-h-0 w-full min-w-0 flex-wrap items-center content-center gap-x-4 gap-y-2.5 overflow-hidden px-4 pb-2 min-[2200px]:px-6">
-        <div className="relative min-w-0">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="search"
-            value={workspace.filter}
-            onChange={(e) => workspace.setFilter(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.preventDefault();
-            }}
-            placeholder="Filter fleet"
-            aria-label="Filter fleet"
-            className="h-8 w-56 border border-(--mc-line-strong) bg-(--mc-panel) pr-10 pl-8 font-mono text-xs text-foreground outline-none transition-colors placeholder:text-muted-foreground/75 focus-visible:border-(--mc-accent) md:w-64"
-          />
-          <kbd
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 border border-(--mc-line) bg-(--mc-panel) px-1 py-0.75 font-mono text-[9px] leading-none text-muted-foreground select-none"
-          >
-            /
-          </kbd>
-        </div>
-
-        <span
-          className="font-mono text-[10px] tabular-nums text-muted-foreground"
-          aria-live="polite"
-        >
-          {visibleCount}/{workspace.projects.length}
+      <div
+        className={cn(
+          "flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-2",
+          className,
+        )}
+      >
+        <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground xl:inline">
+          {scanning ? "Syncing…" : `Synced ${syncedLabel}`}
         </span>
-
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground xl:inline">
-            {scanning ? "Syncing…" : `Synced ${syncedLabel}`}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button type="button" className={MC_ACTION_BUTTON}>
-                  <Plus aria-hidden className="size-3" />
-                  Actions
-                </button>
-              }
-            />
-            <DropdownMenuContent align="end" className="min-w-48">
-              <DropdownMenuItem onClick={() => setAddRootOpen(true)}>
-                <FolderPlus className="size-4" /> Add directory
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-                <PackagePlus className="size-4" /> Create project
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setReportOpen(true)}>
-                <Zap className="size-4" /> Generate report
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setCloneOpen(true)}>
-                <Terminal className="size-4" /> Clone script
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            onClick={() => workspace.refresh()}
-            disabled={scanning}
-            className={MC_ACTION_BUTTON}
-          >
-            <RefreshCw aria-hidden className={cn("size-3", scanning && "animate-spin")} />
-            Rescan
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button type="button" className={MC_ACTION_BUTTON}>
+                <Plus aria-hidden className="size-3" />
+                Actions
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" className="min-w-48">
+            <DropdownMenuItem onClick={() => setAddRootOpen(true)}>
+              <FolderPlus className="size-4" /> Add directory
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCreateOpen(true)}>
+              <PackagePlus className="size-4" /> Create project
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setReportOpen(true)}>
+              <Zap className="size-4" /> Generate report
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setCloneOpen(true)}>
+              <Terminal className="size-4" /> Clone script
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <button
+          type="button"
+          onClick={() => workspace.refresh()}
+          disabled={scanning}
+          className={MC_ACTION_BUTTON}
+        >
+          <RefreshCw aria-hidden className={cn("size-3", scanning && "animate-spin")} />
+          Rescan
+        </button>
+        <Link to="/settings" className={cn(MC_ACTION_BUTTON, "text-muted-foreground")}>
+          Settings
+          <ArrowUpRight aria-hidden className="size-3" />
+        </Link>
       </div>
-    </WidgetShell>
-    <FormAddRoot
-      open={addRootOpen}
-      onOpenChange={setAddRootOpen}
-      onAdded={() => workspace.refresh()}
-    />
-    <FormCreateProject
-      open={createOpen}
-      onOpenChange={setCreateOpen}
-      onCreated={() => workspace.refresh()}
-    />
-    <FormReportRun open={reportOpen} onOpenChange={setReportOpen} />
-    <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />
+      <FormAddRoot
+        open={addRootOpen}
+        onOpenChange={setAddRootOpen}
+        onAdded={() => workspace.refresh()}
+      />
+      <FormCreateProject
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={() => workspace.refresh()}
+      />
+      <FormReportRun open={reportOpen} onOpenChange={setReportOpen} />
+      <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />
     </>
+  );
+}
+
+export function McCommandBar(_props: RegisteredWidgetProps) {
+  return (
+    <WidgetShell className="h-full w-full">
+      <McCommandRegister className="h-full min-h-0 w-full content-center overflow-hidden px-4 pb-2 min-[2200px]:px-6" />
+    </WidgetShell>
   );
 }

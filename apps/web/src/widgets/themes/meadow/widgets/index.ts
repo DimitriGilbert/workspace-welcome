@@ -7,16 +7,18 @@
  * its `widgetDefs` into the validated registry — theme waves never edit
  * the shared registry file, and duplicate ids throw at module evaluation.
  *
- * Dashboard kinds (T2): the masthead row (greeting + counts + search +
+ * Dashboard kinds: the masthead row (greeting + counts + search +
  * commands), the attention band (the design's honey pill strip), the
- * recency project tile (the design's five-tier bento tile, fed by the
- * `"projects"` flow's ladder rungs), and the five workspace digests
- * (report / momentum / rhythm / stacks / directories) that the preset
- * composes as a full-width band below the mosaic.
+ * bento-of-projects (the recency mosaic as ONE chrome-framed kind running
+ * the shared `"projects"` flow generator internally — owner order: no
+ * free-floating project tiles on the canvas), and the five workspace
+ * digests (report / momentum / rhythm / stacks / directories) — the only
+ * non-project content, packed in the last 1/3 rail.
  *
- * Project-page kinds (T3): the identity header, the report-at-a-glance
- * strip, and the soft tabbed sections composing the git/, note, list/
- * parts and the shared IdeationPanel.
+ * Project-page kinds (T3, reworked per the owner's bento order): the
+ * chrome-framed tabbed body at two-thirds width, with the identity card and
+ * the report-at-a-glance card (stats + language donut) packed in the
+ * right-hand rail.
  */
 import type { WidgetDef } from "@/widgets/registry";
 
@@ -29,6 +31,7 @@ import {
   MeadowRhythmDigest,
   MeadowStacksDigest,
 } from "./digests";
+import { MeadowProjectBento } from "./project-bento";
 import { MeadowProjectHeader } from "./project-header";
 import { MeadowProjectSections } from "./project-sections";
 import { MeadowProjectStats } from "./project-stats";
@@ -51,6 +54,9 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: MeadowAttention,
     requires: ["workspace"],
     defaultSize: "12x1",
+    // The digest chip caps at max-w-56 (~128px of real content) — one column
+    // (104px) clips it.
+    min: "2x1",
   },
   {
     id: "meadow-project-tile",
@@ -59,6 +65,17 @@ export const widgetDefs: readonly WidgetDef[] = [
     requires: ["workspace"],
     defaultSize: "2x2",
     min: "1x1",
+  },
+  {
+    id: "meadow-project-bento",
+    title: "Project bento",
+    component: MeadowProjectBento,
+    requires: ["workspace"],
+    defaultSize: "8x13",
+    // The mosaic fills its shell exactly (fractional rows); below the 2x2
+    // rung there is no honest mosaic, so the ladder floor keeps the lab's
+    // catalog off the nonsense rungs.
+    min: "2x2",
   },
   {
     id: "meadow-report",
@@ -100,21 +117,21 @@ export const widgetDefs: readonly WidgetDef[] = [
     title: "Project identity",
     component: MeadowProjectHeader,
     requires: ["project"],
-    defaultSize: "12x1",
+    defaultSize: "4x3",
   },
   {
     id: "meadow-project-stats",
     title: "Report at a glance",
     component: MeadowProjectStats,
     requires: ["project", "report"],
-    defaultSize: "12x1",
+    defaultSize: "4x4",
   },
   {
     id: "meadow-project-sections",
     title: "Project sections",
     component: MeadowProjectSections,
     requires: ["project", "report"],
-    defaultSize: "12x7",
+    defaultSize: "8x7",
     hosts: [
       "branch-switcher",
       "git-actions-toolbar",

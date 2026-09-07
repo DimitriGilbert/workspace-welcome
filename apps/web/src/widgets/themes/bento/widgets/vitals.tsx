@@ -48,7 +48,9 @@ export function BentoHealth(_props: RegisteredWidgetProps) {
         </span>
       </div>
 
-      <div className="b-health-body flex min-h-0 flex-1 flex-wrap items-center justify-center gap-6 sm:justify-between">
+      {/* Cluster fills the card: the stat rows distribute to the full body
+          height beside the gauge — no floating-in-a-box voids (owner law 1). */}
+      <div className="b-health-body flex min-h-0 flex-1 flex-wrap items-center justify-evenly gap-6 sm:justify-between">
         <HealthGauge score={summary.score} bandColor={bandColor}>
           <RollNumber
             value={summary.score}
@@ -59,7 +61,7 @@ export function BentoHealth(_props: RegisteredWidgetProps) {
           <span className="b-label mt-1">of 100</span>
         </HealthGauge>
 
-        <dl className="grid flex-1 grid-cols-2 gap-x-8 gap-y-4 self-center">
+        <dl className="grid h-full min-h-0 flex-1 grid-cols-2 content-evenly gap-x-8 gap-y-4 self-stretch">
           <HealthStat icon={ShieldCheck} label="Clean" value={summary.clean} tone="positive" />
           <HealthStat
             icon={Activity}
@@ -205,36 +207,30 @@ export function BentoStacks(_props: RegisteredWidgetProps) {
               </div>
             </div>
 
-            {/* Aggregate line next to the donut keeps the top zone dense. */}
-            <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
-              <span className="b-num text-foreground/90">{segments[0]?.slice.label}</span>{" "}
-              leads with {segments[0]?.slice.count} of {total} projects
-              {segments.length > 1
-                ? `; ${segments.slice(1).map((s) => s.slice.label).join(", ")} fill the rest.`
-                : "."}
-            </p>
+            {/* Numbers and legend only — prose is noise (owner law 2). The
+                legend is the flexible column: bars absorb the donut's
+                remaining width, rows fill the tile edge to edge. */}
+            <ul className="flex min-w-0 flex-1 flex-col justify-evenly gap-1.5">
+              {segments.map((seg) => {
+                const pct = Math.round((seg.slice.count / total) * 100);
+                return (
+                  <li key={seg.slice.id} className="flex items-center gap-2.5 text-xs">
+                    <span aria-hidden className="size-2 shrink-0 rounded-[3px]" style={{ background: seg.color }} />
+                    <span className="w-20 shrink-0 truncate text-muted-foreground" title={seg.slice.label}>
+                      {seg.slice.label}
+                    </span>
+                    <span className="b-dirtybar min-w-0 flex-1">
+                      <span style={{ width: `${Math.max(pct, 4)}%`, background: seg.color }} />
+                    </span>
+                    <span className="b-num w-6 shrink-0 text-right text-sm">{seg.slice.count}</span>
+                    <span className="w-8 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                      {pct}%
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-
-          <ul className="flex flex-col gap-1.5">
-            {segments.map((seg) => {
-              const pct = Math.round((seg.slice.count / total) * 100);
-              return (
-                <li key={seg.slice.id} className="flex items-center gap-2.5 text-xs">
-                  <span aria-hidden className="size-2 shrink-0 rounded-[3px]" style={{ background: seg.color }} />
-                  <span className="w-20 shrink-0 truncate text-muted-foreground" title={seg.slice.label}>
-                    {seg.slice.label}
-                  </span>
-                  <span className="b-dirtybar min-w-0 flex-1">
-                    <span style={{ width: `${Math.max(pct, 4)}%`, background: seg.color }} />
-                  </span>
-                  <span className="b-num w-6 shrink-0 text-right text-sm">{seg.slice.count}</span>
-                  <span className="w-8 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
-                    {pct}%
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
         </div>
       )}
     </BentoTile>

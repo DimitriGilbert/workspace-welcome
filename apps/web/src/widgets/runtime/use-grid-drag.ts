@@ -35,8 +35,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import { commitSessionPlacement, revertSessionPlacement } from "./grid-session";
+import { commitArrangement, getBaseline } from "./grid-session";
 import type { SessionPlacement } from "./grid-session";
+import { settleArrangement } from "@/lib/grid-layout/pack-grid";
 import type { ParsedSize } from "./size-class";
 
 /** Resize affordance directions: the four edges (north/south/east/west) and
@@ -243,10 +244,12 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
   }, []);
 
   /**
-   * The first immovable widget (`fixed: true` — authored anchor or pinned)
-   * whose cells the target would overlap, or null. Movable widgets are never
-   * blockers: the re-pack relocates them around the committed anchor without
-   * pushing (owner decision — refuse rather than displace fixed blocks).
+   * The first IMMOVABLE widget (an authored `at` anchor — preset geometry)
+   * whose cells the target would overlap, or null. Authored anchors never
+   * move and never yield, so a drop onto one is refused. Session pins are
+   * NOT blockers: an explicit user drop always wins — pinned occupants are
+   * swapped or re-homed by `settleArrangement` (owner round 5: pins protect
+   * placements from automatic reflow, never from the user).
    */
   const findFixedBlocker = useCallback((target: DragPlacement): DragPlacement | null => {
     for (const other of latest.current.placements) {
@@ -259,16 +262,45 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
 
   const commitPlacement = useCallback(
     (next: DragPlacement, mode: DragMode, direction?: string): void => {
-      const { pageId, widgets } = latest.current;
-      const current = latest.current.placements.find((p) => p.id === next.id);
-      const sessionStart: SessionPlacement = current
-        ? { x: current.x, y: current.y, cols: current.cols, rows: current.rows }
-        : { x: next.x, y: next.y, cols: next.cols, rows: next.rows };
-      commitSessionPlacement(
-        pageId,
+      const { pageId, widgets, columns } = latest.current;
+      const regionPlacements = latest.current.placements.filter(
+        (p) => p.regionId === next.regionId,
+      );
+      // An explicit drop is NEVER refused for occupancy: the dragged widget
+      // lands exactly at the preview and `settleArrangement` re-homes the
+      // occupants it displaced (swap for same-size tiles, push below
+      // otherwise). Only displaced widgets re-home — nothing else moves.
+      const items = regionPlacements.map((p) => ({
+        id: p.id,
+        x: p.x,
+        y: p.y,
+        cols: p.cols,
+        rows: p.rows,
+      }));
+      const old = items.find((i) => i.id === next.id) ?? null;
+      const settled = settleArrangement(
+        items.map((i) =>
+          i.id === next.id
+            ? { ...i, x: next.x, y: next.y, cols: next.cols, rows: next.rows }
+            : i,
+        ),
         next.id,
-        { x: next.x, y: next.y, cols: next.cols, rows: next.rows },
-        sessionStart,
+        old,
+      );
+      const displaced = settled.filter((i) => {
+        const before = items.find((item) => item.id === i.id);
+        return i.id !== next.id && before !== undefined && (before.x !== i.x || before.y !== i.y);
+      });
+      const arrangementItems: Record<string, SessionPlacement> = {};
+      for (const item of settled) {
+        arrangementItems[item.id] = { x: item.x, y: item.y, cols: item.cols, rows: item.rows };
+      }
+      commitArrangement(
+        pageId,
+        next.regionId,
+        columns,
+        arrangementItems,
+        displaced.map((i) => i.id).concat(next.id),
       );
       const label = widgets.get(next.id)?.label ?? next.id;
       announce(
@@ -284,14 +316,38 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
 
   const revertToSessionStart = useCallback(
     (widgetId: string): void => {
-      const { pageId, widgets } = latest.current;
-      const restored = revertSessionPlacement(pageId, widgetId);
+      const { pageId, widgets, columns } = latest.current;
+      const baseline = getBaseline(pageId, widgetId);
       const label = widgets.get(widgetId)?.label ?? widgetId;
-      announce(
-        restored === null
-          ? `${label} has no session changes to revert`
-          : `${label} returned to its session start position`,
+      if (baseline === null) {
+        announce(`${label} has no session changes to revert`);
+        return;
+      }
+      // The widget returns to its session-start cell; anything occupying it
+      // yields below (same incremental settle as a move — no refusals).
+      const regionId = latest.current.placements.find((p) => p.id === widgetId)?.regionId;
+      if (regionId === undefined) {
+        announce(`${label} returned to its session start position`);
+        return;
+      }
+      const items = latest.current.placements
+        .filter((p) => p.regionId === regionId)
+        .map((p) => ({ id: p.id, x: p.x, y: p.y, cols: p.cols, rows: p.rows }));
+      const settled = settleArrangement(
+        items.map((i) =>
+          i.id === widgetId
+            ? { ...i, x: baseline.x, y: baseline.y, cols: baseline.cols, rows: baseline.rows }
+            : i,
+        ),
+        widgetId,
+        items.find((i) => i.id === widgetId) ?? null,
       );
+      const arrangementItems: Record<string, SessionPlacement> = {};
+      for (const item of settled) {
+        arrangementItems[item.id] = { x: item.x, y: item.y, cols: item.cols, rows: item.rows };
+      }
+      commitArrangement(pageId, regionId, columns, arrangementItems, [widgetId]);
+      announce(`${label} returned to its session start position`);
     },
     [announce],
   );
