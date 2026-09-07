@@ -196,8 +196,9 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
                     size="sm"
                     onClick={() => {
                       void navigate({
-                        to: "/app/$theme/project/$",
-                        params: { theme: "bento", _splat: result.projectDirectory.replace(/^\/+/, "") },
+                        to: "/project/$",
+                        params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
+                        search: { preset: "bento" },
                       });
                       toast.dismiss(toastId);
                     }}
@@ -208,8 +209,9 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
                     size="sm"
                     onClick={() => {
                       void navigate({
-                        to: "/app/$theme/project/$",
-                        params: { theme: "bento", _splat: result.projectDirectory.replace(/^\/+/, "") },
+                        to: "/project/$",
+                        params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
+                        search: { preset: "bento" },
                       });
                       toast.dismiss(toastId);
                     }}

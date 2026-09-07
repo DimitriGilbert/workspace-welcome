@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ProjectKnownGate, themeSearchSchema } from "./app/-theme-shell";
+import { ProjectKnownGate, themeSearchSchema } from "./-theme-shell";
 import { RenderLayout } from "@/widgets/runtime/render-layout";
 import { SchemeStylesheets, useWidgetPrefs } from "@/widgets/theme-prefs";
 import {

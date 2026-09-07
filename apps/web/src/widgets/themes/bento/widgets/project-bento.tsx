@@ -171,8 +171,9 @@ export function BentoProjectBento({ size }: RegisteredWidgetProps) {
 
   const openProject = (path: string) => {
     void navigate({
-      to: "/app/$theme/project/$",
-      params: { theme: "bento", _splat: path.replace(/^\/+/, "") },
+      to: "/project/$",
+      params: { _splat: path.replace(/^\/+/, "") },
+      search: { preset: "bento" },
     });
   };
 

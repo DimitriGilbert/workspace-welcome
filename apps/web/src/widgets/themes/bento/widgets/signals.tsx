@@ -27,13 +27,14 @@ import type { RegisteredWidgetProps } from "@/widgets/registry";
 
 import { BentoTile, GitGlyphs, RollNumber } from "../bits";
 
-/** Deep-link into this theme's project page (the app splat route). */
+/** Deep-link into this theme's project page (the top-level splat route). */
 function useOpenBentoProject() {
   const navigate = useNavigate();
   return (path: string) => {
     void navigate({
-      to: "/app/$theme/project/$",
-      params: { theme: "bento", _splat: path.replace(/^\/+/, "") },
+      to: "/project/$",
+      params: { _splat: path.replace(/^\/+/, "") },
+      search: { preset: "bento" },
     });
   };
 }

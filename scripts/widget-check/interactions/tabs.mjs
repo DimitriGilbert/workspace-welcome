@@ -18,7 +18,7 @@ export async function run(page, report, ctx) {
   if (count === 0) {
     report.warn(
       `interaction:${name}`,
-      `no ${selector} on /app/${ctx.theme} — no tabbed widget is mounted yet`,
+      `no ${selector} on /?preset=${ctx.theme} — no tabbed widget is mounted yet`,
     );
     return { ok: true, pending: true };
   }

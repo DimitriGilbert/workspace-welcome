@@ -11,9 +11,9 @@ import { themeCustomCssHref, themePresets } from "@/widgets/themes";
 import type { ThemePreset } from "@/widgets/themes";
 
 /**
- * Shared plumbing for the two `/app/$theme` routes (dashboard + project).
- * The leading hyphen keeps this file out of the route tree — it is route
- * plumbing, not a route.
+ * Shared plumbing for the two top-level theme routes (`/` dashboard +
+ * `/project/$` project). The leading hyphen keeps this file out of the
+ * route tree — it is route plumbing, not a route.
  *
  * M1 state: a route resolves the slug against the preset registry, mounts
  * the theme scope (one per page, per the system contract) and renders an

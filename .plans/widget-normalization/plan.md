@@ -237,6 +237,18 @@ Per-file map:
   present, no console errors) — closes the known coverage gap.
 - **Validation:** new check green.
 
+### P0.2b Bento golden-zero fixes  *(owner order: "ALL tests must pass — no pre-existing failure holds")*
+- Fix 1 — bento project page `no-inner-scroll`: the `project-surface` widget renders
+  `div.shrink-0.overflow-y-auto` scrolling 96px vertically; probe contract says nothing inside a
+  scope scrolls (unless `data-scroll="widget"` + allowlisted — allowlist is empty by design, so
+  the FIX is in the widget, not the allowlist).
+- Fix 2 — bento drag-resize shrink: `vitals-stacks` never shrinks below 2x2 while mission-control
+  and meadow clamp to their registry floors — bento's size floors/preset sizing are wrong, not
+  the harness.
+- After both fix + validate: **re-run the full matrix and re-record the baseline** — the golden
+  record becomes ALL GREEN (sentinel green too via P0.2's rewrite). No phase after this may
+  advance on any red.
+
 ### PC.4 Final acceptance
 - Full matrix + screenshot diffs vs baseline for every theme × scheme × page, typecheck, build,
   grep-invariants, validate-layout, interactions, settings check.
@@ -277,6 +289,9 @@ start one — if unreachable, live suites defer to the next stage boundary and t
    `.plans/attic/` (scripts kept, nothing deleted); `/app` namespace killed outright (P0.2).
 4. **Package extraction: explicitly refused for now** — removed from scope, future note only.
 5. **Four unreachable legacy components: pending** — decided at review/execution (PC.2).
+6. **(2026-09-07, execution) Zero-failure policy:** the owner overruled "pre-existing failures
+   frozen as golden" — ALL tests must pass at every gate. The two bento failures are fixed in
+   P0.2b and the baseline is re-recorded all-green before any Stage A phase runs.
 
 ## Execution protocol
 

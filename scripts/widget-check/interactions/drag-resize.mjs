@@ -89,7 +89,7 @@ export async function run(page, report, ctx) {
   if (target === null || target.missing !== undefined) {
     report.warn(
       `interaction:${name}`,
-      `no draggable widget on ${ctx.path ?? `/app/${ctx.theme}`} (missing ${target?.missing ?? "page"}) — renderer not mounted yet`,
+      `no draggable widget on ${ctx.path ?? `/?preset=${ctx.theme}`} (missing ${target?.missing ?? "page"}) — renderer not mounted yet`,
     );
     return { ok: true, pending: true };
   }

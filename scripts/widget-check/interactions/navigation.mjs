@@ -1,90 +1,113 @@
 /**
- * Interaction: navigation — entrypoint redirect + same-theme project
- * navigation (§3.8 matrix; recalibrated after the owner's `/app` kill —
- * `/` is THE app and NOTHING under `/app` renders; `routes/app/*.tsx` are
- * permanent redirects, so the old "`/app` → `/app/<theme>`" expectation
- * tested a route shape that no longer exists).
+ * Interaction: navigation — preset deep-link + same-theme project
+ * navigation (§3.8 matrix; recalibrated after the /app kill, P0.2: the
+ * `/app` namespace is GONE — `/` is THE app, and `?preset=<slug>` is a
+ * DIRECT deep-link with no redirect hop carrying it anymore).
  *
  * Contract under test today:
- * 1. `/app` permanently redirects to the entrypoint `/`, which renders a
- *    registered theme's dashboard scope. WHICH theme owns the default is an
- *    owner decision, so the harness accepts ANY registered theme's scope
- *    (D2 calibration) — the redirect mechanism itself is the contract.
- * 2. The dead `/app/<slug>` survives as a redirect that CARRIES the
- *    selection: `/?preset=<slug>` must render THAT slug's scope (the cargo
- *    contract the redirect's `search` documents).
+ * 1. registry-sync — the script's theme list mirrors the preset registry
+ *    on disk (the ids declared by each theme's preset.ts module under
+ *    apps/web/src/widgets/themes). Divergence FAILs: the list is a sync
+ *    tripwire, not a second source of truth.
+ * 2. `/?preset=<slug>` directly renders THAT slug's board scope hydrated
+ *    (`[data-ww-theme="<slug>"][data-theme-scope]` with the board's
+ *    `[data-ready]` stamp after settle).
  * 3. From the themed board, project links navigate to the project surface
  *    while the `[data-ww-theme][data-theme-scope]` scope REMAINS mounted.
- *    Boards may author top-level `/project/…` hrefs or the legacy
- *    `/app/<theme>/project/…` ones (mission-control does) — both land on
- *    the top-level route, so arrival accepts either pathname prefix (the
- *    legacy hop's redirect flips the pathname asynchronously).
  *
  * Project links mount with the renderer's projects query, which can lag
- * the settle stamp: arriving via a redirect, settle's `[data-ready]`+
- * double-rAF has fired before the anchors mount (observed 0 anchors at
- * settle vs 32 at +3s), so the harness waits bounded (`waitForSelector`)
- * instead of trusting one post-settle query (D5 calibration) — and the same
- * bounded wait covers the theme scope after the project navigation, whose
- * pathname can flip before the target page mounts. Themes whose project
- * links are not authored yet (T3 pending) WARN honestly; pending must not
- * look broken, nor pass silently.
+ * the settle stamp: settle's `[data-ready]`+ double-rAF has fired before
+ * the anchors mount (observed 0 anchors at settle vs 32 at +3s), so the
+ * harness waits bounded (`waitForSelector`) instead of trusting one
+ * post-settle query (D5 calibration) — and the same bounded wait covers
+ * the theme scope after the project navigation, since the target page
+ * mounts after the pathname flips (a plain project href is a full
+ * document load). Themes whose project links are not authored yet WARN
+ * honestly; pending must not look broken, nor pass silently.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
 import { CONTRACT, waitForSelector } from "./helpers.mjs";
 
 export const name = "navigation";
 
-/** Themes the app registers (apps/web/src/widgets/themes/index.ts). */
+/**
+ * Themes the app registers — MUST mirror the ids declared by each theme's
+ * `preset.ts` module under apps/web/src/widgets/themes (verified against
+ * disk at run start; divergence FAILs).
+ */
 const REGISTERED_THEMES = ["mission-control", "bento", "meadow"];
 
-/** The registered theme whose dashboard scope is mounted, or null. */
-async function scopeTheme(page) {
-  return page.eval((themes) => {
-    for (const theme of themes) {
-      if (document.querySelector(`[data-ww-theme="${theme}"][data-theme-scope]`) !== null) {
-        return theme;
-      }
+const THEMES_DIR = fileURLToPath(
+  new URL("../../../apps/web/src/widgets/themes", import.meta.url),
+);
+
+/**
+ * The registry's theme ids, parsed from the preset modules on disk the
+ * same way the runtime registry keys them: every `<slug>/preset.ts`
+ * default-exports a `ThemePreset` whose `id` is the first property.
+ */
+function readRegistryThemeIds() {
+  const ids = [];
+  for (const entry of readdirSync(THEMES_DIR, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    let content;
+    try {
+      content = readFileSync(path.join(THEMES_DIR, entry.name, "preset.ts"), "utf8");
+    } catch {
+      continue; // no preset module — the registry glob skips it too
     }
-    return null;
-  }, REGISTERED_THEMES);
+    const match = content.match(/ThemePreset\s*=\s*\{[^{}]*?\bid:\s*["']([\w-]+)["']/);
+    if (match !== null) ids.push(match[1]);
+  }
+  return ids;
 }
 
 export async function run(page, report, ctx) {
-  // 1. /app redirects to the entrypoint; a registered scope renders there.
-  await page.goto(`${ctx.baseUrl}/app`);
-  await page.settle();
-  const entryPath = await page.getLocation();
-  const landed = entryPath === "/" ? await scopeTheme(page) : null;
-  if (landed === null) {
-    report.fail(
+  // 1. The theme list mirrors the preset registry on disk.
+  {
+    const diskIds = readRegistryThemeIds();
+    const unregistered = REGISTERED_THEMES.filter((theme) => !diskIds.includes(theme));
+    const unlisted = diskIds.filter((theme) => !REGISTERED_THEMES.includes(theme));
+    if (unregistered.length > 0 || unlisted.length > 0) {
+      report.fail(
+        `interaction:${name}`,
+        `theme list out of sync with apps/web/src/widgets/themes/*/preset.ts (listed but not registered: [${unregistered.join(", ")}]; registered but not listed: [${unlisted.join(", ")}])`,
+      );
+      return { ok: false };
+    }
+    report.pass(
       `interaction:${name}`,
-      `/app did not redirect to the entrypoint with a registered theme dashboard (at ${entryPath}, expected "/" rendering one of /app/{${REGISTERED_THEMES.join(", ")}})`,
+      `theme list mirrors the preset registry on disk ([${diskIds.join(", ")}])`,
     );
-    return { ok: false };
   }
-  report.pass(`interaction:${name}`, `/app redirects to ${entryPath} — the entrypoint renders the "${landed}" scope`);
 
-  // 2. The dead /app/<slug> redirect carries its slug: /?preset=<slug>
-  // renders THAT theme's scope.
-  await page.goto(`${ctx.baseUrl}/app/${ctx.theme}`);
-  await page.settle();
-  const presetPath = await page.getLocation();
-  const presetTheme = await scopeTheme(page);
-  if (presetTheme !== ctx.theme) {
+  // 2. /?preset=<slug> directly renders that slug's hydrated board scope.
+  const scopeSelector = `[data-ww-theme="${ctx.theme}"][data-theme-scope]`;
+  await page.goto(`${ctx.baseUrl}/?preset=${encodeURIComponent(ctx.theme)}`);
+  const { dataReady } = await page.settle();
+  const landed = await page.getLocation();
+  const scopeMounted = await waitForSelector(page, scopeSelector, { timeoutMs: 5000 });
+  if (!scopeMounted || !dataReady) {
     report.fail(
       `interaction:${name}`,
-      `/app/${ctx.theme} landed at ${presetPath} rendering "${presetTheme ?? "no"}" scope — the redirect must carry the slug as ?preset=`,
+      `/?preset=${ctx.theme} landed at ${landed} without the theme's hydrated scope (scope=${scopeMounted}, data-ready=${dataReady})`,
     );
     return { ok: false };
   }
-  report.pass(`interaction:${name}`, `/app/${ctx.theme} redirects to ${presetPath} with the "${presetTheme}" scope mounted`);
+  report.pass(
+    `interaction:${name}`,
+    `/?preset=${ctx.theme} directly renders the "${ctx.theme}" scope hydrated ([data-ready] stamped)`,
+  );
 
   // 3. Same-theme project navigation keeps the scope mounted.
   const linkSelector = CONTRACT.projectLink;
   if (!(await waitForSelector(page, linkSelector, { timeoutMs: 5000 }))) {
     report.warn(
       `interaction:${name}`,
-      `no ${linkSelector} on /app/${ctx.theme} — project links not mounted yet (renderer pending)`,
+      `no ${linkSelector} on /?preset=${ctx.theme} — project links not mounted yet (renderer pending)`,
     );
     return { ok: true, pending: true };
   }
@@ -92,11 +115,9 @@ export async function run(page, report, ctx) {
     const el = /** @type {HTMLAnchorElement | null} */ (document.querySelector(selectorArg));
     el?.click();
   }, linkSelector);
-  const legacyPrefix = `/app/${ctx.theme}/project/`;
   const arrived = await page.waitFor(
-    (prefixes) => prefixes.some((prefix) => location.pathname.startsWith(prefix)),
+    () => location.pathname.startsWith("/project/"),
     { timeoutMs: 5000 },
-    ["/project/", legacyPrefix],
   );
   if (!arrived) {
     const stuckAt = await page.getLocation();
@@ -105,14 +126,10 @@ export async function run(page, report, ctx) {
   }
   const afterPath = await page.getLocation();
   // The project anchor is a plain href, so arriving here can be a full
-  // document load (or the legacy route's redirect hop) — the pathname flips
-  // before React mounts the new page's scope. Wait bounded (D5: no
-  // fixed-sleep settle assumptions) and only then judge the scope.
-  const scopeStillMounted = await waitForSelector(
-    page,
-    `[data-ww-theme="${ctx.theme}"][data-theme-scope]`,
-    { timeoutMs: 5000 },
-  );
+  // document load — the pathname flips before React mounts the new page's
+  // scope. Wait bounded (D5: no fixed-sleep settle assumptions) and only
+  // then judge the scope.
+  const scopeStillMounted = await waitForSelector(page, scopeSelector, { timeoutMs: 5000 });
   if (!scopeStillMounted) {
     report.fail(
       `interaction:${name}`,

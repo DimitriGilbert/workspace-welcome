@@ -28,7 +28,7 @@
  *   6. validate-layout    the validate-layout script runs here when present
  *                         (it lands with W4; until then a WARN note).
  *   7. no-any             zero any-typing in the system namespace
- *                         (widgets, routes/app, scripts/widget-check,
+ *                         (widgets, scripts/widget-check,
  *                         packages/ui/src) — casts included.
  *
  * Usage:
@@ -47,7 +47,6 @@ const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const BASELINE_PATH = fileURLToPath(new URL("./grep-invariants.color-literals.json", import.meta.url));
 
 const WIDGETS_DIR = path.join(REPO_ROOT, "apps/web/src/widgets");
-const ROUTES_APP_DIR = path.join(REPO_ROOT, "apps/web/src/routes/app");
 const UI_COMPONENTS_DIR = path.join(REPO_ROOT, "packages/ui/src/components");
 const UI_SRC_DIR = path.join(REPO_ROOT, "packages/ui/src");
 const HARNESS_DIR = path.join(REPO_ROOT, "scripts/widget-check");
@@ -448,7 +447,6 @@ const body = async () => {
   {
     const files = [
       ...walkFiles(WIDGETS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
-      ...walkFiles(ROUTES_APP_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
       ...walkFiles(HARNESS_DIR, (file) => file.endsWith(".mjs")),
       ...walkFiles(UI_SRC_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
     ];

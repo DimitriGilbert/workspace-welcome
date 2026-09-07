@@ -128,8 +128,8 @@ export async function waitForSelector(page, selector, { timeoutMs = 5000 } = {})
 export const CONTRACT = {
   sortButton: "button[data-sort-key]",
   tab: '[data-slot="widget-tabs"] [role="tab"]',
-  /** Substring shared by every project anchor: top-level `/project/…` hrefs
-   * and the legacy `/app/<theme>/project/…` ones (which the dead route
-   * redirects to the top-level form). */
+  /** Substring shared by every project anchor: top-level `/project/…`
+   * hrefs (the only form post-/app-kill — the dead `/app/<theme>/project/…`
+   * namespace was killed at P0.2). */
   projectLink: 'a[href*="/project/"]',
 };

@@ -18,7 +18,7 @@ export async function run(page, report, ctx) {
   if (inputSelector === null) {
     report.warn(
       `interaction:${name}`,
-      `no filter affordance on /app/${ctx.theme} — console filter not mounted yet (lands with D8/W4)`,
+      `no filter affordance on /?preset=${ctx.theme} — console filter not mounted yet (lands with D8/W4)`,
     );
     return { ok: true, pending: true };
   }

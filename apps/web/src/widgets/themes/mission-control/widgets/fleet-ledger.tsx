@@ -65,9 +65,14 @@ import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
 /** This theme's slug — kind ids and routes are theme-local. */
 export const MC_THEME = "mission-control";
 
-/** Same-theme project-route href for a project path (splat = absolute path). */
+/**
+ * Same-theme project-route href for a project path (splat = absolute path).
+ * `?preset=` carries the slug so the top-level project page mounts THIS
+ * theme's board (the contract the dead `/app/<slug>/project/…` redirect's
+ * cargo used to carry).
+ */
 export function projectHref(path: string): string {
-  return `/app/${MC_THEME}/project/${path.replace(/^\/+/, "")}`;
+  return `/project/${path.replace(/^\/+/, "")}?preset=${MC_THEME}`;
 }
 
 /**

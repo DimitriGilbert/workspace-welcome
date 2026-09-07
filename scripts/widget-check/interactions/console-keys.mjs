@@ -54,7 +54,7 @@ async function declaredConsoleViews(page) {
 }
 
 export async function run(page, report, ctx) {
-  const where = ctx.path ?? `/app/${ctx.theme}`;
+  const where = ctx.path ?? `/?preset=${ctx.theme}`;
   const filterSelector = await resolveFilterSelector(page);
   if (filterSelector === null) {
     report.warn(

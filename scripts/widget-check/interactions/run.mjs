@@ -7,8 +7,9 @@
  * Flags: --theme <slug> --path <pathname> --viewport <WxH> --base-url <url>
  *        --script <name> (repeatable filter) --out <path>
  *
- * The target page is `--path` when given (e.g. /app/__lab for the W4 lab
- * scripts), else `/app/<theme>`.
+ * The target page is `--path` when given (e.g. /__lab for the lab
+ * scripts), else `/?preset=<theme>` — the direct theme deep-link (the
+ * dead `/app/<theme>` namespace was killed at P0.2).
  *
  * Script contract: `export const name` + `export async function run(page,
  * report, ctx)` reporting `interaction:<name>` findings. Affordances that
@@ -73,7 +74,7 @@ const body = async () => {
   const match = options.viewport.match(/^(\d{2,5})x(\d{2,5})$/);
   if (match === null) throw new Error(`--viewport must be WxH (got "${options.viewport}")`);
 
-  const targetPath = options.path ?? `/app/${options.theme}`;
+  const targetPath = options.path ?? `/?preset=${options.theme}`;
   const report = new Report({
     suite: "interactions",
     meta: {

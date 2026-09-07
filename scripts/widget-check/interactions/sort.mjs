@@ -18,7 +18,7 @@ export async function run(page, report, ctx) {
   if (count === 0) {
     report.warn(
       `interaction:${name}`,
-      `no ${selector} on /app/${ctx.theme} — sortable affordances not mounted yet`,
+      `no ${selector} on /?preset=${ctx.theme} — sortable affordances not mounted yet`,
     );
     return { ok: true, pending: true };
   }
