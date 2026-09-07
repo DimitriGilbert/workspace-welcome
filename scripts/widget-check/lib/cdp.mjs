@@ -11,13 +11,16 @@
  * - `Page` — one tab: `goto` (waits for `document.readyState === "complete"`,
  *   no event races), `eval` (serializes a function into the page, awaits the
  *   promise it returns, returns the value by value), `waitFor` polling,
- *   `settle` (load + `[data-ready]` + double rAF) and `setViewport`.
+ *   `settle` (load + `[data-ready]` + double rAF), `setViewport` and
+ *   `capture` (viewport PNG, see below).
  *
  * Everything the probes/interactions/sentinel do is DOM evaluation in the
- * page — no screenshots, no vision (plan constraint).
+ * page — screenshots are allowed ONLY for the owner-evidence snapshot tool
+ * (`Page.capture`, master plan P0.4); probes never capture, no vision.
  */
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -390,6 +393,27 @@ export class Page {
     await this.eval(async () => {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     });
+  }
+
+  /**
+   * Capture the CURRENT viewport as a PNG and write it to `path`; resolves
+   * the byte length written. Viewport-scoped on purpose (no
+   * `captureBeyondViewport`) so the image is exactly the surface
+   * `setViewport` emulated. Owner-evidence snapshots only (P0.4) — the
+   * probes stay DOM evaluation, no vision.
+   *
+   * @param {string} path
+   * @returns {Promise<number>}
+   */
+  async capture(path) {
+    const result = await this.send("Page.captureScreenshot", { format: "png" });
+    const data = result?.data;
+    if (typeof data !== "string" || data.length === 0) {
+      throw new BrowserError(`Page.captureScreenshot returned no image data (for ${path})`);
+    }
+    const png = Buffer.from(data, "base64");
+    await writeFile(path, png);
+    return png.byteLength;
   }
 
   /** Current URL as the page sees it (post-SPA-navigation truth). */
