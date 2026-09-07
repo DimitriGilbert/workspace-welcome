@@ -4,11 +4,27 @@
  * export, with the MISSING / RUNNING / STALE / FRESH machine). The state
  * machine, CLI command, generate pipeline and staleness verdict come from
  * the page's ReportProvider (`useReport`) instead of the design's local
- * queries — the same react-query cache, mounted once per page. Charts:
- * the activity tab rides the ui Chart part; the code tab is the design's
- * pure-SVG donut; everything else is the design's markup verbatim.
+ * queries — the same react-query cache, mounted once per page.
+ *
+ * Every tab is graph-driven over the export's FULL census:
+ * - activity — cadence area graph, per-repo commit leaders, month table
+ *   (one DataCarousel, three views);
+ * - health — severity segbar + the per-signal tally beside a per-repo
+ *   offenders ledger (worst severity first);
+ * - code — the design's pure-SVG donut + language rows beside a per-repo
+ *   composition ledger (stacked language bars);
+ * - AI usage — the `byDay` timeline as tight-domain stacked in+out bars
+ *   (peak day labeled, exact day axis), a by-model / by-repo ledger with
+ *   exact tokens and the CLI's unsubsidized est. $ per row, one
+ *   exact-totals footer. The subsidized `cost` is the CLI's constant $0 —
+ *   it stays a small honest line, never a hero figure; `records` counts
+ *   are banned outright (owner verdict).
+ *
+ * Rows follow the fill-or-shrink law: equal flex inside the band, never
+ * stretched voids, never overflow bleed (the mask-fade crop is the honest
+ * end of a list that outruns a short band).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   BrainCircuit,
   Check,
@@ -28,8 +44,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/
 import { cn } from "@workspace-welcome/ui/lib/utils";
 import type { ReportExport } from "@workspace-welcome/api/lib/report-export";
 
-import { formatCompact, relativeTime } from "@/lib/format";
+import { formatCompact, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import { aiUsageLeaders, alertTally, aggregateCadence, languageRows } from "@/lib/scan-metrics";
+import type { AlertTally } from "@/lib/scan-metrics";
 
 import { useReport } from "@/widgets/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/widgets/registry";
@@ -42,6 +59,9 @@ const SEVERITY_COLOR = {
   warning: "var(--sev-warning)",
   info: "var(--sev-info)",
 } as const;
+
+/** Penalty order of the canonical severities — worst-first sorts. */
+const SEVERITY_WEIGHT = { critical: 2, warning: 1, info: 0 } as const;
 
 /** Donut slice color for the i-th language, off the shared categorical ramp. */
 function STACK_COLOR(i: number): string {
@@ -56,9 +76,40 @@ function STACK_COLOR(i: number): string {
   return ramp[i % ramp.length];
 }
 
+type AlertSeverity = AlertTally["rows"][number]["worst"];
+
+type AiUsage = NonNullable<ReportExport["aiUsage"]>;
+type AiBreakdownRow = NonNullable<AiUsage["breakdowns"]>["byDay"][number];
+
+/** MM-DD slice of a byDay key ("2026-09-06" → "09-06") — the axis register. */
+function dayTick(key: string): string {
+  return key.length >= 10 ? key.slice(5) : key;
+}
+
+/**
+ * Color rank of every language in the export (heaviest lines first) so the
+ * donut, the language rows and the per-repo composition bars all map the
+ * same language to the same ramp tone.
+ */
+function languageColorMap(data: ReportExport): Map<string, number> {
+  const source =
+    data.totals.languages.length > 0
+      ? data.totals.languages
+      : (data.projects[0]?.languages ?? []);
+  const ranked = [...source].sort((a, b) => b.lines - a.lines);
+  return new Map(ranked.map((l, i) => [l.language, i]));
+}
+
 export interface ReportPanelProps {
   /** Widget heading (the design's b-label row). */
   title?: string;
+  /**
+   * Auto-cycle the tabs (activity → health → code → AI) so the band stays
+   * alive without input. Pauses while the pointer is over the panel or
+   * focus sits inside it; off entirely under prefers-reduced-motion. The
+   * dashboard passes true — the project page's pulse stays manual.
+   */
+  autoCycleTabs?: boolean;
   className?: string;
 }
 
@@ -67,7 +118,7 @@ export interface ReportPanelProps {
  * supply only chrome inputs — scope, staleness and the write pipeline are
  * the provider's.
  */
-export function ReportPanel({ title = "Workspace pulse", className }: ReportPanelProps) {
+export function ReportPanel({ title = "Workspace pulse", autoCycleTabs = false, className }: ReportPanelProps) {
   const report = useReport();
   const [tab, setTab] = useState("activity");
 
@@ -98,9 +149,6 @@ export function ReportPanel({ title = "Workspace pulse", className }: ReportPane
               {data.totals.commits.toLocaleString()} commits · {data.totals.contributors} contrib.
               {data.totals.languages.length > 0
                 ? ` · ${data.totals.languages.length} languages`
-                : ""}
-              {data.aiUsage && data.aiUsage.cost > 0
-                ? ` · AI $${data.aiUsage.cost.toFixed(2)}`
                 : ""}
             </span>
             {stale ? (
@@ -159,7 +207,7 @@ export function ReportPanel({ title = "Workspace pulse", className }: ReportPane
         </span>
       </div>
 
-      <div className="mt-3 flex min-h-0 flex-1">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {report.status === "loading" ? (
           <SkeletonState />
         ) : report.status === "running" ? (
@@ -176,7 +224,7 @@ export function ReportPanel({ title = "Workspace pulse", className }: ReportPane
             generating={generating}
           />
         ) : (
-          <ReportTabs data={data} tab={tab} onTabChange={setTab} seed={data.key} />
+          <ReportTabs data={data} tab={tab} onTabChange={setTab} seed={data.key} autoCycle={autoCycleTabs} />
         )}
       </div>
     </div>
@@ -185,61 +233,119 @@ export function ReportPanel({ title = "Workspace pulse", className }: ReportPane
 
 /* ---------------------------------------------------------------- tabs */
 
+/** Tab cycle order — the auto-carousel walks this ring. */
+const TAB_ORDER: readonly string[] = ["activity", "health", "code", "ai"];
+
+/** Auto-cycle dwell per tab. Deterministic: one band, one phase. */
+const TAB_CYCLE_MS = 8000;
+
 function ReportTabs({
   data,
   tab,
   onTabChange,
   seed,
+  autoCycle,
 }: {
   data: ReportExport;
   tab: string;
   onTabChange: (tab: string) => void;
   seed: string;
+  autoCycle: boolean;
 }) {
-  return (
-    <Tabs
-      value={tab}
-      onValueChange={(v) => onTabChange(v ?? "activity")}
-      className="b-tabs flex min-h-0 flex-1 flex-col"
-    >
-      <TabsList>
-        <TabsTrigger value="activity">
-          <TrendingUp className="size-3" /> Activity
-        </TabsTrigger>
-        <TabsTrigger value="health">
-          <Gauge className="size-3" /> Health
-        </TabsTrigger>
-        <TabsTrigger value="code">
-          <TerminalIcon className="size-3" /> Code
-        </TabsTrigger>
-        <TabsTrigger value="ai">
-          <BrainCircuit className="size-3" /> AI usage
-        </TabsTrigger>
-      </TabsList>
+  // The carousel pause surface: hover/focus holds the current tab so a
+  // chart being read never switches underneath (DataCarousel semantics).
+  const [paused, setPaused] = useState(false);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
-      <TabsContent value="activity" className="mt-3 flex min-h-0 flex-1 flex-col">
-        <ActivityTab data={data} seed={seed} />
-      </TabsContent>
-      <TabsContent value="health" className="mt-3 flex min-h-0 flex-1 flex-col">
-        <HealthTab data={data} />
-      </TabsContent>
-      <TabsContent value="code" className="mt-3 flex min-h-0 flex-1 flex-col">
-        <CodeTab data={data} />
-      </TabsContent>
-      <TabsContent value="ai" className="mt-3 flex min-h-0 flex-1 flex-col">
-        <AiTab data={data} />
-      </TabsContent>
-    </Tabs>
+  // Respect prefers-reduced-motion: no tab auto-advance at all.
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReducedMotion(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (!autoCycle || reducedMotion) return;
+    const timer = window.setInterval(() => {
+      if (pausedRef.current) return;
+      const at = TAB_ORDER.indexOf(tab);
+      const next = TAB_ORDER[(at + 1) % TAB_ORDER.length] ?? TAB_ORDER[0];
+      if (next !== undefined) onTabChange(next);
+    }, TAB_CYCLE_MS);
+    return () => window.clearInterval(timer);
+  }, [autoCycle, reducedMotion, tab, onTabChange]);
+
+  return (
+    <div
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={() => setPaused(false)}
+    >
+      <Tabs
+        value={tab}
+        onValueChange={(v) => onTabChange(v ?? "activity")}
+        className="b-tabs flex min-h-0 flex-1 flex-col"
+      >
+        <TabsList>
+          <TabsTrigger value="activity">
+            <TrendingUp className="size-3" /> Activity
+          </TabsTrigger>
+          <TabsTrigger value="health">
+            <Gauge className="size-3" /> Health
+          </TabsTrigger>
+          <TabsTrigger value="code">
+            <TerminalIcon className="size-3" /> Code
+          </TabsTrigger>
+          <TabsTrigger value="ai">
+            <BrainCircuit className="size-3" /> AI usage
+          </TabsTrigger>
+        </TabsList>
+
+        {/* overflow-hidden: a tab body may never bleed over the header row —
+            dense content fits by flexing, never by clipping upward. */}
+        <TabsContent value="activity" className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ActivityTab data={data} seed={seed} />
+        </TabsContent>
+        <TabsContent value="health" className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <HealthTab data={data} seed={seed} />
+        </TabsContent>
+        <TabsContent value="code" className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <CodeTab data={data} seed={seed} />
+        </TabsContent>
+        <TabsContent value="ai" className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
+          <AiTab data={data} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
+}
+
+/* ------------------------------------------------------------ activity */
+
+/** Commits across the report window, per repo, heaviest first. */
+function commitLeaders(data: ReportExport, limit = 8): { name: string; commits: number }[] {
+  return data.projects
+    .map((p) => ({ name: p.name, commits: p.cadence.reduce((sum, c) => sum + c.commits, 0) }))
+    .filter((r) => r.commits > 0)
+    .sort((a, b) => b.commits - a.commits)
+    .slice(0, limit);
 }
 
 function ActivityTab({ data, seed }: { data: ReportExport; seed: string }) {
   const cadence = aggregateCadence(data, 14);
   const total = cadence.reduce((sum, p) => sum + p.commits, 0);
+  const leaders = commitLeaders(data);
 
   if (cadence.length === 0) {
     return <QuietLine>No cadence data in this report.</QuietLine>;
   }
+  const peak = cadence.reduce((a, b) => (b.commits > a.commits ? b : a), cadence[0]);
   return (
     <DataCarousel
       ariaLabel="commit cadence"
@@ -249,23 +355,79 @@ function ActivityTab({ data, seed }: { data: ReportExport; seed: string }) {
       cards={[
         {
           label: "graph",
-          content: (
+          content:
+            cadence.length >= 3 ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-1">
+                <p className="shrink-0 font-mono text-[0.68rem] text-muted-foreground">
+                  {total.toLocaleString()} commits across {cadence.length}{" "}
+                  {cadence.length === 1 ? "month" : "months"}
+                  <span className="text-foreground">
+                    {" "}
+                    · peak {peak.period} · {peak.commits.toLocaleString()}
+                  </span>
+                </p>
+                <div className="min-h-0 w-full flex-1">
+                  <Chart
+                    variant="area"
+                    points={cadence.map((p) => ({ label: p.period, value: p.commits }))}
+                    maxPoints={14}
+                    ariaLabel="Commits per month across the workspace"
+                    className="h-full w-full"
+                  />
+                </div>
+              </div>
+            ) : (
+              /* A one-bucket window has no shape to draw — the total reads
+                 as a figure instead of a line stretched across the band. */
+              <div className="flex min-h-0 flex-1 flex-col justify-center gap-1.5">
+                <span className="b-label">commits in window</span>
+                <span className="b-num text-[44px] text-foreground">{total.toLocaleString()}</span>
+                <p className="font-mono text-[0.68rem] text-muted-foreground">
+                  {cadence.length} {cadence.length === 1 ? "bucket" : "buckets"} · peak {peak.period} ·{" "}
+                  {peak.commits.toLocaleString()}
+                  {leaders.length > 0 ? ` · ${leaders[0].name} leads` : ""}
+                </p>
+              </div>
+            ),
+        },
+        {
+          label: "by repo",
+          content:
+            leaders.length > 0 ? (
             <div className="flex min-h-0 flex-1 flex-col gap-1">
               <p className="shrink-0 font-mono text-[0.68rem] text-muted-foreground">
-                {total.toLocaleString()} commits across {cadence.length}{" "}
-                {cadence.length === 1 ? "month" : "months"}
+                commits in window · {leaders.length} of {data.totals.repositories}{" "}
+                {data.totals.repositories === 1 ? "repo" : "repos"}
               </p>
-              <div className="min-h-0 w-full flex-1">
-                <Chart
-                  variant="area"
-                  points={cadence.map((p) => ({ label: p.period, value: p.commits }))}
-                  maxPoints={14}
-                  ariaLabel="Commits per month across the workspace"
-                  className="h-full w-full"
-                />
-              </div>
+              <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-0.5 overflow-hidden">
+                {leaders.map((l) => (
+                  <li key={l.name} className="flex min-h-0 max-h-12 flex-1 items-center gap-2.5 text-xs">
+                    <span className="w-28 shrink-0 truncate @[900px]:w-44" title={l.name}>
+                      {l.name}
+                    </span>
+                    <span className="b-dirtybar min-w-0 flex-1">
+                      <span
+                        style={{
+                          width: `${Math.max((l.commits / leaders[0].commits) * 100, 3)}%`,
+                          background: "var(--bento-c1)",
+                        }}
+                      />
+                    </span>
+                    <span className="b-num w-12 shrink-0 text-right text-sm">
+                      {l.commits.toLocaleString()}
+                    </span>
+                    <span className="w-10 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                      {total > 0 ? `${Math.round((l.commits / total) * 100)}%` : "0%"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-          ),
+            ) : (
+              <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+                No commits recorded in this window.
+              </div>
+            ),
         },
         {
           label: "table",
@@ -308,18 +470,48 @@ function ActivityTab({ data, seed }: { data: ReportExport; seed: string }) {
   );
 }
 
-function HealthTab({ data }: { data: ReportExport }) {
+/* -------------------------------------------------------------- health */
+
+interface OffenderRow {
+  name: string;
+  worst: AlertSeverity;
+  count: number;
+  value: number;
+}
+
+/** Repos re-ranked by their worst signal, then by summed signal value. */
+function healthOffenders(data: ReportExport, limit = 8): OffenderRow[] {
+  return data.projects
+    .map((p) => {
+      let worst: AlertSeverity = "info";
+      let count = 0;
+      let value = 0;
+      for (const alert of p.alerts) {
+        count++;
+        value += alert.value;
+        if (SEVERITY_WEIGHT[alert.severity] > SEVERITY_WEIGHT[worst]) worst = alert.severity;
+      }
+      return { name: p.name, worst, count, value };
+    })
+    .filter((r) => r.count > 0)
+    .sort((a, b) => SEVERITY_WEIGHT[b.worst] - SEVERITY_WEIGHT[a.worst] || b.value - a.value)
+    .slice(0, limit);
+}
+
+function HealthTab({ data, seed }: { data: ReportExport; seed: string }) {
   const tally = alertTally(data);
   const counts = tally.severityCounts;
   const total = Math.max(tally.total, 1);
+  const offenders = healthOffenders(data);
+  const maxOffender = offenders.reduce((peak, o) => Math.max(peak, o.value), 1);
 
   if (tally.total === 0) {
     return <QuietLine>No quality signals flagged in this report.</QuietLine>;
   }
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
       <div
-        className="b-segbar"
+        className="b-segbar shrink-0"
         role="img"
         aria-label={`${counts.critical} critical, ${counts.warning} warning, ${counts.info} info signals`}
       >
@@ -333,43 +525,113 @@ function HealthTab({ data }: { data: ReportExport }) {
           <span style={{ flexGrow: counts.info, background: SEVERITY_COLOR.info }} />
         ) : null}
       </div>
-      <div className="flex items-center gap-4 font-mono text-[0.7rem]">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[0.7rem]">
         <SeverityStat name="critical" value={counts.critical} color={SEVERITY_COLOR.critical} />
         <SeverityStat name="warning" value={counts.warning} color={SEVERITY_COLOR.warning} />
         <SeverityStat name="info" value={counts.info} color={SEVERITY_COLOR.info} />
         <span className="ml-auto text-muted-foreground">{tally.total.toLocaleString()} signals</span>
       </div>
-      <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-1.5 pr-0.5">
-        {tally.rows.slice(0, 6).map((row) => (
-          <li
-            key={`${row.worst}:${row.label}`}
-            className="flex items-start gap-2.5 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5 text-xs"
-            title={row.summary}
-          >
-            <span
-              className="mt-1 size-2 shrink-0 rounded-[3px]"
-              style={{ background: SEVERITY_COLOR[row.worst] }}
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block font-medium">{row.label}</span>
-              <span className="line-clamp-1 block text-[0.66rem] leading-snug text-muted-foreground">
-                {row.summary}
-              </span>
-            </span>
-            <span className="b-dirtybar mt-2 w-20 shrink-0 sm:w-32">
-              <span
-                style={{
-                  width: `${Math.max((row.value / total) * 100, 6)}%`,
-                  background: SEVERITY_COLOR[row.worst],
-                }}
-              />
-            </span>
-            <span className="b-num w-9 shrink-0 text-right text-sm" style={{ color: SEVERITY_COLOR[row.worst] }}>
-              {row.value}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <DataCarousel
+        ariaLabel="health signals"
+        autoMs={8000}
+        seed={seed}
+        className="min-h-0 flex-1"
+        cards={[
+          {
+            label: "signals",
+            content: (
+              <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-0.5 overflow-hidden">
+                {tally.rows.slice(0, 8).map((row) => (
+                  <li
+                    key={`${row.worst}:${row.label}`}
+                    className="flex min-h-0 min-w-0 max-h-16 flex-1 items-center gap-2.5 rounded-lg border border-border bg-white/[0.02] px-2.5 text-xs"
+                    title={row.summary}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-[3px]"
+                      style={{ background: SEVERITY_COLOR[row.worst] }}
+                    />
+                    <span className="max-w-40 shrink-0 truncate font-medium" title={row.label}>
+                      {row.label}
+                    </span>
+                    <span
+                      className="hidden min-w-0 flex-1 truncate font-mono text-[0.62rem] text-muted-foreground sm:block"
+                    >
+                      {row.summary}
+                    </span>
+                    <span className="w-12 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                      {row.count}×
+                    </span>
+                    <span className="b-dirtybar w-20 shrink-0 @[900px]:w-32">
+                      <span
+                        style={{
+                          width: `${Math.max((row.value / total) * 100, 6)}%`,
+                          background: SEVERITY_COLOR[row.worst],
+                        }}
+                      />
+                    </span>
+                    <span
+                      className="b-num w-11 shrink-0 text-right text-sm"
+                      style={{ color: SEVERITY_COLOR[row.worst] }}
+                    >
+                      {row.value.toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ),
+          },
+          {
+            label: "by repo",
+            content:
+              offenders.length > 0 ? (
+                <div className="flex min-h-0 flex-1 flex-col gap-0.5">
+                  <p className="shrink-0 font-mono text-[0.66rem] text-muted-foreground">
+                    {offenders.length} flagged · worst signal first
+                  </p>
+                  <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-0.5 overflow-hidden">
+                    {offenders.map((o) => (
+                      <li
+                        key={o.name}
+                        className="flex min-h-0 max-h-12 flex-1 items-center gap-2.5 text-xs"
+                        title={`${o.name} — ${o.count} ${o.count === 1 ? "signal" : "signals"}, worst ${o.worst}`}
+                      >
+                        <span
+                          className="size-2 shrink-0 rounded-[3px]"
+                          style={{ background: SEVERITY_COLOR[o.worst] }}
+                        />
+                        <span className="w-28 shrink-0 truncate @[900px]:w-44" title={o.name}>
+                          {o.name}
+                        </span>
+                        <span className="b-dirtybar min-w-0 flex-1">
+                          <span
+                            style={{
+                              width: `${Math.max((o.value / maxOffender) * 100, 3)}%`,
+                              background: SEVERITY_COLOR[o.worst],
+                            }}
+                          />
+                        </span>
+                        <span className="w-9 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                          {o.count}×
+                        </span>
+                        <span
+                          className="b-num w-11 shrink-0 text-right text-sm"
+                          style={{ color: SEVERITY_COLOR[o.worst] }}
+                        >
+                          {o.value.toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+                  No single repo flagged — signals are workspace-wide.
+                </div>
+              ),
+          },
+        ]}
+      />
     </div>
   );
 }
@@ -377,13 +639,46 @@ function HealthTab({ data }: { data: ReportExport }) {
 function SeverityStat({ name, value, color }: { name: string; value: number; color: string }) {
   return (
     <span className="inline-flex items-baseline gap-1.5" style={{ color }}>
-      <span className="b-num text-base">{value}</span>
+      <span className="b-num text-base">{value.toLocaleString()}</span>
       <span className="text-muted-foreground">{name}</span>
     </span>
   );
 }
 
-function CodeTab({ data }: { data: ReportExport }) {
+/* ---------------------------------------------------------------- code */
+
+interface RepoStackRow {
+  name: string;
+  lines: number;
+  files: number;
+  segments: { language: string; lines: number; color: string }[];
+}
+
+/** Repos by total lines with their language mix pre-colored by global rank. */
+function repoStackRows(
+  data: ReportExport,
+  colorOf: (language: string) => string,
+  limit = 8,
+): RepoStackRow[] {
+  return data.projects
+    .map((p) => {
+      const files = p.languages.reduce((sum, l) => sum + l.files, 0);
+      const segments = [...p.languages]
+        .sort((a, b) => b.lines - a.lines)
+        .map((l) => ({ language: l.language, lines: l.lines, color: colorOf(l.language) }));
+      return {
+        name: p.name,
+        lines: p.languages.reduce((sum, l) => sum + l.lines, 0),
+        files,
+        segments,
+      };
+    })
+    .filter((r) => r.lines > 0)
+    .sort((a, b) => b.lines - a.lines)
+    .slice(0, limit);
+}
+
+function CodeTab({ data, seed }: { data: ReportExport; seed: string }) {
   const languages = languageRows(data, 8);
   const totalLines = languages.reduce((sum, l) => sum + l.lines, 0);
   const max = Math.max(...languages.map((l) => l.lines), 1);
@@ -391,140 +686,502 @@ function CodeTab({ data }: { data: ReportExport }) {
   const CIRC = 2 * Math.PI * R;
   const GAP = 2.5;
 
+  const colorRank = languageColorMap(data);
+  const colorOf = (language: string): string => STACK_COLOR(colorRank.get(language) ?? 0);
+  const repos = repoStackRows(data, colorOf);
+  const maxRepo = repos.reduce((peak, r) => Math.max(peak, r.lines), 1);
+
   if (languages.length === 0) {
     return <QuietLine>No language statistics in this report.</QuietLine>;
   }
 
   let offset = 0;
-  const segments = languages.map((l, i) => {
+  const segments = languages.map((l) => {
     const frac = totalLines === 0 ? 0 : l.lines / totalLines;
     const dash = Math.max(frac * CIRC - GAP, 0.75);
-    const seg = { language: l, dash, offset, color: STACK_COLOR(i) };
+    const seg = { language: l, dash, offset, color: colorOf(l.language) };
     offset += frac * CIRC;
     return seg;
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center lg:gap-8">
-      <div className="relative aspect-square h-full max-h-[190px] w-auto max-w-full shrink-0 lg:mx-0">
-        <svg viewBox="0 0 140 140" className="block size-full" aria-hidden>
-          <circle cx="70" cy="70" r={R} fill="none" stroke="var(--bento-track-soft)" strokeWidth={16} />
-          {segments.map((seg) => (
-            <circle
-              key={seg.language.language}
-              cx="70"
-              cy="70"
-              r={R}
-              fill="none"
-              strokeWidth={16}
-              style={{ stroke: seg.color }}
-              strokeDasharray={`${seg.dash} ${CIRC - seg.dash}`}
-              strokeDashoffset={-seg.offset}
-              transform="rotate(-90 70 70)"
+    <DataCarousel
+      ariaLabel="code composition"
+      autoMs={8000}
+      seed={seed}
+      className="min-h-0 flex-1"
+      cards={[
+        {
+          label: "languages",
+          content: (
+            <div className="flex min-h-0 flex-1 flex-col gap-2 @[520px]:flex-row @[520px]:items-stretch @[520px]:gap-6">
+              <div className="relative mx-auto aspect-square h-full max-h-[132px] w-auto shrink-0 @[520px]:mx-0 @[520px]:max-h-none">
+                <svg viewBox="0 0 140 140" className="block size-full" aria-hidden>
+                  <circle cx="70" cy="70" r={R} fill="none" stroke="var(--bento-track-soft)" strokeWidth={16} />
+                  {segments.map((seg) => (
+                    <circle
+                      key={seg.language.language}
+                      cx="70"
+                      cy="70"
+                      r={R}
+                      fill="none"
+                      strokeWidth={16}
+                      style={{ stroke: seg.color }}
+                      strokeDasharray={`${seg.dash} ${CIRC - seg.dash}`}
+                      strokeDashoffset={-seg.offset}
+                      transform="rotate(-90 70 70)"
+                    />
+                  ))}
+                </svg>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="b-num text-lg">{formatCompact(totalLines)}</span>
+                  <span className="b-label">lines</span>
+                </div>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <p className="shrink-0 font-mono text-[0.66rem] text-muted-foreground">
+                  {languages.length} {languages.length === 1 ? "language" : "languages"} ·{" "}
+                  {formatCompact(totalLines)} lines
+                </p>
+                <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-0.5 overflow-hidden pt-1">
+                  {languages.map((l) => (
+                    <li
+                      key={l.language}
+                      className="flex min-h-0 max-h-14 flex-1 items-center gap-3 text-xs"
+                      title={`${l.language} — ${l.lines.toLocaleString()} lines in ${l.files} files`}
+                    >
+                      <span
+                        className="size-2.5 shrink-0 rounded-[3px]"
+                        style={{ background: colorOf(l.language) }}
+                      />
+                      <span className="w-24 shrink-0 truncate font-medium @[900px]:w-32" title={l.language}>
+                        {l.language}
+                      </span>
+                      <span className="b-dirtybar min-w-0 flex-1">
+                        <span
+                          style={{
+                            width: `${Math.max((l.lines / max) * 100, 4)}%`,
+                            background: colorOf(l.language),
+                          }}
+                        />
+                      </span>
+                      <span className="b-num w-12 shrink-0 text-right text-sm">
+                        {formatCompact(l.lines)}
+                      </span>
+                      <span className="hidden w-16 shrink-0 text-right font-mono text-[0.62rem] whitespace-nowrap text-muted-foreground @[900px]:block">
+                        {l.files} files
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ),
+        },
+        {
+          label: "by repo",
+          content:
+            repos.length > 0 ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-1">
+                <p className="shrink-0 font-mono text-[0.66rem] text-muted-foreground">
+                  lines by repo · segment = language (ramp matches the donut)
+                </p>
+                <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-0.5 overflow-hidden">
+                  {repos.map((r) => (
+                    <li
+                      key={r.name}
+                      className="flex min-h-0 max-h-12 flex-1 items-center gap-3 text-xs"
+                      title={`${r.name} — ${r.lines.toLocaleString()} lines in ${r.files} files`}
+                    >
+                      <span className="w-28 shrink-0 truncate font-medium @[900px]:w-44" title={r.name}>
+                        {r.name}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="flex h-1.5 min-w-0 flex-1 gap-px overflow-hidden rounded-full"
+                        style={{ background: "var(--bento-track-soft)" }}
+                      >
+                        {r.segments.map((seg) => (
+                          <span
+                            key={seg.language}
+                            style={{
+                              flexGrow: seg.lines,
+                              flexBasis: 0,
+                              background: seg.color,
+                            }}
+                          />
+                        ))}
+                      </span>
+                      <span className="b-num w-12 shrink-0 text-right text-sm">
+                        {formatCompact(r.lines)}
+                      </span>
+                      <span className="w-10 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
+                        {maxRepo > 0 ? `${Math.round((r.lines / maxRepo) * 100)}%` : "0%"}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+                No per-repo language split in this report.
+              </div>
+            ),
+        },
+      ]}
+    />
+  );
+}
+
+/* ------------------------------------------------------------ AI usage */
+
+/**
+ * Per-day stacked bars: input (base, cyan) + output (top, blue ramp) over a
+ * TIGHT domain — the tallest day rides the top edge, the baseline the
+ * bottom. No gridlines, no headroom: the bars ARE the box. Each day group
+ * carries an exact `<title>` so hovering reads the real census.
+ */
+function StackedDayBars({ days, maxDay }: { days: AiBreakdownRow[]; maxDay: number }) {
+  const gradientId = useId();
+  const slot = 1000 / Math.max(1, days.length);
+  const barW = Math.max(2, slot * 0.72);
+  return (
+    <svg
+      role="img"
+      aria-label="Token usage per day: input and output stacked"
+      viewBox="0 0 1000 400"
+      preserveAspectRatio="none"
+      className="block h-full w-full"
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--bento-c1)" stopOpacity={0.95} />
+          <stop offset="100%" stopColor="var(--bento-c1)" stopOpacity={0.5} />
+        </linearGradient>
+      </defs>
+      {days.map((day, i) => {
+        const hIn = maxDay > 0 ? (day.tokens.input / maxDay) * 400 : 0;
+        const hOut = maxDay > 0 ? (day.tokens.output / maxDay) * 400 : 0;
+        const x = i * slot + (slot - barW) / 2;
+        return (
+          <g key={day.key}>
+            <title>{`${day.key} — in ${day.tokens.input.toLocaleString()} · out ${day.tokens.output.toLocaleString()}`}</title>
+            <rect x={x} y={400 - hIn} width={barW} height={hIn} fill="var(--bento-c2)" />
+            <rect
+              x={x}
+              y={Math.max(0, 400 - hIn - hOut)}
+              width={barW}
+              height={hOut}
+              fill={`url(#${gradientId})`}
             />
-          ))}
-        </svg>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="b-num text-lg">{formatCompact(totalLines)}</span>
-          <span className="b-label">lines</span>
-        </div>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <p className="font-mono text-[0.68rem] text-muted-foreground">
-          {languages.length} {languages.length === 1 ? "language" : "languages"} ·{" "}
-          {formatCompact(totalLines)} lines
-        </p>
-        <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-2">
-          {languages.map((l, i) => (
-            <li
-              key={l.language}
-              className="flex min-h-10 items-center gap-3 rounded-xl border border-border bg-white/[0.02] px-3 text-xs"
-            >
-              <span className="size-2.5 shrink-0 rounded-[3px]" style={{ background: STACK_COLOR(i) }} />
-              <span className="w-28 shrink-0 truncate font-medium" title={l.language}>
-                {l.language}
-              </span>
-              <span className="b-dirtybar min-w-0 flex-1">
-                <span
-                  style={{
-                    width: `${Math.max((l.lines / max) * 100, 4)}%`,
-                    background: STACK_COLOR(i),
-                  }}
-                />
-              </span>
-              <span className="b-num w-14 shrink-0 text-right text-sm">{formatCompact(l.lines)}</span>
-              <span className="w-16 shrink-0 text-right font-mono text-[0.62rem] text-muted-foreground">
-                {l.files} files
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Day axis under the bars: evenly sampled ticks at exact x shares — never
+ * more than 7; middle ticks fold on narrow shells. */
+function DayAxis({ days }: { days: AiBreakdownRow[] }) {
+  const n = days.length;
+  if (n === 0) return null;
+  const idxs =
+    n <= 7
+      ? Array.from({ length: n }, (_, i) => i)
+      : [...new Set([0, 1, 2, 3, 4, 5, 6].map((f) => Math.round((f / 6) * (n - 1))))];
+  return (
+    <div aria-hidden className="relative h-3.5 shrink-0">
+      {idxs.map((i) => {
+        const day = days[i];
+        if (day === undefined) return null;
+        const at = n <= 1 ? 0 : (i / (n - 1)) * 100;
+        const anchor = i === 0 ? "0%" : i === n - 1 ? "-100%" : "-50%";
+        return (
+          <span
+            key={day.key}
+            className={`absolute top-0 font-mono text-[9px] leading-3 whitespace-nowrap text-muted-foreground${
+              i > 0 && i < n - 1 ? " hidden @[520px]:inline" : ""
+            }`}
+            style={{ left: `${at}%`, transform: `translateX(${anchor})` }}
+          >
+            {dayTick(day.key)}
+          </span>
+        );
+      })}
     </div>
+  );
+}
+
+interface LedgerEntry {
+  key: string;
+  tokens: number;
+  unsubsidizedCost: number | null | undefined;
+}
+
+/** Fill-or-shrink ledger row: exact tokens, est. $ when the CLI priced it. */
+function LedgerRows({ rows }: { rows: LedgerEntry[] }) {
+  const max = rows.reduce((peak, r) => Math.max(peak, r.tokens), 0);
+  return (
+    <ul className="flex min-h-0 flex-1 flex-col justify-evenly gap-px overflow-hidden">
+      {rows.map((r) => {
+        const share = max > 0 ? r.tokens / max : 0;
+        return (
+          <li
+            key={r.key}
+            className="flex min-h-0 max-h-12 flex-1 items-center gap-2.5 text-xs"
+            title={`${r.key} — ${r.tokens.toLocaleString()} tokens`}
+          >
+            <span
+              className="w-24 shrink-0 truncate font-mono text-[10px] uppercase tracking-[0.07em] text-muted-foreground @[900px]:w-28"
+              title={r.key}
+            >
+              {r.key}
+            </span>
+            <span className="b-dirtybar min-w-0 flex-1">
+              <span
+                style={{
+                  width: `${Math.max(share * 100, 2)}%`,
+                  background: "var(--bento-c1)",
+                  opacity: 0.45 + share * 0.55,
+                }}
+              />
+            </span>
+            <span className="b-num w-12 shrink-0 text-right text-sm @[340px]:w-14">
+              {formatTokens(r.tokens)}
+            </span>
+            {r.unsubsidizedCost !== null && r.unsubsidizedCost !== undefined && r.unsubsidizedCost > 0 ? (
+              <span className="hidden w-14 shrink-0 text-right font-mono text-[0.62rem] tabular-nums text-muted-foreground @[900px]:block">
+                {formatCost(r.unsubsidizedCost)}
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** The one dense footer line: exact token classes and the honest cost.
+ * One line — overflow clips the muted tail classes (cache/reasoning) first,
+ * never the in/out/Σ/est. core. */
+function ExactTokens({ usage }: { usage: AiUsage }) {
+  return (
+    <p className="flex min-w-0 shrink-0 items-baseline gap-x-3 overflow-hidden whitespace-nowrap border-t border-border pt-1.5 font-mono text-[0.64rem] tabular-nums text-muted-foreground">
+      <span className="shrink-0">
+        in <span className="text-foreground">{usage.tokens.input.toLocaleString()}</span>
+      </span>
+      <span className="shrink-0">
+        out <span className="text-foreground">{usage.tokens.output.toLocaleString()}</span>
+      </span>
+      <span className="shrink-0">
+        Σ <span className="text-foreground">{usage.tokens.total.toLocaleString()}</span>
+      </span>
+      {usage.unsubsidizedCost !== null && usage.unsubsidizedCost !== undefined && usage.unsubsidizedCost > 0 ? (
+        <span className="shrink-0">
+          est. <span className="text-foreground">{formatCost(usage.unsubsidizedCost)}</span>
+        </span>
+      ) : null}
+      {usage.tokens.cacheRead ? (
+        <span>
+          cache <span className="text-foreground">{usage.tokens.cacheRead.toLocaleString()}</span>
+        </span>
+      ) : null}
+      {usage.tokens.reasoning ? (
+        <span>
+          reas. <span className="text-foreground">{usage.tokens.reasoning.toLocaleString()}</span>
+        </span>
+      ) : null}
+    </p>
   );
 }
 
 function AiTab({ data }: { data: ReportExport }) {
   const usage = data.aiUsage;
-  const leaders = aiUsageLeaders(data, 6);
+  // Ledger sources: the per-model census, and — on scan reports — the same
+  // treatment per repo. Manual toggle; the band's own cycle brings it round.
+  const models: LedgerEntry[] = (usage?.breakdowns?.byModel ?? [])
+    .map((m) => ({ key: m.key, tokens: m.tokens.total, unsubsidizedCost: m.unsubsidizedCost }))
+    .sort((a, b) => b.tokens - a.tokens)
+    .slice(0, 6);
+  const repoLeaders = aiUsageLeaders(data, 6).filter((l) => l.tokens > 0);
+  const [ledger, setLedger] = useState<"models" | "repos">("models");
 
-  if (usage === null) {
+  if (usage === null || usage.tokens.total === 0) {
     return <QuietLine>No AI usage recorded in this report window.</QuietLine>;
   }
-  return (
-    <div className="grid min-h-0 flex-1 content-center gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      {/* The subsidized AI cost leads the tab — the headline number of the
-          whole widget. */}
-      <div className="flex min-w-0 flex-col justify-center gap-2">
-        <span className="b-label">Subsidized AI cost</span>
-        <span
-          className="b-num text-[56px]"
-          style={{ color: "var(--bento-c4)" }}
-          aria-label={`Subsidized AI cost ${usage.cost.toFixed(2)} dollars`}
-        >
-          ${usage.cost.toFixed(2)}
-        </span>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {usage.cost === 0
-            ? "Fully subsidized — the matched assistant messages carried no recorded spend for this report window."
-            : "Recorded spend of the matched assistant messages for this report window."}
-        </p>
-      </div>
-      <dl className="grid grid-cols-2 content-stretch gap-3 self-stretch">
-        <AiStat label="requests" value={usage.records.toLocaleString()} />
-        <AiStat label="tokens in" value={formatCompact(usage.tokens.input)} />
-        <AiStat label="tokens out" value={formatCompact(usage.tokens.output)} />
-        <AiStat label="total tokens" value={formatCompact(usage.tokens.total)} />
-      </dl>
-      {data.kind === "scan" && leaders.length > 0 ? (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5">
-          {leaders.map((l) => (
-            <li key={l.name} className="flex items-center gap-2.5 text-xs">
-              <span className="w-32 shrink-0 truncate sm:w-44" title={l.name}>
-                {l.name}
-              </span>
-              <span className="b-dirtybar min-w-0 flex-1">
-                <span
-                  style={{
-                    width: `${Math.max((l.tokens / leaders[0].tokens) * 100, 5)}%`,
-                    background: "var(--bento-ai-bar)",
-                  }}
-                />
-              </span>
-              <span className="b-num w-16 shrink-0 text-right text-sm">{formatCompact(l.tokens)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
 
-function AiStat({ label, value }: { label: string; value: string }) {
+  const days = [...(usage.breakdowns?.byDay ?? [])].sort((a, b) => a.key.localeCompare(b.key));
+  const maxDay = days.reduce((peak, d) => Math.max(peak, d.tokens.input + d.tokens.output), 0);
+  const peak =
+    days.length > 0 && maxDay > 0
+      ? days.reduce((a, b) =>
+          a.tokens.input + a.tokens.output >= b.tokens.input + b.tokens.output ? a : b,
+        )
+      : null;
+  const clients = [...(usage.breakdowns?.byClient ?? [])]
+    .sort((a, b) => b.tokens.total - a.tokens.total)
+    .slice(0, 5);
+  const clientTotal = clients.reduce((sum, c) => sum + c.tokens.total, 0);
+  const estCost =
+    usage.unsubsidizedCost !== null && usage.unsubsidizedCost !== undefined
+      ? usage.unsubsidizedCost
+      : null;
+  const perDay = days.length > 0 ? (usage.tokens.input + usage.tokens.output) / days.length : 0;
+  const repoRows: LedgerEntry[] = repoLeaders.map((l) => ({
+    key: l.name,
+    tokens: l.tokens,
+    unsubsidizedCost: null,
+  }));
+  const showRepos = ledger === "repos" && repoRows.length > 0;
+  const ledgerRows = showRepos ? repoRows : models;
+
   return (
-    <div className="flex min-h-20 flex-col justify-center gap-1 rounded-xl border border-border bg-white/[0.03] px-4 py-3">
-      <dt className="b-label">{label}</dt>
-      <dd className="b-num text-2xl">{value}</dd>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {/* Figures row: the honest est. cost leads when the CLI priced the
+          window; the subsidized $0 fact stays a small line, never a hero.
+          One line, no wrapping — a short band shrinks the chart, not the
+          census (the note truncates first). */}
+      <div className="flex min-w-0 shrink-0 items-baseline gap-x-3 overflow-hidden whitespace-nowrap">
+        {estCost !== null && estCost > 0 ? (
+          <span className="flex shrink-0 items-baseline gap-2">
+            <span className="b-num text-[24px] text-foreground" aria-label={`Estimated unsubsidized cost ${estCost.toFixed(2)} dollars`}>
+              {formatCost(estCost)}
+            </span>
+            <span className="b-label">est. · unsubsidized</span>
+          </span>
+        ) : null}
+        {usage.cost === 0 ? (
+          <span
+            className="min-w-0 truncate font-mono text-[0.62rem] text-muted-foreground"
+            title="The matched assistant messages ran on the plan subsidy — the CLI recorded no charge."
+          >
+            subsidized · $0 charged
+          </span>
+        ) : (
+          <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
+            recorded {formatCost(usage.cost)}
+          </span>
+        )}
+        <span className="ml-auto flex shrink-0 items-baseline gap-3 font-mono text-[0.66rem] tabular-nums text-muted-foreground">
+          <span>
+            <span className="b-num text-sm text-foreground">{formatTokens(usage.tokens.total)}</span> tokens
+          </span>
+          {perDay > 0 ? (
+            <span>
+              <span className="b-num text-sm text-foreground">{formatTokens(perDay)}</span>/day
+            </span>
+          ) : null}
+          {models.length > 0 ? (
+            <span>
+              <span className="b-num text-sm text-foreground">{models.length}</span>{" "}
+              {models.length === 1 ? "model" : "models"}
+            </span>
+          ) : null}
+        </span>
+      </div>
+
+      {/* Main band: the byDay timeline beside the breakdown ledger — two
+          columns from a ~520px shell, stacked below it (the ledger clipping
+          honestly before the chart ever collapses). */}
+      <div
+        className={cn(
+          "grid min-h-0 flex-1 gap-x-6 gap-y-2",
+          models.length > 0 || repoLeaders.length > 0 ? "@[520px]:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]" : "",
+        )}
+      >
+        {days.length > 0 ? (
+          <div className="flex min-h-[56px] min-w-0 flex-col">
+            <div className="flex shrink-0 items-baseline justify-between gap-2 pb-1">
+              <span className="b-label">tokens / day · in + out</span>
+              {peak !== null ? (
+                <span className="font-mono text-[0.64rem] tabular-nums text-muted-foreground">
+                  peak{" "}
+                  <span className="text-foreground">
+                    {dayTick(peak.key)} · {formatTokens(peak.tokens.input + peak.tokens.output)}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <div className="relative min-h-0 min-w-0 flex-1">
+              <div className="absolute inset-0">
+                <StackedDayBars days={days} maxDay={maxDay} />
+              </div>
+            </div>
+            <DayAxis days={days} />
+          </div>
+        ) : (
+          /* Degrade for exports persisted before the breakdown existed: the
+             honest in/out composition — never invented history. */
+          <div className="flex min-h-0 min-w-0 flex-col justify-center gap-1.5">
+            <span className="b-label">token mix · in + out</span>
+            <div
+              className="flex h-2.5 w-full overflow-hidden rounded-full"
+              role="img"
+              aria-label={`Tokens: in ${usage.tokens.input.toLocaleString()}, out ${usage.tokens.output.toLocaleString()}`}
+              style={{ background: "var(--bento-track-soft)" }}
+            >
+              <span
+                className="block h-full"
+                style={{ flexGrow: usage.tokens.input, flexBasis: 0, background: "var(--bento-c2)" }}
+              />
+              <span
+                className="block h-full"
+                style={{ flexGrow: usage.tokens.output, flexBasis: 0, background: "var(--bento-c1)" }}
+              />
+            </div>
+          </div>
+        )}
+
+        {ledgerRows.length > 0 ? (
+          <div className="flex min-h-0 min-w-0 flex-col gap-1">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="b-label">{showRepos ? "by repo" : "by model"}</span>
+              {repoLeaders.length > 0 && models.length > 0 ? (
+                <span className="flex items-center gap-0.5">
+                  {(["models", "repos"] as const).map((view) => (
+                    <button
+                      key={view}
+                      type="button"
+                      onClick={() => setLedger(view)}
+                      aria-pressed={ledger === view}
+                      className={cn(
+                        "rounded-md px-1.5 py-0.5 font-mono text-[0.62rem] transition-colors",
+                        ledger === view
+                          ? "bg-white/[0.08] text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {view}
+                    </button>
+                  ))}
+                </span>
+              ) : null}
+              {clientTotal > 0 && clients.length > 1 ? (
+                <span
+                  className="ml-auto hidden items-center gap-1.5 @[900px]:flex"
+                  title={clients.map((c) => `${c.key} ${Math.round((c.tokens.total / clientTotal) * 100)}%`).join(" · ")}
+                >
+                  <span className="b-segbar w-16" aria-hidden>
+                    {clients.map((c, i) => (
+                      <span
+                        key={c.key}
+                        style={{ flexGrow: c.tokens.total, background: STACK_COLOR(i) }}
+                      />
+                    ))}
+                  </span>
+                  <span className="font-mono text-[0.6rem] text-muted-foreground">
+                    {clients[0].key} {Math.round((clients[0].tokens.total / clientTotal) * 100)}%
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <LedgerRows rows={ledgerRows} />
+          </div>
+        ) : null}
+      </div>
+
+      <ExactTokens usage={usage} />
     </div>
   );
 }
@@ -628,9 +1285,11 @@ function QuietLine({ children }: { children: React.ReactNode }) {
 /* ------------------------------------------------------------ widget --- */
 
 /**
- * Workspace pulse — the full-width tabbed report band: the design's
- * `BentoTile span="sp-pulse"` with the ReportPanel inside; the gate states
- * render inside the panel per the provider's machine.
+ * Workspace pulse — the tabbed report band: the design's `BentoTile
+ * span="sp-pulse"` with the ReportPanel inside; the gate states render
+ * inside the panel per the provider's machine. On the dashboard the tabs
+ * auto-cycle (activity → health → code → AI) so the band stays alive —
+ * `autoCycleTabs`, paused on hover/focus, off under reduced motion.
  */
 export function BentoPulse(_props: RegisteredWidgetProps) {
   const report = useReport();
@@ -642,7 +1301,7 @@ export function BentoPulse(_props: RegisteredWidgetProps) {
           No report scope — track a root to generate the workspace report.
         </div>
       ) : (
-        <ReportPanel className="min-h-0 flex-1" />
+        <ReportPanel className="min-h-0 flex-1" autoCycleTabs />
       )}
     </BentoTile>
   );

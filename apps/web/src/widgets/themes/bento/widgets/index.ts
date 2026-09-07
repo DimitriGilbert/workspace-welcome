@@ -6,7 +6,9 @@
  * Dashboard: the command bar (`bento-chrome`), the vitals band
  * (`bento-health` / `bento-activity` / `bento-stacks`), the signals row
  * (`bento-attention` / `bento-signals`), the tabbed snitch band
- * (`bento-pulse`), and the recency-sized mosaic tile (`bento-project-tile`).
+ * (`bento-pulse`), the chrome-framed project mosaic (`bento-project-bento`,
+ * which runs the shared `"projects"` flow internally), and the recency-sized
+ * mosaic tile (`bento-project-tile`, the bento-of-projects' inner content).
  *
  * Project page: the glazed nav bar (`bento-project-nav`), the identity +
  * grouped state tiles, the pulse-summary slice, the full repo report band,
@@ -17,6 +19,7 @@ import type { WidgetDef } from "@/widgets/registry";
 import { BentoActivity, BentoHealth, BentoStacks } from "./vitals";
 import { BentoAttention, BentoSignals } from "./signals";
 import { BentoPulse } from "./pulse";
+import { BentoProjectBento } from "./project-bento";
 import { BentoProjectTile } from "./project-tile";
 import { BentoProjectIdentity, BentoProjectNav, BentoProjectState } from "./project-hero";
 import { BentoProjectSummary, BentoProjectPulse } from "./project-report";
@@ -53,7 +56,8 @@ export const widgetDefs: readonly WidgetDef[] = [
     component: BentoHealth,
     requires: ["workspace"],
     defaultSize: "3x3",
-    // The gauge is a fixed 170px ring — it cannot compress into one column.
+    // The gauge is a fixed 170px ring (140 under a 400px container) — it
+    // cannot compress into one column.
     min: "2x1",
   },
   {
@@ -80,11 +84,11 @@ export const widgetDefs: readonly WidgetDef[] = [
     title: "Needs attention",
     component: BentoAttention,
     requires: ["workspace"],
-    defaultSize: "8x3",
-    // The hero row (30px roll number + mono captions) and the list rows
-    // (w-32 name + glyphs + mono numerals, ~240px) are fixed-content —
-    // two-column placements clip them.
-    min: "3x3",
+    defaultSize: "3x3",
+    // Row columns re-rung by container query (b-att-* in custom.css) — the
+    // ledger is honest at any width ≥ 2 columns; one column (104px) clips
+    // the icon + name pair.
+    min: "2x1",
   },
   {
     id: "bento-signals",
@@ -101,10 +105,22 @@ export const widgetDefs: readonly WidgetDef[] = [
     title: "Workspace pulse",
     component: BentoPulse,
     requires: ["workspace", "report"],
-    defaultSize: "12x3",
-    // The loading skeleton row is a fixed w-64 (~296px with chrome) — below
-    // three columns it clips.
-    min: "3x3",
+    defaultSize: "6x4",
+    // Two rows cannot hold the (wrapping) header, tabs and a chart body —
+    // 3 rows is the honest floor at any width; the header and tabs wrap,
+    // they do not clip.
+    min: "2x3",
+  },
+  {
+    id: "bento-project-bento",
+    title: "Projects",
+    component: BentoProjectBento,
+    requires: ["workspace"],
+    defaultSize: "12x8",
+    // The mosaic fills its shell exactly (fractional rows); below the 2x2
+    // rung there is no honest mosaic, so the ladder floor keeps the lab's
+    // catalog off the nonsense rungs.
+    min: "2x2",
   },
   {
     id: "bento-project-tile",

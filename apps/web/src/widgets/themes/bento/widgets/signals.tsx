@@ -40,7 +40,7 @@ function useOpenBentoProject() {
 
 /* -------------------------------------------------------- BentoAttention */
 
-const PREVIEW = 6;
+const PREVIEW = 5;
 
 const SEVERITY_ICON: Record<"critical" | "warning", LucideIcon> = {
   critical: OctagonAlert,
@@ -119,13 +119,19 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                       className="size-4 shrink-0"
                       style={{ color: worst === "critical" ? "var(--sev-critical)" : "var(--sev-warning)" }}
                     />
-                    <span className="w-32 shrink-0 truncate text-[0.82rem] font-semibold tracking-tight sm:w-64">
+                    {/* Row columns size off the TILE via the b-att-* container
+                        classes (custom.css) — the ledger stays dense and
+                        content-sized at any board width instead of stranding
+                        a mid-row void when the box outgrows the content. */}
+                    <span className="b-att-name shrink-0 truncate text-[0.82rem] font-semibold tracking-tight">
                       {p.name}
                     </span>
                     {/* Flexible column: the alert chips absorb the remaining
                         width on one dense line (truncate, no wrap) — the row
-                        reads edge to edge with no mid-row voids. */}
-                    <span className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                        reads edge to edge with no mid-row voids. Below a
+                        ~360px box the chips fall away entirely (b-att-chips,
+                        custom.css): a 40px chip of ellipsis is noise. */}
+                    <span className="b-att-chips">
                       {blocking.map((a) => (
                         <span
                           key={a.code}
@@ -148,8 +154,10 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                         </span>
                       ))}
                     </span>
-                    <GitGlyphs git={p.git} className="hidden md:inline-flex" />
-                    <span className="hidden shrink-0 font-mono text-[0.7rem] tabular-nums text-muted-foreground sm:inline">
+                    <span className="b-att-glyphs">
+                      <GitGlyphs git={p.git} />
+                    </span>
+                    <span className="b-att-age shrink-0 font-mono text-[0.7rem] tabular-nums text-muted-foreground">
                       {relativeTime(p.updatedAt)}
                     </span>
                     <ChevronDown className="size-3.5 shrink-0 -rotate-90 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />

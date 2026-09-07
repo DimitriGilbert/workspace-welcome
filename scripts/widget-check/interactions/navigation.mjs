@@ -1,62 +1,86 @@
 /**
- * Interaction: navigation — redirect + same-theme navigation (§3.8 matrix).
+ * Interaction: navigation — entrypoint redirect + same-theme project
+ * navigation (§3.8 matrix; recalibrated after the owner's `/app` kill —
+ * `/` is THE app and NOTHING under `/app` renders; `routes/app/*.tsx` are
+ * permanent redirects, so the old "`/app` → `/app/<theme>`" expectation
+ * tested a route shape that no longer exists).
  *
- * Contract: `/app` redirects to the configured default theme's dashboard
- * and the target renders a theme scope. WHICH theme owns the default is an
- * owner decision pending G1 (#3), so the harness accepts ANY registered
- * theme (`/app/<mission-control|bento|meadow>`) instead of baking in a
- * specific default (D2 calibration) — the redirect mechanism itself is the
- * contract under test. From a themed page, project links
- * (`a[href^="/app/<theme>/project/"]`) navigate while the
- * `[data-ww-theme="<theme>"][data-theme-scope]` scope REMAINS mounted.
+ * Contract under test today:
+ * 1. `/app` permanently redirects to the entrypoint `/`, which renders a
+ *    registered theme's dashboard scope. WHICH theme owns the default is an
+ *    owner decision, so the harness accepts ANY registered theme's scope
+ *    (D2 calibration) — the redirect mechanism itself is the contract.
+ * 2. The dead `/app/<slug>` survives as a redirect that CARRIES the
+ *    selection: `/?preset=<slug>` must render THAT slug's scope (the cargo
+ *    contract the redirect's `search` documents).
+ * 3. From the themed board, project links navigate to the project surface
+ *    while the `[data-ww-theme][data-theme-scope]` scope REMAINS mounted.
+ *    Boards may author top-level `/project/…` hrefs or the legacy
+ *    `/app/<theme>/project/…` ones (mission-control does) — both land on
+ *    the top-level route, so arrival accepts either pathname prefix (the
+ *    legacy hop's redirect flips the pathname asynchronously).
  *
  * Project links mount with the renderer's projects query, which can lag
- * the settle stamp: arriving via the `/app` redirect, settle's
- * `[data-ready]`+double-rAF has fired before the anchors mount (observed
- * 0 anchors at settle vs 32 at +3s), so the harness waits bounded
- * (`waitForSelector`) instead of trusting one post-settle query (D5
- * calibration) — and the same bounded wait covers the theme scope after
- * the project navigation, whose pathname can flip before the target page
- * mounts. Themes whose project links are not authored yet (T3 pending)
- * WARN honestly; pending must not look broken, nor pass silently.
+ * the settle stamp: arriving via a redirect, settle's `[data-ready]`+
+ * double-rAF has fired before the anchors mount (observed 0 anchors at
+ * settle vs 32 at +3s), so the harness waits bounded (`waitForSelector`)
+ * instead of trusting one post-settle query (D5 calibration) — and the same
+ * bounded wait covers the theme scope after the project navigation, whose
+ * pathname can flip before the target page mounts. Themes whose project
+ * links are not authored yet (T3 pending) WARN honestly; pending must not
+ * look broken, nor pass silently.
  */
-import { CONTRACT, queryExists, waitForSelector } from "./helpers.mjs";
+import { CONTRACT, waitForSelector } from "./helpers.mjs";
 
 export const name = "navigation";
 
 /** Themes the app registers (apps/web/src/widgets/themes/index.ts). */
 const REGISTERED_THEMES = ["mission-control", "bento", "meadow"];
 
+/** The registered theme whose dashboard scope is mounted, or null. */
+async function scopeTheme(page) {
+  return page.eval((themes) => {
+    for (const theme of themes) {
+      if (document.querySelector(`[data-ww-theme="${theme}"][data-theme-scope]`) !== null) {
+        return theme;
+      }
+    }
+    return null;
+  }, REGISTERED_THEMES);
+}
+
 export async function run(page, report, ctx) {
-  // 1. /app redirects to a registered theme dashboard whose scope mounts.
+  // 1. /app redirects to the entrypoint; a registered scope renders there.
   await page.goto(`${ctx.baseUrl}/app`);
   await page.settle();
-  const path = await page.getLocation();
-  const landed = REGISTERED_THEMES.find((theme) => path.startsWith(`/app/${theme}`));
-  if (landed === undefined) {
+  const entryPath = await page.getLocation();
+  const landed = entryPath === "/" ? await scopeTheme(page) : null;
+  if (landed === null) {
     report.fail(
       `interaction:${name}`,
-      `/app did not redirect to a registered theme dashboard (at ${path}, expected one of /app/{${REGISTERED_THEMES.join(", ")}})`,
+      `/app did not redirect to the entrypoint with a registered theme dashboard (at ${entryPath}, expected "/" rendering one of /app/{${REGISTERED_THEMES.join(", ")}})`,
     );
     return { ok: false };
   }
-  if (!(await queryExists(page, `[data-ww-theme="${landed}"][data-theme-scope]`))) {
-    report.fail(
-      `interaction:${name}`,
-      `/app redirect target ${path} did not render a "${landed}" theme scope`,
-    );
-    return { ok: false };
-  }
-  report.pass(`interaction:${name}`, `/app redirects to ${path} — registered theme, scope mounted`);
+  report.pass(`interaction:${name}`, `/app redirects to ${entryPath} — the entrypoint renders the "${landed}" scope`);
 
-  // 2. Same-theme project navigation keeps the scope mounted. The redirect
-  // may have landed on a different (default) theme, so move to THIS
-  // theme's dashboard before hunting for its project links.
-  if (!path.startsWith(`/app/${ctx.theme}`)) {
-    await page.goto(`${ctx.baseUrl}/app/${ctx.theme}`);
-    await page.settle();
+  // 2. The dead /app/<slug> redirect carries its slug: /?preset=<slug>
+  // renders THAT theme's scope.
+  await page.goto(`${ctx.baseUrl}/app/${ctx.theme}`);
+  await page.settle();
+  const presetPath = await page.getLocation();
+  const presetTheme = await scopeTheme(page);
+  if (presetTheme !== ctx.theme) {
+    report.fail(
+      `interaction:${name}`,
+      `/app/${ctx.theme} landed at ${presetPath} rendering "${presetTheme ?? "no"}" scope — the redirect must carry the slug as ?preset=`,
+    );
+    return { ok: false };
   }
-  const linkSelector = `a[href^="${CONTRACT.projectLinkPrefix}${ctx.theme}/project/"]`;
+  report.pass(`interaction:${name}`, `/app/${ctx.theme} redirects to ${presetPath} with the "${presetTheme}" scope mounted`);
+
+  // 3. Same-theme project navigation keeps the scope mounted.
+  const linkSelector = CONTRACT.projectLink;
   if (!(await waitForSelector(page, linkSelector, { timeoutMs: 5000 }))) {
     report.warn(
       `interaction:${name}`,
@@ -68,11 +92,11 @@ export async function run(page, report, ctx) {
     const el = /** @type {HTMLAnchorElement | null} */ (document.querySelector(selectorArg));
     el?.click();
   }, linkSelector);
-  const prefix = `/app/${ctx.theme}/project/`;
+  const legacyPrefix = `/app/${ctx.theme}/project/`;
   const arrived = await page.waitFor(
-    (expectedPrefix) => location.pathname.startsWith(expectedPrefix),
+    (prefixes) => prefixes.some((prefix) => location.pathname.startsWith(prefix)),
     { timeoutMs: 5000 },
-    prefix,
+    ["/project/", legacyPrefix],
   );
   if (!arrived) {
     const stuckAt = await page.getLocation();
@@ -81,9 +105,9 @@ export async function run(page, report, ctx) {
   }
   const afterPath = await page.getLocation();
   // The project anchor is a plain href, so arriving here can be a full
-  // document load — the pathname flips before React mounts the new page's
-  // scope. Wait bounded (D5: no fixed-sleep settle assumptions) and only
-  // then judge the scope.
+  // document load (or the legacy route's redirect hop) — the pathname flips
+  // before React mounts the new page's scope. Wait bounded (D5: no
+  // fixed-sleep settle assumptions) and only then judge the scope.
   const scopeStillMounted = await waitForSelector(
     page,
     `[data-ww-theme="${ctx.theme}"][data-theme-scope]`,

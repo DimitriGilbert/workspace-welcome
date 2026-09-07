@@ -64,6 +64,38 @@ export async function queryExists(page, selector) {
   );
 }
 
+/**
+ * Resolve the page's filter affordance to a unique selector; null when no
+ * filter is mounted (the scripts WARN pending on that). The runtime header
+ * input (`data-console-filter` — use-console-keys' "/" target) is the
+ * affordance where the console header is shown (mission-control). Themes
+ * that replace the header hide it with CSS (bento/meadow `custom.css`:
+ * `[data-slot="page-header"] { display: none }`) and bind the SAME
+ * workspace filter to their own search field (meadow masthead, bento
+ * command palette) — a display:none input can never take focus, so the
+ * contract must resolve the VISIBLE affordance, not the first attribute
+ * match. The resolved element is stamped `data-ww-check-filter` (a
+ * throwaway page-scoped mark) so every step of a script targets the SAME
+ * input.
+ */
+export async function resolveFilterSelector(page) {
+  return page.eval(() => {
+    const candidates = document.querySelectorAll(
+      "input[data-console-filter], input[type='search'][aria-label='Filter projects']",
+    );
+    for (const el of candidates) {
+      const visible =
+        typeof el.checkVisibility === "function"
+          ? el.checkVisibility()
+          : el.offsetParent !== null;
+      if (!visible) continue;
+      el.setAttribute("data-ww-check-filter", "");
+      return "[data-ww-check-filter]";
+    }
+    return null;
+  });
+}
+
 export async function queryCount(page, selector) {
   return page.eval(
     (selectorArg) => document.querySelectorAll(selectorArg).length,
@@ -90,10 +122,14 @@ export async function waitForSelector(page, selector, { timeoutMs = 5000 } = {})
   }
 }
 
-/** The harness's standard interaction contract selectors (see scripts). */
+/** The harness's standard interaction contract selectors (see scripts).
+ * The filter input is NOT a fixed selector — resolve it per page with
+ * {@link resolveFilterSelector} (the visible affordance; see its doc). */
 export const CONTRACT = {
-  filterInput: 'input[data-console-filter]',
   sortButton: "button[data-sort-key]",
   tab: '[data-slot="widget-tabs"] [role="tab"]',
-  projectLinkPrefix: "/app/",
+  /** Substring shared by every project anchor: top-level `/project/…` hrefs
+   * and the legacy `/app/<theme>/project/…` ones (which the dead route
+   * redirects to the top-level form). */
+  projectLink: 'a[href*="/project/"]',
 };

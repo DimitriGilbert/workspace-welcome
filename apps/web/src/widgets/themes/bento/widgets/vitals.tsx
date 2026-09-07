@@ -48,9 +48,11 @@ export function BentoHealth(_props: RegisteredWidgetProps) {
         </span>
       </div>
 
-      {/* Cluster fills the card: the stat rows distribute to the full body
-          height beside the gauge — no floating-in-a-box voids (owner law 1). */}
-      <div className="b-health-body flex min-h-0 flex-1 flex-wrap items-center justify-evenly gap-6 sm:justify-between">
+      {/* Compact cluster (owner order: health shrinks beside the pulse): the
+          body sizes off the TILE via container queries in custom.css — gauge
+          and stat rows fill the box at every footprint, no viewport-guess
+          stacking, no floating-in-a-box voids (owner law 1). */}
+      <div className="b-health-body flex min-h-0 flex-1 items-center justify-evenly gap-6">
         <HealthGauge score={summary.score} bandColor={bandColor}>
           <RollNumber
             value={summary.score}
@@ -61,7 +63,7 @@ export function BentoHealth(_props: RegisteredWidgetProps) {
           <span className="b-label mt-1">of 100</span>
         </HealthGauge>
 
-        <dl className="grid h-full min-h-0 flex-1 grid-cols-2 content-evenly gap-x-8 gap-y-4 self-stretch">
+        <dl className="b-health-stats grid h-full min-h-0 flex-1 content-evenly gap-x-8 gap-y-4 self-stretch">
           <HealthStat icon={ShieldCheck} label="Clean" value={summary.clean} tone="positive" />
           <HealthStat
             icon={Activity}
@@ -182,7 +184,7 @@ export function BentoStacks(_props: RegisteredWidgetProps) {
         </p>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
-          <div className="flex items-center gap-4">
+          <div className="b-stacks-body flex items-center gap-4">
             <div className="relative size-[112px] shrink-0">
               <svg viewBox="0 0 120 120" className="block size-full" aria-hidden>
                 <circle cx="60" cy="60" r="44" fill="none" stroke="var(--bento-track-soft)" strokeWidth={14} />

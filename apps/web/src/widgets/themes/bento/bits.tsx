@@ -316,7 +316,11 @@ export function CadenceArea({ cadence }: { cadence: { period: string; commits: n
 
 const ARC_LENGTH = 293.2; // 240 degrees of a r=70 circle
 
-/** The 240° hygiene arc — the design's health-tile gauge, track via token. */
+/**
+ * The 240° hygiene arc — the design's health-tile gauge, track via token.
+ * The wrapper carries `b-health-gauge` (custom.css) so the ring can compact
+ * by container query inside narrow health tiles.
+ */
 export function HealthGauge({
   score,
   bandColor,
@@ -328,7 +332,7 @@ export function HealthGauge({
 }) {
   const filled = (score / 100) * ARC_LENGTH;
   return (
-    <div className="relative w-[170px] shrink-0">
+    <div className="b-health-gauge relative w-[170px] shrink-0">
       <svg viewBox="0 0 200 150" className="block w-full" aria-hidden>
         <path
           d="M 39.4 130 A 70 70 0 1 1 160.6 130"

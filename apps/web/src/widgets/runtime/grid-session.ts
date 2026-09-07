@@ -36,8 +36,8 @@ export interface RegionArrangement {
 
 interface PageSession {
   regions: Record<string, RegionArrangement>;
-  /** Placement of each edited widget at its FIRST edit this session — the
-   * baseline "Escape reverts to". */
+  /** Placement of each edited widget as its first edit this session FOUND
+   * it (pre-mutation) — the baseline "Escape reverts to". */
   baselines: Record<string, SessionPlacement>;
 }
 
@@ -73,7 +73,12 @@ export function subscribeSession(pageId: string, listener: () => void): () => vo
  * Commit the settled arrangement of one region after a mutation. `editedIds`
  * are the widgets the mutation touched (the moved/resized one plus anything
  * it displaced) — their baseline ("Escape reverts to") is captured on their
- * first edit and never overwritten.
+ * first edit and never overwritten. `preItems` are the region's placements
+ * BEFORE the mutation: the baseline is where the edit FOUND the widget. On
+ * the first commit no previous arrangement exists in the store, so the
+ * pre-mutation cells are only known here; deriving them from the settled
+ * `items` instead would record the first edit's RESULT and turn Escape into
+ * a no-op (it would "revert" a move to the moved position).
  */
 export function commitArrangement(
   pageId: string,
@@ -81,17 +86,20 @@ export function commitArrangement(
   columns: number,
   items: Readonly<Record<string, SessionPlacement>>,
   editedIds: readonly string[],
+  preItems: Readonly<Record<string, SessionPlacement>>,
 ): void {
   // IMMUTABLE snapshot swap: the canvas subscribes through
   // useSyncExternalStore — mutating the page object in place would keep the
   // snapshot reference identical and React would skip the re-render.
   const previous = sessions.get(pageId) ?? { regions: {}, baselines: {} };
+  const previousRegion = previous.regions[regionId];
   const baselines = { ...previous.baselines };
   for (const id of editedIds) {
-    if (baselines[id] === undefined) {
-      const item = items[id];
-      if (item !== undefined) baselines[id] = { ...item };
-    }
+    if (baselines[id] !== undefined) continue;
+    // Pre-mutation placement; a widget the pre-mutation arrangement did not
+    // carry (filter-grown node) starts from where the edit landed it.
+    const prior = preItems[id] ?? previousRegion?.items[id] ?? items[id];
+    if (prior !== undefined) baselines[id] = { ...prior };
   }
   sessions.set(pageId, {
     regions: { ...previous.regions, [regionId]: { columns, items: { ...items } } },

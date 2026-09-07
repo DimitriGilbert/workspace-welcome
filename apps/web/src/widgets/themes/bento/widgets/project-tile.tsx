@@ -146,11 +146,17 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className={cn("truncate font-semibold tracking-tight", nameClass)} title={project.name}>
+          {/* The name keeps a readable floor (min-w-14): at narrow mosaic
+              spans the stack chip yields and truncates first — a nameless
+              tile is a clip, not a compromise. */}
+          <span
+            className={cn("min-w-14 truncate font-semibold tracking-tight", nameClass)}
+            title={project.name}
+          >
             {project.name}
           </span>
           {project.stack ? (
-            <span className="hidden shrink-0 rounded-full border border-border bg-white/[0.03] px-2 py-px text-[0.62rem] font-medium text-muted-foreground sm:inline">
+            <span className="hidden min-w-0 overflow-hidden rounded-full border border-border bg-white/[0.03] px-2 py-px text-[0.62rem] font-medium text-muted-foreground sm:inline-flex">
               {project.stack.label}
             </span>
           ) : null}

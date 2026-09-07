@@ -1,12 +1,14 @@
 /**
  * Interaction: console-keys (master plan §3.8 matrix; W4's console).
  *
- * Run against the widget lab (`--path /app/__lab`): "/" focuses the single
- * workspace filter input, typing fills it, Escape clears + blurs; digit
- * keys 1..N switch console views (tracked via the page's
- * `data-console-view` stamp), keys beyond N are no-ops, Escape restores the
- * default view; and typing while a field has focus never triggers the
- * console (the editable-target guard).
+ * Run against the themed dashboard: "/" focuses the page's single filter
+ * affordance (resolveFilterSelector — the runtime header input where the
+ * console header is shown, the theme chrome's search field where the theme
+ * replaces the header; both drive the one workspace filter), typing fills
+ * it, Escape clears + blurs; digit keys 1..N switch console views (tracked
+ * via the page's `data-console-view` stamp), keys beyond N are no-ops,
+ * Escape restores the default view; and typing while a field has focus
+ * never triggers the console (the editable-target guard).
  *
  * Digit switching is asserted ONLY against the preset-declared console
  * views — the runtime renders the console tablist in the page header and
@@ -21,7 +23,7 @@
  * If the console affordances are not mounted yet this WARNs — pending must
  * not look broken, nor pass silently.
  */
-import { CONTRACT, pressKey, queryExists, readAttribute, typeInto } from "./helpers.mjs";
+import { pressKey, resolveFilterSelector, readAttribute, typeInto } from "./helpers.mjs";
 
 export const name = "console-keys";
 
@@ -53,10 +55,11 @@ async function declaredConsoleViews(page) {
 
 export async function run(page, report, ctx) {
   const where = ctx.path ?? `/app/${ctx.theme}`;
-  if (!(await queryExists(page, CONTRACT.filterInput))) {
+  const filterSelector = await resolveFilterSelector(page);
+  if (filterSelector === null) {
     report.warn(
       `interaction:${name}`,
-      `no ${CONTRACT.filterInput} on ${where} — console not mounted yet (renderer pending)`,
+      `no filter affordance on ${where} — console not mounted yet (renderer pending)`,
     );
     return { ok: true, pending: true };
   }
@@ -68,17 +71,17 @@ export async function run(page, report, ctx) {
   await pressKey(page, "/");
   const focusedOnSlash = await page.eval(
     (selectorArg) => document.activeElement?.matches(selectorArg) ?? false,
-    CONTRACT.filterInput,
+    filterSelector,
   );
   if (!focusedOnSlash) {
-    report.fail(`interaction:${name}`, `pressing "/" did not focus ${CONTRACT.filterInput}`);
+    report.fail(`interaction:${name}`, 'pressing "/" did not focus the page\'s filter affordance');
     ok = false;
   } else {
     report.pass(`interaction:${name}`, `"/" focuses the console filter`);
   }
 
   // 2. Typing fills the single filter.
-  if (!(await typeInto(page, CONTRACT.filterInput, "gamma"))) {
+  if (!(await typeInto(page, filterSelector, "gamma"))) {
     report.fail(`interaction:${name}`, "filter input rejected the typed value");
     ok = false;
   }
@@ -86,9 +89,9 @@ export async function run(page, report, ctx) {
   // 3. The editable-target guard: keys pressed while a field has focus
   // never switch views (they belong to the field).
   const beforeTyping = await activeView(page);
-  await pressKey(page, "2", CONTRACT.filterInput);
+  await pressKey(page, "2", filterSelector);
   const afterTyping = await activeView(page);
-  const valueWhileFocused = await readAttribute(page, CONTRACT.filterInput, "value");
+  const valueWhileFocused = await readAttribute(page, filterSelector, "value");
   if (afterTyping !== beforeTyping || valueWhileFocused !== "gamma") {
     report.fail(
       `interaction:${name}`,
@@ -98,11 +101,11 @@ export async function run(page, report, ctx) {
   }
 
   // 4. Escape clears + blurs the filter.
-  await pressKey(page, "Escape", CONTRACT.filterInput);
+  await pressKey(page, "Escape", filterSelector);
   const cleared = await page.eval((selectorArg) => {
     const el = /** @type {HTMLInputElement | null} */ (document.querySelector(selectorArg));
     return el !== null && el.value.length === 0 && document.activeElement !== el;
-  }, CONTRACT.filterInput);
+  }, filterSelector);
   if (!cleared) {
     report.fail(`interaction:${name}`, "Escape did not clear and blur the filter");
     ok = false;

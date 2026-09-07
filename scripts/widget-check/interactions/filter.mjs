@@ -1,22 +1,24 @@
 /**
  * Interaction: filter (keyboard-first, master plan §3.8 matrix).
  *
- * Contract: pressing "/" anywhere on a themed page moves focus to
- * `input[data-console-filter]` (use-console-keys); typing narrows the board
- * (the input reflects the single WorkspaceContext filter); Escape clears and
- * blurs. Until D8/W4 mount the console keys this reports WARN — a feature
- * that is not mounted yet must not look broken, nor pass silently.
+ * Contract: pressing "/" anywhere on a themed page focuses the page's ONE
+ * filter affordance (resolveFilterSelector — the runtime header input where
+ * the console header is shown, the theme chrome's search field where the
+ * theme replaces the header; both bind the single WorkspaceContext filter);
+ * typing narrows the board; Escape clears and blurs. Until D8/W4 mount a
+ * filter this reports WARN — a feature that is not mounted yet must not
+ * look broken, nor pass silently.
  */
-import { CONTRACT, focus, pressKey, queryExists, readAttribute, typeInto } from "./helpers.mjs";
+import { pressKey, resolveFilterSelector, readAttribute, typeInto } from "./helpers.mjs";
 
 export const name = "filter";
 
 export async function run(page, report, ctx) {
-  const inputSelector = CONTRACT.filterInput;
-  if (!(await queryExists(page, inputSelector))) {
+  const inputSelector = await resolveFilterSelector(page);
+  if (inputSelector === null) {
     report.warn(
       `interaction:${name}`,
-      `no ${inputSelector} on /app/${ctx.theme} — console filter not mounted yet (lands with D8/W4)`,
+      `no filter affordance on /app/${ctx.theme} — console filter not mounted yet (lands with D8/W4)`,
     );
     return { ok: true, pending: true };
   }
@@ -28,13 +30,13 @@ export async function run(page, report, ctx) {
     inputSelector,
   );
   if (!focused) {
-    report.fail(`interaction:${name}`, `pressing "/" did not focus ${inputSelector}`);
+    report.fail(`interaction:${name}`, 'pressing "/" did not focus the page\'s filter affordance');
     return { ok: false };
   }
 
   // 2. Typing updates the single filter value.
   if (!(await typeInto(page, inputSelector, "ww-check"))) {
-    report.fail(`interaction:${name}`, `could not type into ${inputSelector} (input event not accepted)`);
+    report.fail(`interaction:${name}`, "could not type into the filter affordance (input event not accepted)");
     return { ok: false };
   }
   const value = await readAttribute(page, inputSelector, "value");
@@ -60,10 +62,9 @@ export async function run(page, report, ctx) {
     return el !== null && el.value.includes("/");
   }, inputSelector);
   if (leaked) {
-    report.fail(`interaction:${name}`, `the "/" shortcut leaked a "/" character into ${inputSelector}`);
+    report.fail(`interaction:${name}`, 'the "/" shortcut leaked a "/" character into the filter input');
     return { ok: false };
   }
-  void focus;
   report.pass(`interaction:${name}`, '"/" focuses, typing narrows, Escape clears and blurs');
   return { ok: true };
 }

@@ -1,34 +1,30 @@
 /**
  * Bento's theme preset — the design route's page structure on the widget
- * system's placement runtime.
+ * system's placement runtime, re-authored to the owner's live-editor
+ * arrangement (`bento-OWNER-ARRANGEMENT-FINAL.jpeg`, round 10).
  *
- * Format `version: 2` (both pages): the dashboard/project nodes carry
- * per-breakpoint footprint overrides where the static desktop spans would
- * degenerate on the 6-column tablet board. The design's own stylesheet
- * (bento.css) re-spans its bands at its 1024–1535px breakpoint (attention 4 +
- * severity 2, identity 2 + state 2 + summary 2 of 6); the widget system's
- * single-size v1 nodes could not express that, so clamped desktop spans
- * stranded tiles beside empty board holes. The v2 overrides re-rung exactly
- * those nodes: the tablet board gets full-width bands with zero holes while
- * the desktop composition stays pixel-faithful to the prototype. The phone
- * board (2 columns) stacks everything full-width — the command bar takes a
- * `2x2` override so its wrapped brand/action/search stack keeps all three
- * rows (the design's <1024px header behavior).
+ * Format `version: 2`: the dashboard nodes carry per-breakpoint footprint
+ * overrides where the static desktop spans would degenerate on the 6-column
+ * tablet board or the 2-column phone board.
  *
- * Dashboard regions (reading order, the design's bands):
+ * Dashboard regions — ONE droppable surface (owner round 7: anything moves
+ * from any row to any row), reading in the owner's arranged order:
  *
  * - **chrome** — the ported command bar (brand + actions + palette search
- *   bound to the shared filter), full width, one row (the design header is
- *   ~92px tall; one 96px row);
- * - **vitals** — health gauge, activity trend, stack donut, one aligned
- *   3-row band (the design's 3+6+3 desktop spans);
- * - **signals** — needs-attention (8 cols) + signal mix (4 cols); signal
- *   mix takes the full tablet row (`tablet: "6x3"`) instead of stranding a
- *   2-column board hole beside its clamped 4-col span;
- * - **pulse** — the tabbed snitch-report band, full width;
- * - **projects** — the mosaic: a flow region over the shared "projects"
- *   flow, so tile sizes come from the canonical recency scoring rendered
- *   as the `bento-project-tile` kind (the design's 3×3 → 1×1 ladder).
+ *   bound to the shared filter), full width, one row;
+ * - band 1, the prime row: **needs attention** at 4 cols, the **workspace
+ *   pulse** at 6, and **signal mix** at 2 — the owner moved the signal mix
+ *   UP into the prime rail (4 rows, its full content);
+ * - band 2: the **project bento** at 10 of 12 columns — the chrome-framed
+ *   recency mosaic (the flow's own tile sizing, dense fill) — with the
+ *   rail continuing beside it: **workspace health** (2x4, gauge + 2x2
+ *   stat cluster) over **stack mix** (2x3). The cells below the stack mix
+ *   stay open — content-sized rail (mc's authored-holes precedent).
+ *
+ * `bento-activity` and `bento-mosaic-header` stay registered for the lab
+ * catalog but hold no board slot anymore (the bento carries its own
+ * header; the pulse's tabs auto-cycle through activity → health → code →
+ * AI, so the trend data stays on the board).
  *
  * Project page (the design's overview band + pulse + working surface):
  *
@@ -80,14 +76,16 @@ export const bentoPreset: ThemePreset = {
     regions: [
       {
         kind: "stack",
-        // ONE droppable surface (owner round 7): every fixed widget lives in
-        // this region, so anything moves from any row to any row — verbatim
-        // at preview, swap/push, never refused. The narrative reads in bands:
-        // command chrome → at-a-glance health beside the activity hero and
-        // the signal mix (the widgets that carry the board) → needs-attention
-        // beside the stack summary (later band, content-sized) → the full-
-        // width pulse band → the mosaic eyebrow. The project mosaic stays its
-        // own flow region below (generated tiles cannot join a stack).
+        // ONE droppable surface (owner round 7): every widget lives in this
+        // region, so anything moves from any row to any row — verbatim at
+        // preview, swap/push, never refused. The narrative reads in the
+        // owner's arranged order: command chrome → needs attention (4)
+        // beside the pulse (6), the project mosaic (10), and the right rail
+        // as THREE SEPARATE widgets (owner: "THESE ARE MULTIPLE FUCKING
+        // SEPARATED WIDGETS" — no host, no nesting): signal mix directly
+        // under the top band, workspace health directly below signal mix,
+        // stack mix directly below health — grid gap only between them,
+        // each individually draggable and sizeable.
         id: "board",
         widgets: [
           {
@@ -98,26 +96,27 @@ export const bentoPreset: ThemePreset = {
             // the design's <1024px header; one 96px row clips them.
             phone: "2x2",
           },
-          // At-a-glance + the two widgets the owner rates decent, sharing the
-          // prime band: health SHRUNK to its content (2x3), activity and
-          // signal mix at their proven sizes.
-          { id: "vitals-health", widget: "bento-health", size: "2x3", tablet: "3x3" },
-          { id: "vitals-activity", widget: "bento-activity", size: "6x3", tablet: "3x3" },
-          { id: "signals-mix", widget: "bento-signals", size: "4x3", tablet: "3x3" },
-          // Second band: the attention ledger leads; the stack summary
-          // follows, content-sized — out of the first line (owner verdict).
-          { id: "signals-attention", widget: "bento-attention", size: "8x3" },
-          { id: "vitals-stacks", widget: "bento-stacks", size: "4x3", tablet: "3x3" },
-          // Full-width pulse band: the chart/table crop fills it edge to edge.
-          { id: "workspace-pulse", widget: "bento-pulse", size: "12x3" },
-          { id: "mosaic-header", widget: "bento-mosaic-header", size: "12x1" },
+          // Band 1 — the ledger and the report band at 3 rows (owner: "THIS
+          // WIDGET IS TOO HEIGHT" — one block height less each).
+          { id: "signals-attention", widget: "bento-attention", size: "4x3", tablet: "6x3", phone: "2x3" },
+          { id: "workspace-pulse", widget: "bento-pulse", size: "6x3", tablet: "6x3", phone: "2x3" },
+          // Band 2 — the projects at 10 of 12 columns, one row higher (the
+          // mosaic inside is organic: OWNER_TILES in project-bento.tsx —
+          // placed tiles at the capture's measured percent rects, the
+          // remaining flow tiles in a dense sub-grid below).
+          { id: "project-bento", widget: "bento-project-bento", size: "10x12", tablet: "6x12", phone: "2x10" },
+          // The right rail — three separate widgets, each at its own
+          // footprint, measured from bento-OWNER-ARRANGEMENT-FINAL.jpeg
+          // (vs the mosaic's 3-row line 1: signal 3.62 rows → 4; health
+          // 3.34 → 3; stacks 1.88 → 2): signal mix directly under the top
+          // band, workspace health directly below signal mix (gauge + the
+          // stat rows at its own footprint, no dead space), stack mix
+          // directly below health. Grid gap only between them; the cells
+          // below stack mix stay open (content-sized rail).
+          { id: "signals-mix", widget: "bento-signals", size: "2x4", tablet: "6x4", phone: "2x4" },
+          { id: "vitals-health", widget: "bento-health", size: "2x3", tablet: "6x3", phone: "2x4" },
+          { id: "vitals-stacks", widget: "bento-stacks", size: "2x2", tablet: "6x3", phone: "2x3" },
         ],
-      },
-      {
-        kind: "flow",
-        id: "projects",
-        from: "projects",
-        template: { widget: "bento-project-tile" },
       },
     ],
   },

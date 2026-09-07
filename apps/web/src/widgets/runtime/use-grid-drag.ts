@@ -295,12 +295,19 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
       for (const item of settled) {
         arrangementItems[item.id] = { x: item.x, y: item.y, cols: item.cols, rows: item.rows };
       }
+      // The pre-mutation cells — the baseline "Escape reverts to" is where
+      // this edit FOUND each edited widget (see commitArrangement).
+      const preItems: Record<string, SessionPlacement> = {};
+      for (const p of regionPlacements) {
+        preItems[p.id] = { x: p.x, y: p.y, cols: p.cols, rows: p.rows };
+      }
       commitArrangement(
         pageId,
         next.regionId,
         columns,
         arrangementItems,
         displaced.map((i) => i.id).concat(next.id),
+        preItems,
       );
       const label = widgets.get(next.id)?.label ?? next.id;
       announce(
@@ -346,7 +353,11 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
       for (const item of settled) {
         arrangementItems[item.id] = { x: item.x, y: item.y, cols: item.cols, rows: item.rows };
       }
-      commitArrangement(pageId, regionId, columns, arrangementItems, [widgetId]);
+      const preItems: Record<string, SessionPlacement> = {};
+      for (const i of items) {
+        preItems[i.id] = { x: i.x, y: i.y, cols: i.cols, rows: i.rows };
+      }
+      commitArrangement(pageId, regionId, columns, arrangementItems, [widgetId], preItems);
       announce(`${label} returned to its session start position`);
     },
     [announce],

@@ -1,16 +1,25 @@
 /**
  * Interaction: drag-resize (master plan §3.8 matrix, W3's payoff).
  *
- * Keyboard-first, run against the widget lab (`--path /app/__lab`): focus a
- * widget's drag handle, move it with arrow keys (live commit — `data-x/y`
- * and the inline `gridColumn/gridRow` must change, `data-pinned` stamped),
- * resize from the SE handle, verify the shrink path STOPS at the registry
- * floor instead of passing it, and confirm Escape reverts to the session
- * start placement. A clamped edge move is a legitimate NO-OP — the runtime
- * announces "already at the edge" and does not commit — so `data-pinned`
- * is asserted paired with the placement: a committed move must stamp it,
- * a no-op must not (D4 calibration). Pointer-scripted drag is intentionally
- * not the test surface — the keyboard path is primary by contract.
+ * Keyboard-first, run against the themed dashboard: focus a widget's drag
+ * handle, move it with arrow keys (live commit — `data-x/y` and the inline
+ * `gridColumn/gridRow` must change, `data-pinned` stamped), resize from the
+ * SE handle, verify the shrink path STOPS at the registry floor instead of
+ * passing it, and confirm Escape reverts to the session start placement.
+ *
+ * A single keypress has THREE legitimate outcomes under the round-5
+ * arrangement model (`.plans/session-widget-system/exec-runtime-bento.md`):
+ * (1) COMMIT — placement changes, `data-pinned` stamped; (2) EDGE CLAMP —
+ * the move never exceeds the grid, announced as "already at the edge";
+ * (3) REFUSAL — a gesture that would overlap an authored `at` anchor (preset
+ * geometry; mission-control authors every console widget as one) is refused
+ * live with an announcement. The refusal exists so explicit user intent
+ * never silently loses to preset geometry — but it must never be silent
+ * itself: every no-op announces through the board's aria-live region. The
+ * assertions below therefore accept a no-op only when the announcement
+ * CHANGED on that keypress (a stale message must not vouch for a dead key).
+ * Pointer-scripted drag is intentionally not the test surface — the
+ * keyboard path is primary by contract.
  *
  * If no draggable board exists (lab not mounted / renderer pending) this
  * WARNs — pending must not look broken, nor pass silently.
@@ -21,7 +30,8 @@ export const name = "drag-resize";
 
 const SETTLE_MS = 150;
 
-/** Read one widget frame's placement truth (attributes + inline grid style). */
+/** Read one widget frame's placement truth (attributes + inline grid style)
+ * plus the board's announcement text (refusal/clamp verification). */
 async function readPlacement(page, widgetId) {
   return page.eval(
     async (id, settleMs) => {
@@ -36,6 +46,8 @@ async function readPlacement(page, widgetId) {
         gridColumn: frame.style.gridColumn,
         gridRow: frame.style.gridRow,
         pinned: frame.hasAttribute("data-pinned"),
+        message:
+          document.querySelector("[data-widget-board] [aria-live='polite']")?.textContent ?? "",
       };
     },
     widgetId,
@@ -45,6 +57,11 @@ async function readPlacement(page, widgetId) {
 
 const samePlacement = (a, b) =>
   a !== null && b !== null && a.x === b.x && a.y === b.y && a.cols === b.cols && a.rows === b.rows;
+
+/** True when `after` carries a FRESH announcement — the only witness that an
+ * unchanged placement was a deliberate clamp/refusal rather than a dead key. */
+const announcedNoOp = (after, before) =>
+  after.message.length > 0 && after.message !== before.message;
 
 export async function run(page, report, ctx) {
   const target = await page.eval(() => {
@@ -101,25 +118,31 @@ export async function run(page, report, ctx) {
   const movedRight = await readPlacement(page, target.id);
   const atRightEdge = start.x + start.cols >= target.regionTracks;
   const moveCommitted = !samePlacement(movedRight, start);
-  if (atRightEdge ? moveCommitted : movedRight.x !== start.x + 1) {
+  // A no-op is legitimate only as an announced clamp (grid edge) or refusal
+  // (authored anchor in the target cells) — anything silent is a dead key.
+  const moveNoOp = atRightEdge || announcedNoOp(movedRight, start);
+  if (atRightEdge ? moveCommitted : (movedRight.x !== start.x + 1 && !moveNoOp)) {
     report.fail(
       `interaction:${name}`,
-      `ArrowRight from x=${start.x} (${target.regionTracks}-col region, cols=${start.cols}) gave x=${movedRight.x} — expected ${atRightEdge ? "no change at the edge" : `x=${start.x + 1}`}`,
+      `ArrowRight from x=${start.x} (${target.regionTracks}-col region, cols=${start.cols}) gave x=${movedRight.x} without an announcement — expected ${atRightEdge ? "no change at the edge" : `x=${start.x + 1}`}`,
     );
     ok = false;
   } else {
     report.pass(
       `interaction:${name}`,
-      atRightEdge
-        ? `ArrowRight at the right edge clamps to a no-op (${target.id} stays at x=${movedRight.x})`
-        : `ArrowRight moved ${target.id} to x=${movedRight.x} (gridColumn "${movedRight.gridColumn}")`,
+      moveCommitted
+        ? `ArrowRight moved ${target.id} to x=${movedRight.x} (gridColumn "${movedRight.gridColumn}")`
+        : atRightEdge
+          ? `ArrowRight at the right edge clamps to a no-op (${target.id} stays at x=${movedRight.x})`
+          : `ArrowRight refused live and announced: "${movedRight.message}"`,
     );
   }
   // D4 calibration: the runtime deliberately does NOT commit a clamped
-  // no-op move (use-grid-drag announces "already at the edge" and returns
-  // before commitPlacement), and data-pinned reflects committed placements
-  // only. So the pin stamp pairs with the move: committed ⇒ stamped,
-  // no-op ⇒ unstamped. Either pairing is correct; anything else is not.
+  // no-op move (use-grid-drag announces "already at the edge" or the anchor
+  // refusal and returns before commitPlacement), and data-pinned reflects
+  // committed placements only. So the pin stamp pairs with the move:
+  // committed ⇒ stamped, no-op ⇒ unstamped. Either pairing is correct;
+  // anything else is not.
   if (moveCommitted && !movedRight.pinned) {
     report.fail(`interaction:${name}`, `committed move did not stamp data-pinned on ${target.id}`);
     ok = false;
@@ -130,14 +153,24 @@ export async function run(page, report, ctx) {
 
   await pressKey(page, "ArrowDown", handleSelector);
   const movedDown = await readPlacement(page, target.id);
-  if (movedDown.y !== movedRight.y + 1 || movedDown.gridRow === movedRight.gridRow) {
+  const downCommitted = movedDown.y === movedRight.y + 1;
+  // Southward is unbounded (auto-rows extend), so the only no-op is a
+  // refusal by an authored anchor — which must announce.
+  const downNoOp =
+    !downCommitted && samePlacement(movedDown, movedRight) && announcedNoOp(movedDown, movedRight);
+  if (!downCommitted && !downNoOp) {
     report.fail(
       `interaction:${name}`,
-      `ArrowDown gave y=${movedDown.y} / gridRow "${movedDown.gridRow}" — expected y=${movedRight.y + 1} and a changed gridRow`,
+      `ArrowDown gave y=${movedDown.y} / gridRow "${movedDown.gridRow}" without an announcement — expected y=${movedRight.y + 1} and a changed gridRow`,
     );
     ok = false;
   } else {
-    report.pass(`interaction:${name}`, `ArrowDown moved ${target.id} to y=${movedDown.y}`);
+    report.pass(
+      `interaction:${name}`,
+      downCommitted
+        ? `ArrowDown moved ${target.id} to y=${movedDown.y}`
+        : `ArrowDown refused live and announced: "${movedDown.message}"`,
+    );
   }
 
   // --- Keyboard RESIZE (grow, then shrink to the floor) ---------------------
@@ -148,11 +181,26 @@ export async function run(page, report, ctx) {
   await pressKey(page, "ArrowRight", seSelector);
   const grew = await readPlacement(page, target.id);
   const atMaxWidth = grew.x + grew.cols >= target.regionTracks && grew.cols === movedDown.cols;
-  if (!atMaxWidth && grew.cols !== movedDown.cols + 1) {
-    report.fail(`interaction:${name}`, `SE ArrowRight gave cols=${grew.cols} — expected ${movedDown.cols + 1}`);
+  const growCommitted = grew.cols === movedDown.cols + 1;
+  // An east grow no-op is either the grid's right edge (the footprint max)
+  // or a refusal by an authored anchor — both announce.
+  const growNoOp =
+    !growCommitted && !atMaxWidth && samePlacement(grew, movedDown) && announcedNoOp(grew, movedDown);
+  if (!atMaxWidth && !growCommitted && !growNoOp) {
+    report.fail(
+      `interaction:${name}`,
+      `SE ArrowRight gave cols=${grew.cols} without an announcement — expected ${movedDown.cols + 1}`,
+    );
     ok = false;
   } else {
-    report.pass(`interaction:${name}`, `resize grew ${target.id} to ${grew.cols}x${grew.rows}`);
+    report.pass(
+      `interaction:${name}`,
+      growCommitted
+        ? `resize grew ${target.id} to ${grew.cols}x${grew.rows}`
+        : atMaxWidth
+          ? `resize is at the grid's right edge (${target.id} stays ${grew.cols}x${grew.rows})`
+          : `SE grow refused live and announced: "${grew.message}"`,
+    );
   }
 
   // Shrink until the controller refuses: the floor must STOP the shrink.
