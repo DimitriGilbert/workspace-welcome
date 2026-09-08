@@ -26,18 +26,15 @@
  * header; the pulse's tabs auto-cycle through activity → health → code →
  * AI, so the trend data stays on the board).
  *
- * Project page (the design's overview band + pulse + working surface):
- *
- * - **nav** — the glazed nav bar, full width, one row;
- * - **hero** — identity (3 cols) + the GROUPED state tile (5 cols) + the
- *   pulse-summary slice (4 cols), 4 rows (the design's 320–460px band);
- *   at tablet the trio re-rungs to 3+3 then a full-width 6 (`tablet`
- *   overrides), the design's equal-thirds mid-band, so none of the three
- *   strands beside a board hole;
- * - **pulse** — the full-width repo report band at 5 rows (the design's
- *   b-pulse-xl chart height);
- * - **surface** — files/artifacts/ideation tabs (12x5) + commit history
- *   (12x4).
+ * Project page (owner single-canvas pass, mirroring mission-control pd.1):
+ * ONE droppable surface — the old nav|hero|pulse|surface region walls pinned
+ * every band (nothing could leave its row). Reading order packs the design's
+ * strands tighter: nav (one row), the hero trio — identity (3) + grouped
+ * state (5) + pulse-summary slice (4), 4 rows — then the repo report band
+ * (12x4, one row off the design's b-pulse-xl), then the working surface
+ * (7x5) beside the commit history (5x5) instead of two stacked full-width
+ * slabs. Tablet re-bands flush (identity|state pair, full-width bands);
+ * phone stacks 2-wide.
  *
  * Grid constants ported from `components/designs/bento/bento.css`: the
  * project mosaic's desktop density is a 96px row unit on a 12-column grid.
@@ -125,37 +122,26 @@ export const bentoPreset: ThemePreset = {
     ],
   },
   project: {
-    version: 1,
+    version: 2,
     context: "project",
     columns: { ...COLUMNS },
     cell: { ...CELL },
     regions: [
       {
+        // ONE canvas: every widget drags everywhere (region-scoped drag).
+        // No `at` anchors — anchors would be immovable geometry. Reading
+        // order: nav → identity | state | summary → pulse → surface beside
+        // commits.
         kind: "stack",
-        id: "nav",
-        widgets: [{ id: "nav", widget: "bento-project-nav", size: "12x1" }],
-      },
-      {
-        kind: "stack",
-        id: "hero",
+        id: "canvas",
         widgets: [
-          // Tablet re-bands the trio to flush pairs (3+3 then a full row).
-          { id: "project-identity", widget: "bento-project-identity", size: "3x4", tablet: "3x4" },
-          { id: "project-state", widget: "bento-project-state", size: "5x4", tablet: "3x4" },
-          { id: "project-summary", widget: "bento-project-summary", size: "4x4", tablet: "6x4" },
-        ],
-      },
-      {
-        kind: "stack",
-        id: "pulse",
-        widgets: [{ id: "project-pulse", widget: "bento-project-pulse", size: "12x5" }],
-      },
-      {
-        kind: "stack",
-        id: "surface",
-        widgets: [
-          { id: "project-surface", widget: "bento-project-surface", size: "12x5" },
-          { id: "project-commits", widget: "bento-project-commits", size: "12x4" },
+          { id: "nav", widget: "bento-project-nav", size: "12x1", tablet: "6x1", phone: "2x2" },
+          { id: "project-identity", widget: "bento-project-identity", size: "3x4", tablet: "3x4", phone: "2x4" },
+          { id: "project-state", widget: "bento-project-state", size: "5x4", tablet: "3x4", phone: "2x4" },
+          { id: "project-summary", widget: "bento-project-summary", size: "4x4", tablet: "6x4", phone: "2x4" },
+          { id: "project-pulse", widget: "bento-project-pulse", size: "12x4", tablet: "6x4", phone: "2x4" },
+          { id: "project-surface", widget: "bento-project-surface", size: "7x5", tablet: "6x5", phone: "2x5" },
+          { id: "project-commits", widget: "bento-project-commits", size: "5x5", tablet: "6x5", phone: "2x5" },
         ],
       },
     ],
