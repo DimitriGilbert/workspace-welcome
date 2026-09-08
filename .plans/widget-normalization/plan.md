@@ -260,6 +260,12 @@ Per-file map:
    in either zone.
 3. A/B captures: fresh browser per capture, explicit tab selection when a specific panel is
    under test, probe controls on both sides of any code flip.
+4. DEFECTIVE BASELINE SAMPLE — do not compare against
+   `baseline/snapshots-pa1/mission-control-project-console.png` (captured mid-sync; proven by
+   all-pairs matrix in the PA.2 re-adjudication). Project-page comparisons use the latest
+   post-commit clean-tree set with a same-state control (~20s apart, same code) as the empirical
+   liveness bound; the app renders live git/scan state, so fixed numeric caps alone under- and
+   over-shoot.
 
 ### PC.4 Final acceptance
 - Full matrix + screenshot diffs vs baseline for every theme × scheme × page, typecheck, build,

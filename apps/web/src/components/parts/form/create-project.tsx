@@ -11,7 +11,7 @@ import {
 import { CreateProjectFlow } from "@/lib/forms";
 import type { ScaffoldResult } from "@/lib/forms";
 
-import { FormAddRoot } from "@/widgets/parts/form/add-root";
+import { FormAddRoot } from "@/components/parts/form/add-root";
 
 /**
  * FormCreateProject — the scaffold wizard in a token-styled ui Dialog

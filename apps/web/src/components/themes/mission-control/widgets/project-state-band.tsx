@@ -27,7 +27,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { relativeTime } from "@/lib/format";
 import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
-import { BranchSwitcher, GitActionsToolbar } from "@/widgets/parts";
+import { BranchSwitcher, GitActionsToolbar } from "@/components/parts";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** History column window — the design's CommitHistoryCell presentation (the

@@ -4,7 +4,7 @@
  * the masthead and the command bar: an mc-label eyebrow over the four
  * workspace flows — add a directory, create a project, generate the
  * workspace report, build the clone script — plus the settings link. Each
- * verb opens its token-styled form part (`widgets/parts/form/*`, §3.5:
+ * verb opens its token-styled form part (`components/parts/form/*`, §3.5:
  * themes compose the ONE set of flows — no theme-local dialogs, no new
  * tRPC); the command bar's Actions menu opens the same parts, so the verbs
  * have two doors in the band. Mutations ride the parts' own hooks; the band
@@ -24,10 +24,10 @@ import { toast } from "sonner";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { FormAddRoot } from "@/widgets/parts/form/add-root";
-import { FormCloneScript } from "@/widgets/parts/form/clone-script";
-import { FormCreateProject } from "@/widgets/parts/form/create-project";
-import { FormReportRun } from "@/widgets/parts/form/report-run";
+import { FormAddRoot } from "@/components/parts/form/add-root";
+import { FormCloneScript } from "@/components/parts/form/clone-script";
+import { FormCreateProject } from "@/components/parts/form/create-project";
+import { FormReportRun } from "@/components/parts/form/report-run";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";

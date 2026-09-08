@@ -35,9 +35,9 @@ import {
 } from "@workspace-welcome/ui/components/dropdown-menu";
 
 import { SoftNumber } from "./bits";
-import { FormAddRoot } from "@/widgets/parts/form/add-root";
-import { FormCloneScript } from "@/widgets/parts/form/clone-script";
-import { FormCreateProject } from "@/widgets/parts/form/create-project";
+import { FormAddRoot } from "@/components/parts/form/add-root";
+import { FormCloneScript } from "@/components/parts/form/clone-script";
+import { FormCreateProject } from "@/components/parts/form/create-project";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { ThemePicker } from "@/components/widgets/theme-picker";

@@ -42,10 +42,10 @@ import {
 } from "@workspace-welcome/ui/components/dropdown-menu";
 
 import { relativeTime } from "@/lib/format";
-import { FormAddRoot } from "@/widgets/parts/form/add-root";
-import { FormCloneScript } from "@/widgets/parts/form/clone-script";
-import { FormCreateProject } from "@/widgets/parts/form/create-project";
-import { FormReportRun } from "@/widgets/parts/form/report-run";
+import { FormAddRoot } from "@/components/parts/form/add-root";
+import { FormCloneScript } from "@/components/parts/form/clone-script";
+import { FormCreateProject } from "@/components/parts/form/create-project";
+import { FormReportRun } from "@/components/parts/form/report-run";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/
 import { ArtifactsPanel } from "@/components/artifacts";
 import { IdeationPanel } from "@/components/ideation/ideation-panel";
 
-import { CommitsListPart, FilesList } from "@/widgets/parts";
+import { CommitsListPart, FilesList } from "@/components/parts";
 import { useProject } from "@/lib/contexts/project-context";
 
 import { onSurfaceTab } from "../surface-tabs";

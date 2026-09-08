@@ -49,7 +49,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { pulseCells, updatedMs } from "@/lib/scan-metrics";
 import { stackIcon } from "@/lib/icons";
-import { ProjectLed } from "@/widgets/parts";
+import { ProjectLed } from "@/components/parts";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";

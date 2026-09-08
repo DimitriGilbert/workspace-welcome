@@ -54,7 +54,7 @@ import {
   FilesList,
   GitActionsToolbar,
   NoteEditor,
-} from "@/widgets/parts";
+} from "@/components/parts";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 import type { ReportAlertRow } from "@/lib/report-view";

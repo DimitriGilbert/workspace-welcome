@@ -4,7 +4,7 @@ import { useTRPC } from "@/utils/trpc";
 
 /**
  * Branch-picker queries for the widget system's interactive git parts
- * (`widgets/parts/git/*`). Like every module in `lib/queries/`: consumers
+ * (`components/parts/git/*`). Like every module in `lib/queries/`: consumers
  * pass a scope (project path) and an `enabled` gate, never a cache key;
  * identical input ⇒ identical entry, so the two pickers share one fetch.
  * Invalidations ride the project provider's settle path (scan + commitLog),

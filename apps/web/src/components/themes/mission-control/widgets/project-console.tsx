@@ -20,7 +20,7 @@ import { useState } from "react";
 
 import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
-import { ArtifactsList, FilesList, NoteEditor } from "@/widgets/parts";
+import { ArtifactsList, FilesList, NoteEditor } from "@/components/parts";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 
 import { IdeationPanel } from "@/components/ideation/ideation-panel";

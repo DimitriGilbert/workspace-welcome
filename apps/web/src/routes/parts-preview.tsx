@@ -66,7 +66,7 @@ import {
   ProjectLedPart,
   ProjectPulsePart,
   ReportGatePart,
-} from "@/widgets/parts";
+} from "@/components/parts";
 import { ProjectProvider } from "@/lib/contexts/project-context";
 import { ReportProvider } from "@/lib/contexts/report-context";
 import { SettingsProvider } from "@/lib/contexts/settings-context";
@@ -80,7 +80,7 @@ import type { ThemePreset } from "@/components/themes";
 /**
  * Parts preview — the dev-only P5 route (master plan §3.2, §5 P5).
  *
- * Renders EVERY part — the packages/ui primitives and the `widgets/parts`
+ * Renders EVERY part — the packages/ui primitives and the `components/parts`
  * barrel — at the ladder boxes (1x1/2x1/2x2/2x3/3x3 at 96 px cells, 12 px
  * gap), inside one ThemeScope per registered theme, plus the provider-mount
  * validation panel (the D5–D7 providers mounted with their `data-providers`
@@ -282,7 +282,7 @@ function ThemeSection({ preset, first }: { preset: ThemePreset; first: boolean }
       </h2>
 
       <LadderSection title="ui parts — packages/ui (presentational, tokens-only)" parts={UI_PARTS} />
-      <LadderSection title="app parts — widgets/parts (context-consuming)" parts={APP_PARTS} />
+      <LadderSection title="app parts — components/parts (context-consuming)" parts={APP_PARTS} />
       <DialogsSection defaultOpen={first ? "form-add-root" : null} />
 
       {/*

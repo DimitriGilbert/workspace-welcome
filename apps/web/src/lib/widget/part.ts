@@ -1,7 +1,7 @@
 /**
  * Part definition contract (master plan §3.3, §3.5).
  *
- * `definePart` is the app-level wrapper the parts registry (`widgets/parts/registry.ts`,
+ * `definePart` is the app-level wrapper the parts registry (`components/parts/registry.ts`,
  * P5) uses to turn a ui primitive or app part into a stamped, compliant part. One
  * source of truth for `min`: the value comes from the ui export (`MIN_CONTENT`) and
  * is passed in here — ui primitives never wrap themselves, and app imports never

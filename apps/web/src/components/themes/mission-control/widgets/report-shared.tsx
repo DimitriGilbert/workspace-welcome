@@ -13,7 +13,7 @@ import type { ReactNode } from "react";
 
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
-import { ReportGate } from "@/widgets/parts";
+import { ReportGate } from "@/components/parts";
 import { useReport } from "@/lib/contexts/report-context";
 
 export const REPORT_BUTTON_CLASS =

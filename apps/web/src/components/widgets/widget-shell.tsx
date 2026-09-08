@@ -27,7 +27,7 @@
  * ## ui purity rule
  *
  * `useWidgetSize()` is NEVER consumed inside `packages/ui`. ui-package parts degrade
- * via container queries ONLY; only app-level widgets/parts (which know the ladder)
+ * via container queries ONLY; only app-level parts (which know the ladder)
  * may branch on `useWidgetSize()`. The size context is an app runtime concern.
  *
  * ## Placement context

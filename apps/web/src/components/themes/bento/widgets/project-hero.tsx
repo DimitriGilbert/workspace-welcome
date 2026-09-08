@@ -39,7 +39,7 @@ import { hostLabel, stackIcon } from "@/lib/icons";
 import { freshness } from "@/lib/recency";
 import { useReportRun } from "@/lib/use-report";
 
-import { BranchSwitcherPart, GitActionsToolbarPart } from "@/widgets/parts";
+import { BranchSwitcherPart, GitActionsToolbarPart } from "@/components/parts";
 import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 

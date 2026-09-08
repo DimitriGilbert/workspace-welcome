@@ -74,7 +74,7 @@ const LAYOUT_PATHS = {
   // widget-kind registry (core kinds + themes glob)
   widgetRegistry: "apps/web/src/components/widgets/registry.ts",
   // part-id registry read by invariant 5's collision check
-  partsRegistry: "apps/web/src/widgets/parts/registry.ts",
+  partsRegistry: "apps/web/src/components/parts/registry.ts",
   // invariant 2's color-literal scan scopes. grandfathered: false marks the
   // widget-namespace dirs (never allowlisted); true the legacy packages/ui
   // components bounded by the closed grandfather baseline
@@ -82,6 +82,7 @@ const LAYOUT_PATHS = {
     { dir: "apps/web/src/widgets", grandfathered: false },
     { dir: "apps/web/src/components/themes", grandfathered: false },
     { dir: "apps/web/src/components/widgets", grandfathered: false },
+    { dir: "apps/web/src/components/parts", grandfathered: false },
     { dir: "apps/web/src/lib/widget", grandfathered: false },
     { dir: "apps/web/src/lib/contexts", grandfathered: false },
     { dir: "packages/ui/src/components", grandfathered: true },
@@ -92,6 +93,7 @@ const LAYOUT_PATHS = {
     "apps/web/src/widgets",
     "apps/web/src/components/themes",
     "apps/web/src/components/widgets",
+    "apps/web/src/components/parts",
     "apps/web/src/lib/widget",
     "apps/web/src/lib/contexts",
     "packages/ui/src/components",
@@ -102,6 +104,7 @@ const LAYOUT_PATHS = {
     { dir: "apps/web/src/widgets", files: "code" },
     { dir: "apps/web/src/components/themes", files: "code" },
     { dir: "apps/web/src/components/widgets", files: "code" },
+    { dir: "apps/web/src/components/parts", files: "code" },
     { dir: "apps/web/src/lib/widget", files: "code" },
     { dir: "apps/web/src/lib/contexts", files: "code" },
     { dir: "scripts/widget-check", files: ".mjs" },
@@ -496,7 +499,7 @@ const body = async () => {
       // includes() checks below would never match any import.
       const content = readFileSync(file, "utf8");
       const importsSystem =
-        content.includes("@/widgets/parts") ||
+        content.includes("@/components/parts") ||
         content.includes("@/components/widgets") ||
         content.includes("@/lib/widget") ||
         content.includes("@/lib/contexts") ||
