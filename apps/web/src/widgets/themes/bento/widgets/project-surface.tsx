@@ -10,10 +10,9 @@ import { Folder, Images, MessagesSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/components/tabs";
 
 import { ArtifactsPanel } from "@/components/artifacts";
-import { FileBrowser } from "@/components/file-browser";
 import { IdeationPanel } from "@/components/ideation/ideation-panel";
 
-import { CommitsListPart } from "@/widgets/parts";
+import { CommitsListPart, FilesList } from "@/widgets/parts";
 import { useProject } from "@/widgets/contexts/project-context";
 
 import { onSurfaceTab } from "../surface-tabs";
@@ -48,8 +47,12 @@ export function BentoProjectSurface(_props: RegisteredWidgetProps) {
             <MessagesSquare className="size-3" /> Ideation
           </TabsTrigger>
         </TabsList>
+        {/* The shared browser clamps, never scrolls: the pane split sizes to
+            its content inside the tile and the card's own overflow-hidden
+            crops what the band doesn't fit (the board's no-inner-scroll law —
+            the same FilesList contract mc's console runs). */}
         <TabsContent value="files" className="mt-2 flex min-h-0 flex-1 flex-col">
-          <FileBrowser project={path} />
+          <FilesList height="100%" className="h-full min-h-0 w-full" />
         </TabsContent>
         <TabsContent value="artifacts" className="mt-2 flex min-h-0 flex-1 flex-col">
           <ArtifactsPanel project={path} />

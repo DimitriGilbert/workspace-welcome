@@ -249,6 +249,16 @@ Per-file map:
   record becomes ALL GREEN (sentinel green too via P0.2's rewrite). No phase after this may
   advance on any red.
 
+## Vision-gate protocol (binding for all visual verification)
+
+1. No agent on this devbox can see pixels (Read returns CDN URLs). Visual verdicts come from:
+   ImageMagick forensics + DOM probes; semantic claims only with quoted tool output.
+2. Known capture artifact: the TanStack Router Devtools badge (dev-only, lazy-mount race,
+   `routes/__root.tsx:114`, present ~1/3 of captures). Vision comparisons EXCLUDE bbox
+   (0,755)–(165,800) — fixed-position viewport chrome, no app content ever renders there.
+3. A/B captures: fresh browser per capture, explicit tab selection when a specific panel is
+   under test, probe controls on both sides of any code flip.
+
 ### PC.4 Final acceptance
 - Full matrix + screenshot diffs vs baseline for every theme × scheme × page, typecheck, build,
   grep-invariants, validate-layout, interactions, settings check.

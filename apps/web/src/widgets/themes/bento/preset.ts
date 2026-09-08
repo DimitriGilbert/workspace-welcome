@@ -108,14 +108,18 @@ export const bentoPreset: ThemePreset = {
           // The right rail — three separate widgets, each at its own
           // footprint, measured from bento-OWNER-ARRANGEMENT-FINAL.jpeg
           // (vs the mosaic's 3-row line 1: signal 3.62 rows → 4; health
-          // 3.34 → 3; stacks 1.88 → 2): signal mix directly under the top
-          // band, workspace health directly below signal mix (gauge + the
-          // stat rows at its own footprint, no dead space), stack mix
-          // directly below health. Grid gap only between them; the cells
-          // below stack mix stay open (content-sized rail).
+          // 3.34 → 3): signal mix directly under the top band, workspace
+          // health directly below signal mix (gauge + the stat rows at its
+          // own footprint, no dead space), stack mix directly below health.
+          // Stack mix runs 3 rows on every board (its tablet/phone rungs
+          // already did): at 2 rows it would sit at its registry cols-floor
+          // (min 2x1) pinned to the rail's right edge — the resize dead
+          // corner where neither grow nor shrink can ever commit. Grid gap
+          // only between them; the cells below stack mix stay open
+          // (content-sized rail).
           { id: "signals-mix", widget: "bento-signals", size: "2x4", tablet: "6x4", phone: "2x4" },
           { id: "vitals-health", widget: "bento-health", size: "2x3", tablet: "6x3", phone: "2x4" },
-          { id: "vitals-stacks", widget: "bento-stacks", size: "2x2", tablet: "6x3", phone: "2x3" },
+          { id: "vitals-stacks", widget: "bento-stacks", size: "2x3", tablet: "6x3", phone: "2x3" },
         ],
       },
     ],
