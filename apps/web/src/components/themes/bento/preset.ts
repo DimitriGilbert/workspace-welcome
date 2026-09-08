@@ -139,13 +139,16 @@ export const bentoPreset: ThemePreset = {
           // THREE-RAIL arrangement (owner FINAL): left rail identity →
           // pulse → state (the glance stack), the working surface TALL in
           // the centre (the file browser dominates — owner: "why keep the
-          // file browser so small?"), the dense commit ledger as a narrow
-          // right rail.
+          // file browser so small?"), and the right rail: the dense commit
+          // ledger over the pulse-summary slice.
           { id: "project-identity", widget: "bento-project-identity", size: "3x3", tablet: "6x3", phone: "2x3" },
           { id: "project-surface", widget: "bento-project-surface", size: "7x9", tablet: "6x6", phone: "2x8" },
           { id: "project-commits", widget: "bento-project-commits", size: "2x5", tablet: "6x4", phone: "2x4" },
           { id: "project-pulse", widget: "bento-project-pulse", size: "3x3", tablet: "6x3", phone: "2x3" },
           { id: "project-state", widget: "bento-project-state", size: "3x3", tablet: "6x3", phone: "2x3" },
+          // Summary LAST in reading order: the left rail packs first; the
+          // summary then first-fits the free right-rail slot under commits.
+          { id: "project-summary", widget: "bento-project-summary", size: "2x4", tablet: "6x3", phone: "2x3" },
         ],
       },
     ],
