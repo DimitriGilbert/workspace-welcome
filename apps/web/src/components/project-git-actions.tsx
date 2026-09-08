@@ -215,7 +215,7 @@ export function GitActionsToolbar({
             />
             <p
               className={cn("text-xs", !hint.warn && "text-muted-foreground")}
-              style={hint.warn ? { color: "var(--sev-warn)" } : undefined}
+              style={hint.warn ? { color: "var(--sev-warning)" } : undefined}
             >
               {hint.text}
             </p>
@@ -432,7 +432,7 @@ export function BranchSwitcher({
                       <TriangleAlert
                         aria-hidden
                         className="mr-1 inline size-3 align-[-1px]"
-                        style={{ color: "var(--sev-warn)" }}
+                        style={{ color: "var(--sev-warning)" }}
                       />
                       {joinAnd(reasons)} — an agent may be working in this repo
                       right now. Switching could mess up that work.
@@ -455,7 +455,7 @@ export function BranchSwitcher({
                 ) : safety.isError ? (
                   <p
                     className="text-xs"
-                    style={{ color: "var(--sev-warn)" }}
+                    style={{ color: "var(--sev-warning)" }}
                   >
                     Couldn&rsquo;t read the working-tree state.
                   </p>

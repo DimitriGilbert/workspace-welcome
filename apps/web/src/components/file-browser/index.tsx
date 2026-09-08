@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen } from "lucide-react";
@@ -38,7 +39,18 @@ const TREE_MAX_RATIO = 0.6;
  * Every mutation refreshes the affected directory, and the server confines
  * all of it to the project subtree regardless of what the client asks for.
  */
-export function FileBrowser({ project }: { project: string }) {
+export function FileBrowser({
+  project,
+  height = "70vh",
+  className,
+  ...rest
+}: {
+  project: string;
+  /** Shared height of the tree/viewer split panes. A prop (not a utility
+   * class) so containers can size it without `[class*="h-[70vh]"]`
+   * CSS-override hacks. */
+  height?: string;
+} & ComponentPropsWithoutRef<"div">) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const treeApi = useRef<FileTreeApi | null>(null);
@@ -177,7 +189,7 @@ export function FileBrowser({ project }: { project: string }) {
   const trashAvailable = listing.data?.trashAvailable ?? true;
 
   return (
-    <Card size="sm">
+    <Card size="sm" className={className} {...rest}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FolderOpen className="size-4 text-muted-foreground" />
@@ -190,15 +202,24 @@ export function FileBrowser({ project }: { project: string }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {listing.isError ? (
-          <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+          <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
             {listing.error.message}
           </p>
         ) : null}
         {/* Fixed shared height so both panes are equal and scroll
-            independently; the resize handle stretches the full height. */}
-        <div ref={splitRef} className="flex h-[70vh] min-w-0 items-stretch gap-0">
+            independently; the resize handle stretches the full height. The
+            row is the pane queries' container: under a narrow container
+            (widget tile, phone viewport) the fixed-width tree pane yields —
+            max-width clamps the persisted/dragged px width to a 55% share so
+            the min-w-0 viewer pane keeps the rest. Wide containers never
+            match the query and keep the exact legacy split. */}
+        <div
+          ref={splitRef}
+          className="flex min-w-0 items-stretch gap-0 @container"
+          style={{ height }}
+        >
           <div
-            className="shrink-0 overflow-y-auto"
+            className="shrink-0 overflow-y-auto @max-[640px]:min-w-0 @max-[640px]:max-w-[55%]"
             style={{ width: `${treeWidth}px` }}
           >
             <FileTree

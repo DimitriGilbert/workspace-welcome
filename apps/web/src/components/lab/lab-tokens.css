@@ -1,0 +1,50 @@
+/*
+ * Widget-lab scope tokens (dev-only /__lab).
+ *
+ * The lab is not a designed theme — it mounts a ThemeScope with the "__lab"
+ * slug so every probe surface (token-completeness, portal-scope) behaves on
+ * the dev board exactly like a theme page. This file declares the full
+ * theme-scoped required-token manifest as ALIASES over the app's base
+ * tokens (zero color literals — grep-invariant #2 covers
+ * components/lab/**); the T1 theme waves replace these with real
+ * per-theme values.
+ *
+ * `html { scrollbar-gutter: stable }` is the new-pages base rule the plan
+ * mandates (§3.3): page-length changes (flow tiles arriving) must not shift
+ * the grid horizontally.
+ */
+
+html {
+  scrollbar-gutter: stable;
+}
+
+[data-ww-theme="__lab"] {
+  /* typography — the base `@theme inline` block only emits the font vars the
+     bundle actually uses (--font-sans is pruned), so the scope declares the
+     pair itself (probe: fonts must resolve non-empty on the scope). */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  /* severity (canonical --sev-* names, §3.7) */
+  --sev-critical: var(--destructive);
+  --sev-warning: var(--chart-3);
+  --sev-info: var(--chart-4);
+
+  /* semantic part vocabulary + chrome */
+  --state-positive: var(--chart-2);
+  --recency-fresh: var(--chart-2);
+  --recency-stale: var(--chart-3);
+  --pinned-accent: var(--primary);
+  --eyebrow: var(--muted-foreground);
+  --chrome-radius: var(--radius);
+  --chrome-hairline: var(--border);
+  --chrome-panel-bg: var(--card);
+
+  /* the one chart ramp, 1..6 */
+  --chart-1: var(--primary);
+  --chart-2: var(--ring);
+  --chart-3: var(--accent);
+  --chart-4: var(--secondary);
+  --chart-5: var(--muted-foreground);
+  --chart-6: var(--destructive);
+}

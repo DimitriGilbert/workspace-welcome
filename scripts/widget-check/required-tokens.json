@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "description": "Canonical required-token manifest (master plan §3.6.1): the base shadcn set plus the semantic part vocabulary every theme's tokens.css must declare under [data-ww-theme=\"<slug>\"]. Groups marked themeScoped MUST be declared on the scope element itself (not inherited from :root); other groups only need to resolve non-empty. T1 theme waves port values from the design stylesheets against this list; the token-completeness probe enforces it.",
+  "groups": {
+    "base": {
+      "themeScoped": false,
+      "description": "Base shadcn surface tokens (globals.css :root provides fallbacks; themes may override).",
+      "tokens": [
+        "--background",
+        "--foreground",
+        "--card",
+        "--card-foreground",
+        "--popover",
+        "--popover-foreground",
+        "--primary",
+        "--primary-foreground",
+        "--secondary",
+        "--secondary-foreground",
+        "--muted",
+        "--muted-foreground",
+        "--accent",
+        "--accent-foreground",
+        "--destructive",
+        "--border",
+        "--input",
+        "--ring",
+        "--radius"
+      ]
+    },
+    "fonts": {
+      "themeScoped": false,
+      "description": "Typography tokens (plan: --font-mono is required; --font-sans rides along).",
+      "tokens": ["--font-mono", "--font-sans"]
+    },
+    "severity": {
+      "themeScoped": true,
+      "description": "Canonical severity (§3.7): critical | warning | info — the D1 rename retired --sev-error/--sev-warn.",
+      "tokens": ["--sev-critical", "--sev-warning", "--sev-info"]
+    },
+    "semantic": {
+      "themeScoped": true,
+      "description": "Semantic part vocabulary + chrome (§3.6): state, recency, pinning, eyebrow, chrome radius/hairline/panel background.",
+      "tokens": [
+        "--state-positive",
+        "--recency-fresh",
+        "--recency-stale",
+        "--pinned-accent",
+        "--eyebrow",
+        "--chrome-radius",
+        "--chrome-hairline",
+        "--chrome-panel-bg"
+      ]
+    },
+    "charts": {
+      "themeScoped": true,
+      "description": "One recharts engine token fills, --chart-1..6 (§3.6: the single recharts token-fill block).",
+      "tokens": [
+        "--chart-1",
+        "--chart-2",
+        "--chart-3",
+        "--chart-4",
+        "--chart-5",
+        "--chart-6"
+      ]
+    }
+  }
+}

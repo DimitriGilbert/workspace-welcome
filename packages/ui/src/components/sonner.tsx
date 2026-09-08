@@ -8,12 +8,18 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { createPortal } from "react-dom";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
+
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme();
+  // Sonner has no portal primitive: render in place when no ThemeScope is
+  // mounted (unchanged behavior), into the scope element when one is.
+  const host = useThemePortal();
 
-  return (
+  const toaster = (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
@@ -40,6 +46,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       {...props}
     />
   );
+
+  return host ? createPortal(toaster, host) : toaster;
 };
 
 export { Toaster };

@@ -43,6 +43,21 @@ code, UI copy, and docs. Keep entries current as concepts sharpen.
   Binds all interfaces with `--auth none`; browser URLs are built client-side
   from `window.location.hostname`, so the server reports only the port.
 
+## Artifacts (build/test media)
+
+- **Artifact** — a build/test output media file (screenshot or video) inside
+  one of a project's **artifact folders**. Distinct from an *Ideation
+  artifact* (a generated PRD/plan document).
+- **Artifact folders** — per-project, project-relative folder paths marking
+  where build/test media lands. Configured on the project page's Artifacts
+  tab; persisted as one JSON file per project under
+  `$XDG_DATA_HOME/workspace-welcome/projects/` (project-config.ts), not in
+  store.json.
+- **Artifact view route** — `/api/artifacts/view` streams one artifact
+  inline with Range support (so `<video>` seeking works); it serves only
+  files under a configured artifact folder — it is not a general file
+  server (that's `/api/files/view`).
+
 ## Ideation
 
 - **Ideation panel** — the per-Project AI interview on the project page:

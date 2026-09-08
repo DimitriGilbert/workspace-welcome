@@ -2,8 +2,11 @@ import type { QueryClient } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import type { AppRouter } from "@workspace-welcome/api/routers/index";
+import { ThemeProvider } from "next-themes";
 import { Toaster } from "@workspace-welcome/ui/components/sonner";
 import { lazy, Suspense, type ComponentProps, type ComponentType } from "react";
+
+import { WidgetPrefsProvider } from "@/lib/contexts/theme-prefs";
 
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
@@ -72,10 +75,41 @@ function RootDocument() {
         <HeadContent />
       </head>
       <body>
-        <div className="min-h-svh">
-          <Outlet />
-        </div>
-        <Toaster richColors />
+        {/*
+         * next-themes owns the color scheme (owner order): it persists the
+         * light/dark choice in localStorage and flips the `class` on <html>.
+         * The SSR default below (`className="dark"`) matches the provider's
+         * `defaultTheme="dark"` so server and client agree on first paint;
+         * `enableSystem={false}` keeps the legacy pages' dark styling until
+         * the user explicitly picks a scheme (theme picker in the header).
+         * WidgetPrefsProvider layers the saved preset slug + per-preset
+         * scheme on the same storage contract (see lib/contexts/theme-prefs).
+         *
+         * The storage key is app-private ON PURPOSE. next-themes re-applies
+         * `storage` events under its key from ANY same-origin tab, so the
+         * legacy shared "theme" key let a stale tab still running the old
+         * widget JS (whose two theme pickers fought each other) flip the
+         * html class in every other open tab — the app chrome (scrollbar,
+         * `dark:`-variant buttons, select triggers) alternating
+         * darker/whiter while the board kept its scheme tokens. With the
+         * namespaced key, foreign "theme" writes are ignored; this app's
+         * own pickers are the only writers of `ww.theme.v1`, and they
+         * re-assert the active scheme's appearance after every load.
+         */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          disableTransitionOnChange
+          storageKey="ww.theme.v1"
+        >
+          <WidgetPrefsProvider>
+            <div className="min-h-svh">
+              <Outlet />
+            </div>
+            <Toaster richColors />
+          </WidgetPrefsProvider>
+        </ThemeProvider>
         <Suspense fallback={null}>
           <TanStackRouterDevtools position="bottom-left" />
           <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />

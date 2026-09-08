@@ -21,13 +21,13 @@ const optionLists = {
   // when the package manager is not bun (this host runs v24.19.0, which
   // satisfies the range).
   native: ["none", "native-bare", "native-uniwind", "native-unistyles"],
-  backend: ["self", "hono", "express", "fastify", "elysia"],
-  runtime: ["none", "node", "bun"],
-  api: ["trpc", "none"],
+  backend: ["self", "hono", "express", "fastify", "elysia", "none"],
+  runtime: ["none", "node", "bun", "workers"],
+  api: ["trpc", "orpc", "none"],
   auth: ["better-auth", "none"],
   payments: ["none", "polar"],
-  database: ["sqlite", "postgres", "mysql", "mongodb"],
-  orm: ["drizzle", "prisma"],
+  database: ["none", "sqlite", "postgres", "mysql", "mongodb"],
+  orm: ["drizzle", "prisma", "mongoose", "none"],
   dbSetup: [
     "none",
     "turso",
@@ -72,6 +72,8 @@ type DatabaseValue = (typeof optionLists)["database"][number];
 type DbSetupValue = (typeof optionLists)["dbSetup"][number];
 type AddonValue = (typeof optionLists)["addons"][number];
 type WebFrontendValue = (typeof optionLists)["frontend"][number];
+type ApiValue = (typeof optionLists)["api"][number];
+type OrmValue = (typeof optionLists)["orm"][number];
 
 /**
  * Addon frontend allow-lists, mirroring upstream ADDON_COMPATIBILITY
@@ -136,6 +138,31 @@ const evlogFullstackFrontends: readonly WebFrontendValue[] = [
 const desktopStaticExportFrontends: readonly WebFrontendValue[] = [
   "next",
   "svelte",
+  "astro",
+];
+
+/**
+ * Upstream FULLSTACK_FRONTENDS: the web frontends whose built-in server
+ * routes a self (fullstack) backend can serve. Upstream does not even offer
+ * "self" for other frontends, so the form disables it for them too.
+ */
+const fullstackFrontends: readonly WebFrontendValue[] = [
+  "next",
+  "tanstack-start",
+  "nuxt",
+  "svelte",
+  "solid",
+  "astro",
+];
+
+/**
+ * Upstream allowedApisForFrontends: tRPC has no adapter for these
+ * frameworks, which accept oRPC or no API layer only.
+ */
+const trpcIncompatibleFrontends: readonly WebFrontendValue[] = [
+  "nuxt",
+  "svelte",
+  "solid",
   "astro",
 ];
 
@@ -280,6 +307,7 @@ export const addonsExclusivity = {
 const dependentLists = {
   /** dbSetup values selectable per database (mirrors upstream compatibility rules). */
   dbSetupByDatabase: {
+    none: ["none"],
     sqlite: ["none", "turso", "d1"],
     postgres: [
       "none",
@@ -292,27 +320,60 @@ const dependentLists = {
     mysql: ["none", "planetscale", "docker"],
     mongodb: ["none", "mongodb-atlas", "docker"],
   } satisfies Record<DatabaseValue, readonly DbSetupValue[]>,
+  /** Upstream skips the runtime prompt for self/none (forced "none") and
+   * offers Cloudflare Workers only beside Hono. */
   runtimeByBackend: {
     self: ["none"],
-    hono: ["node", "bun"],
+    none: ["none"],
+    hono: ["node", "bun", "workers"],
     express: ["node", "bun"],
     fastify: ["node", "bun"],
     elysia: ["node", "bun"],
   } satisfies Record<BackendValue, readonly RuntimeValue[]>,
   serverDeployByBackend: {
     self: ["none"],
+    none: ["none"],
     hono: ["docker", "vercel", "cloudflare", "prisma", "none"],
     express: ["docker", "vercel", "cloudflare", "prisma", "none"],
     fastify: ["docker", "vercel", "cloudflare", "prisma", "none"],
     elysia: ["docker", "vercel", "cloudflare", "prisma", "none"],
   } satisfies Record<BackendValue, readonly ServerDeployValue[]>,
-  /** Default a dependent option should take when it becomes visible. */
+  /** Upstream allowedApisForFrontends: tRPC only where an adapter exists. */
+  apiByFrontend: {
+    "tanstack-router": ["trpc", "orpc", "none"],
+    "tanstack-start": ["trpc", "orpc", "none"],
+    next: ["trpc", "orpc", "none"],
+    nuxt: ["orpc", "none"],
+    svelte: ["orpc", "none"],
+    solid: ["orpc", "none"],
+    astro: ["orpc", "none"],
+  } satisfies Record<WebFrontendValue, readonly ApiValue[]>,
+  /** Upstream getORMChoice: mongoose is MongoDB-only, no database means no ORM. */
+  ormByDatabase: {
+    none: ["none"],
+    sqlite: ["drizzle", "prisma"],
+    postgres: ["drizzle", "prisma"],
+    mysql: ["drizzle", "prisma"],
+    mongodb: ["prisma", "mongoose"],
+  } satisfies Record<DatabaseValue, readonly OrmValue[]>,
+  /** Web frontends a self (fullstack) backend can serve. */
+  fullstackFrontends,
+  /** Default a dependent option should take when it becomes visible or its
+   * current value is no longer allowed (upstream DEFAULT_CONFIG / first
+   * prompt choice); `preferred` falling outside the allowed list falls back
+   * to the list's first entry. */
   visibleDefaults: {
     runtime: "node",
     serverDeploy: "docker",
+    api: "trpc",
+    orm: "drizzle",
+    database: "sqlite",
   } satisfies {
     runtime: RuntimeValue;
     serverDeploy: ServerDeployValue;
+    api: ApiValue;
+    orm: OrmValue;
+    database: DatabaseValue;
   },
 };
 
@@ -382,21 +443,172 @@ export const scaffoldInputSchema = z
     examples: z.enum(scaffoldOptionLists.examples),
   })
   .superRefine((input, ctx) => {
-    if (input.backend === "self" && input.runtime !== "none") {
+    // Mirrors upstream validateSelfBackendCompatibility +
+    // validateSelfBackendConstraints + the docker/vercel/prisma
+    // server-deploy errors: a self backend owns the app's server.
+    if (input.backend === "self") {
+      if (!fullstackFrontends.includes(input.frontend)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["backend"],
+          message: `Backend 'self' (fullstack) only supports these frontends: ${fullstackFrontends.join(", ")}`,
+        });
+      }
+      if (input.runtime !== "none") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["runtime"],
+          message:
+            "A fullstack (self) backend runs its own server — runtime must be 'none'",
+        });
+      }
+      if (input.serverDeploy !== "none") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["serverDeploy"],
+          message:
+            "A fullstack (self) backend has no separate server — serverDeploy must be 'none' (use webDeploy for docker)",
+        });
+      }
+    }
+    // Upstream validateBackendNoneConstraints: no server means every
+    // server-dependent option is forced off.
+    if (input.backend === "none") {
+      const forcedNone = {
+        runtime: input.runtime,
+        api: input.api,
+        auth: input.auth,
+        database: input.database,
+        orm: input.orm,
+        dbSetup: input.dbSetup,
+        payments: input.payments,
+        examples: input.examples,
+        serverDeploy: input.serverDeploy,
+      } as const;
+      for (const [field, value] of Object.entries(forcedNone)) {
+        if (value !== "none") {
+          ctx.addIssue({
+            code: "custom",
+            path: [field],
+            message: `Backend 'none' has no server — ${field} must be 'none'`,
+          });
+        }
+      }
+    }
+    // Upstream validateBackendConstraints + validateWorkersCompatibility.
+    if (
+      input.backend !== "self" &&
+      input.backend !== "none" &&
+      input.runtime === "none"
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["runtime"],
         message:
-          "A fullstack (self) backend runs its own server — runtime must be 'none'",
+          "Runtime 'none' is only supported with the fullstack (self) or no (none) backend",
       });
     }
-    if (input.backend === "self" && input.serverDeploy !== "none") {
+    if (input.runtime === "workers" && input.backend !== "hono") {
       ctx.addIssue({
         code: "custom",
-        path: ["serverDeploy"],
+        path: ["runtime"],
         message:
-          "A fullstack (self) backend has no separate server — serverDeploy must be 'none' (use webDeploy for docker)",
+          "The Cloudflare Workers runtime is only supported with the hono backend",
       });
+    }
+    if (input.runtime === "workers" && input.database === "mongodb") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["database"],
+        message:
+          "The Cloudflare Workers runtime is not compatible with the mongodb database",
+      });
+    }
+    // Upstream validateApiFrontendCompatibility.
+    if (
+      input.api === "trpc" &&
+      trpcIncompatibleFrontends.includes(input.frontend)
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["api"],
+        message: `The tRPC API is not supported with the ${input.frontend} frontend — use oRPC or none`,
+      });
+    }
+    // Upstream validateOrmDatabaseCompat.
+    if (input.database === "none" && input.orm !== "none") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orm"],
+        message: "An ORM requires a database — choose one or set orm to 'none'",
+      });
+    }
+    if (input.database !== "none" && input.orm === "none") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orm"],
+        message: `The ${input.database} database requires an ORM (drizzle, prisma, or mongoose)`,
+      });
+    }
+    if (input.orm === "mongoose" && input.database !== "mongodb") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orm"],
+        message: "The mongoose ORM requires the mongodb database",
+      });
+    }
+    if (
+      input.database === "mongodb" &&
+      input.orm !== "mongoose" &&
+      input.orm !== "prisma"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["orm"],
+        message: "The mongodb database requires the prisma or mongoose orm",
+      });
+    }
+    // Upstream validatePaymentsCompatibility.
+    if (input.payments === "polar" && input.auth !== "better-auth") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["payments"],
+        message: "Polar payments requires better-auth authentication",
+      });
+    }
+    // Upstream validateExamplesCompatibility (todo also demands a database
+    // and an API layer; ai excludes solid/astro and backend none).
+    if (input.examples === "todo") {
+      if (input.database === "none") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["examples"],
+          message: "The 'todo' example requires a database",
+        });
+      } else if (input.api === "none") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["examples"],
+          message:
+            "The 'todo' example requires an API layer (trpc or orpc)",
+        });
+      }
+    }
+    if (input.examples === "ai") {
+      if (input.backend === "none") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["examples"],
+          message: "The 'ai' example requires a backend",
+        });
+      }
+      if (input.frontend === "solid" || input.frontend === "astro") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["examples"],
+          message: `The 'ai' example is not compatible with the ${input.frontend} frontend`,
+        });
+      }
     }
     const databases = databasesForDbSetup(input.dbSetup);
     if (!databases.includes(input.database)) {
@@ -404,13 +616,6 @@ export const scaffoldInputSchema = z
         code: "custom",
         path: ["dbSetup"],
         message: `dbSetup '${input.dbSetup}' requires database ${databases.join(" or ")}`,
-      });
-    }
-    if (input.database === "mongodb" && input.orm !== "prisma") {
-      ctx.addIssue({
-        code: "custom",
-        path: ["orm"],
-        message: "The mongodb database requires the prisma orm",
       });
     }
     // Upstream validateAddonsAgainstFrontends rejects combining task runners
@@ -438,6 +643,120 @@ export const scaffoldInputSchema = z
   });
 
 export type ScaffoldInput = z.infer<typeof scaffoldInputSchema>;
+
+/**
+ * Fields whose valid values depend on other fields' choices, and that
+ * upstream therefore re-picks (or skips) when a dependency changes. The form
+ * applies this after every change — formedible unmounts hidden fields but
+ * keeps their stale values — and the submit path runs it too, so the preview
+ * and the payload cannot disagree with what the schema accepts.
+ */
+export const reconciledFields = [
+  "runtime",
+  "serverDeploy",
+  "api",
+  "auth",
+  "database",
+  "orm",
+  "dbSetup",
+  "payments",
+  "examples",
+] as const satisfies readonly (keyof ScaffoldInput)[];
+
+/**
+ * Resolve a dependent option to a valid value: keep the current one while the
+ * dependency allows it, otherwise take the preferred default when allowed and
+ * the list's first entry otherwise (upstream's fresh-prompt initial).
+ */
+function reconcileChoice<V extends string>(
+  current: V,
+  allowed: readonly V[],
+  preferred: V,
+): V {
+  if (allowed.includes(current)) return current;
+  return allowed.includes(preferred) ? preferred : (allowed[0] as V);
+}
+
+/** Visible-value defaults for dependent options. */
+const reconcilePreferred = scaffoldOptionLists.visibleDefaults;
+
+/**
+ * The given input with every dependent option re-picked for the current
+ * backend, frontend, runtime, and database choices — the upstream CLI skips
+ * these prompts (or validates them) against exactly these dependencies.
+ * Idempotent; the backend, frontend, native, addons, and deploy-independent
+ * fields pass through untouched.
+ */
+export function reconcileScaffoldInput(input: ScaffoldInput): ScaffoldInput {
+  // No server: upstream forces every server-dependent option off.
+  if (input.backend === "none") {
+    return {
+      ...input,
+      runtime: "none",
+      serverDeploy: "none",
+      api: "none",
+      auth: "none",
+      database: "none",
+      orm: "none",
+      dbSetup: "none",
+      payments: "none",
+      examples: "none",
+    };
+  }
+  let next = { ...input };
+  if (input.backend === "self") {
+    next.runtime = "none";
+    next.serverDeploy = "none";
+  } else {
+    next.runtime = reconcileChoice(
+      next.runtime,
+      scaffoldOptionLists.runtimeByBackend[next.backend],
+      reconcilePreferred.runtime,
+    );
+    next.serverDeploy = reconcileChoice(
+      next.serverDeploy,
+      scaffoldOptionLists.serverDeployByBackend[next.backend],
+      reconcilePreferred.serverDeploy,
+    );
+  }
+  next.api = reconcileChoice(
+    next.api,
+    scaffoldOptionLists.apiByFrontend[next.frontend],
+    reconcilePreferred.api,
+  );
+  // Upstream drops MongoDB beside the Workers runtime.
+  if (next.runtime === "workers" && next.database === "mongodb") {
+    next.database = reconcilePreferred.database;
+  }
+  next.orm = reconcileChoice(
+    next.orm,
+    scaffoldOptionLists.ormByDatabase[next.database],
+    reconcilePreferred.orm,
+  );
+  next.dbSetup = reconcileChoice(
+    next.dbSetup,
+    scaffoldOptionLists.dbSetupByDatabase[next.database],
+    "none",
+  );
+  // Upstream skips the payments prompt without better-auth, and hard-rejects
+  // examples whose prerequisites (database, API layer, frontend) are gone.
+  if (next.auth !== "better-auth") {
+    next.payments = "none";
+  }
+  if (
+    next.examples === "todo" &&
+    (next.database === "none" || next.api === "none")
+  ) {
+    next.examples = "none";
+  }
+  if (
+    next.examples === "ai" &&
+    (next.frontend === "solid" || next.frontend === "astro")
+  ) {
+    next.examples = "none";
+  }
+  return next;
+}
 
 export const scaffoldDefaults = {
   frontend: "tanstack-start",

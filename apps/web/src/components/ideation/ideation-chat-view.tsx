@@ -537,7 +537,7 @@ export function IdeationChatView({
                 ) : chip.phase === "complete" ? (
                   <Check className="size-3" />
                 ) : (
-                  <X className="size-3" style={{ color: "var(--sev-error)" }} />
+                  <X className="size-3" style={{ color: "var(--sev-critical)" }} />
                 )}
                 {chip.reconciler ? "reconciler" : chip.model}
               </span>
@@ -559,7 +559,7 @@ export function IdeationChatView({
       {errorState !== null ? (
         <div
           className="flex items-start gap-1.5 text-[0.7rem] leading-relaxed"
-          style={{ color: "var(--sev-error)" }}
+          style={{ color: "var(--sev-critical)" }}
         >
           <TriangleAlert className="mt-px size-3.5 shrink-0" />
           <span className="min-w-0 break-words">

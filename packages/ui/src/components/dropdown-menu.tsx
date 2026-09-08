@@ -2,6 +2,7 @@
 
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import { cn } from "@workspace-welcome/ui/lib/utils";
+import { useThemePortal } from "@workspace-welcome/ui/components/theme-scope";
 import { ChevronRightIcon, CheckIcon } from "lucide-react";
 import * as React from "react";
 
@@ -10,7 +11,13 @@ function DropdownMenu({ ...props }: MenuPrimitive.Root.Props) {
 }
 
 function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
-  return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />;
+  return (
+    <MenuPrimitive.Portal
+      data-slot="dropdown-menu-portal"
+      container={useThemePortal() ?? undefined}
+      {...props}
+    />
+  );
 }
 
 function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
@@ -27,7 +34,7 @@ function DropdownMenuContent({
 }: MenuPrimitive.Popup.Props &
   Pick<MenuPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">) {
   return (
-    <MenuPrimitive.Portal>
+    <MenuPrimitive.Portal container={useThemePortal() ?? undefined}>
       <MenuPrimitive.Positioner
         className="isolate z-50 outline-none"
         align={align}

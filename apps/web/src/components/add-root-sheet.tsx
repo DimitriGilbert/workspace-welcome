@@ -1,7 +1,3 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-
 import {
   Sheet,
   SheetContent,
@@ -14,7 +10,7 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { Input } from "@workspace-welcome/ui/components/input";
 import { Label } from "@workspace-welcome/ui/components/label";
 
-import { useTRPC } from "@/utils/trpc";
+import { useAddRoot } from "@/lib/forms";
 
 interface AddRootSheetProps {
   open: boolean;
@@ -23,39 +19,22 @@ interface AddRootSheetProps {
 }
 
 /**
- * A sheet for adding a new root directory. Uses an absolute-path text field
+ * A sheet for adding a new root directory. The container-independent logic —
+ * the `roots.add` mutation, query invalidations, toasts, field reset, and
+ * success closing — lives in `useAddRoot` (`@/lib/forms`), so redesigns can
+ * mount the same flow in any container. Uses an absolute-path text field
  * (browsers can't open a real folder picker from a web page) and reports
- * server-side validation errors inline.
+ * server-side validation errors inline (via toast).
  */
 export function AddRootSheet({
   open,
   onOpenChange,
   onAdded,
 }: AddRootSheetProps) {
-  const trpc = useTRPC();
-  const queryClient = useQueryClient();
-
-  const [path, setPath] = useState("");
-  const [label, setLabel] = useState("");
-
-  const addMutation = useMutation(
-    trpc.roots.add.mutationOptions({
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: trpc.roots.list.queryKey(),
-        });
-        await queryClient.invalidateQueries({
-          queryKey: trpc.projects.scan.queryKey(),
-        });
-        toast.success("Directory added");
-        setPath("");
-        setLabel("");
-        onOpenChange(false);
-        onAdded?.();
-      },
-      onError: (e) => toast.error(e.message),
-    }),
-  );
+  const addRoot = useAddRoot({
+    onAdded,
+    onClose: () => onOpenChange(false),
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -72,15 +51,15 @@ export function AddRootSheet({
           className="flex flex-col gap-3 p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            addMutation.mutate({ path, label: label || undefined });
+            addRoot.submit();
           }}
         >
           <div className="flex flex-col gap-1">
             <Label htmlFor="root-path">Path</Label>
             <Input
               id="root-path"
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
+              value={addRoot.path}
+              onChange={(e) => addRoot.setPath(e.target.value)}
               placeholder="/home/you/projects"
               className="font-mono"
               autoFocus
@@ -91,8 +70,8 @@ export function AddRootSheet({
             <Label htmlFor="root-label">Label (optional)</Label>
             <Input
               id="root-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              value={addRoot.label}
+              onChange={(e) => addRoot.setLabel(e.target.value)}
               placeholder="work"
             />
           </div>
@@ -104,7 +83,7 @@ export function AddRootSheet({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={addMutation.isPending || !path}>
+            <Button type="submit" disabled={!addRoot.canSubmit}>
               Add directory
             </Button>
           </SheetFooter>

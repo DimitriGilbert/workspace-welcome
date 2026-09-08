@@ -60,3 +60,9 @@ temp
 # Local agent/review session artifacts
 .review/
 .zcode/
+
+# Local planning artifacts (session notes, snapshots) — kept on disk only
+.plans/
+
+# Stray session screenshots at the repo root
+/dash-3440-*.png

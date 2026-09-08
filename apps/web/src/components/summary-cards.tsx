@@ -20,7 +20,7 @@ export function computeStats(
   for (const p of projects) {
     if (now - new Date(p.updatedAt).getTime() < WEEK_MS) activeThisWeek++;
     if (p.pinned) pinned++;
-    if (p.alerts.some((a) => a.severity === "error" || a.severity === "warn")) {
+    if (p.alerts.some((a) => a.severity === "critical" || a.severity === "warning")) {
       needsAttention++;
     }
   }

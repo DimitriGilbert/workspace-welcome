@@ -1,0 +1,228 @@
+/*
+ * Mission Control chrome skin (master plan §3.6.3 — additive chrome only;
+ * dropped from the page head by `?bare=1`, and the full interaction suite
+ * must still pass without it).
+ *
+ * The console's skin language, ported from the design stylesheet
+ * (`mission-control.css`): flat terminal panels with hairline borders, mono
+ * micro-caps eyebrow labels, square corners, raised fills — zones separated
+ * by treatment, not repeated boxes-on-boxes. Colors are only ever addressed
+ * through the custom properties `tokens.css` declares — no literals beyond
+ * custom-property declaration lines (grep-invariant #3).
+ *
+ * Chrome decisions (ported from the design):
+ * - Panel widgets (reports, analytics, pulse, note) read as the design's
+ *   `mc-panel`: raised flat panel, hairline border, micro-caps header.
+ * - Stage widgets (masthead, command bar, triage, ledger, state band) sit on
+ *   the canvas — their shells strip to transparent; the widgets carry the
+ *   design's own surfaces (the triage panel, the joined state band).
+ * - Tabs render as the design's `mc-tabs` register; tables as `mc-th`
+ *   ledgers with the faint zebra.
+ */
+
+[data-ww-theme="mission-control"] {
+  /* skin-local vocabulary (declaration lines only) */
+  --mc-shell-hairline: var(--mc-line-strong);
+  --mc-kbd-line: var(--mc-line-strong);
+}
+
+/* --- the panel register: every boxed shell is the design's mc-panel -------
+ *
+ * Widgets mount as runtime shell (direct frame child) > theme shell. The
+ * runtime shell is the ONE panel; the theme's own shells pass through
+ * transparent, so no widget ever reads as a box-in-a-box. */
+
+[data-ww-theme="mission-control"] [data-widget] [data-slot="widget-shell"] {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+[data-ww-theme="mission-control"] [data-widget] > [data-slot="widget-shell"] {
+  background: var(--mc-panel);
+  border: 1px solid var(--mc-line);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-header"] {
+  border-bottom: 1px solid var(--mc-shell-hairline);
+  padding: 0.5rem 0.875rem;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-title"] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--eyebrow);
+}
+
+/* The design's headers carry no tone dot — the label speaks alone. */
+[data-ww-theme="mission-control"] [data-slot="widget-shell-title"] > span:first-child {
+  display: none;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-title"] > span:last-child {
+  border-radius: 0;
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-shell-meta"] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  tab-size: 4;
+}
+
+/* --- titlebar meta: the widget shell's header rides the title row ----------
+ *
+ * renderLayout wraps every placed widget in a shell that renders the
+ * registry title; theme widgets mount a second shell inside it whose header
+ * carries the meta slot. Stacked headers read as a standalone subtitle row —
+ * the one the owner banned — so the inner header is pinned onto the frame's
+ * title row (top-right of the canvas frame): metadata shares the line with
+ * the title, and content starts directly under the titlebar hairline. The
+ * equally-specific direct-child rule below re-asserts the outer header in
+ * flow; the stage register's headers stay display:none (they win on
+ * `display`, whatever the position). */
+[data-ww-theme="mission-control"] [data-widget] > [data-slot="widget-shell"] [data-slot="widget-shell-header"] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  border-bottom: none;
+  background: transparent;
+  padding: 0.5rem 0.875rem;
+}
+
+[data-ww-theme="mission-control"] [data-widget] > [data-slot="widget-shell"] > [data-slot="widget-shell-header"] {
+  position: static;
+  border-bottom: 1px solid var(--mc-shell-hairline);
+  padding: 0.5rem 0.875rem;
+}
+
+/* --- the stage register: canvas widgets strip their shell chrome ---------- */
+
+[data-ww-theme="mission-control"] [data-widget="masthead"] > [data-slot="widget-shell"],
+[data-ww-theme="mission-control"] [data-widget="command-bar"] > [data-slot="widget-shell"],
+[data-ww-theme="mission-control"] [data-widget="triage"] > [data-slot="widget-shell"],
+[data-ww-theme="mission-control"] [data-widget="ledger"] > [data-slot="widget-shell"],
+[data-ww-theme="mission-control"] [data-widget="state-band"] > [data-slot="widget-shell"] {
+  background: transparent;
+  border: none;
+}
+
+[data-ww-theme="mission-control"] [data-widget="masthead"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="command-bar"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="triage"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="ledger"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="state-band"] [data-slot="widget-shell-header"],
+[data-ww-theme="mission-control"] [data-widget="working-surface"] > [data-slot="widget-shell"] [data-slot="widget-shell-header"] {
+  display: none;
+}
+
+/* The working surface keeps one panel that speaks through the tabs alone. */
+[data-ww-theme="mission-control"] [data-widget="working-surface"] > [data-slot="widget-shell"] {
+  background: var(--mc-panel);
+  border: 1px solid var(--mc-line);
+}
+
+/* --- tabs: the design's mc-tabs register ---------------------------------- */
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] {
+  gap: 1px;
+  background: var(--mc-line);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] [role="tab"] {
+  flex: 1;
+  padding: 5px 8px 4px;
+  border: none;
+  border-radius: 0;
+  background: var(--mc-panel);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] [role="tab"]:hover {
+  color: var(--foreground);
+}
+
+[data-ww-theme="mission-control"] [data-slot="widget-tabs"] [role="tab"][data-active] {
+  color: var(--mc-accent);
+  background: color-mix(in oklch, var(--mc-accent) 8%, var(--mc-panel));
+  box-shadow: inset 0 -1px 0 var(--mc-accent);
+}
+
+/* --- ledgers: the design's mc-th / zebra register ------------------------- */
+
+[data-ww-theme="mission-control"] [data-part="data-table"] th {
+  padding-bottom: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+[data-ww-theme="mission-control"] [data-part="data-table"] thead tr {
+  border-bottom-color: var(--mc-shell-hairline);
+}
+
+[data-ww-theme="mission-control"] [data-part="data-table"] tbody tr {
+  transition: background-color 120ms ease;
+}
+
+/* Faint zebra on the ledger: aids horizontal tracking on ultrawide rows. */
+[data-ww-theme="mission-control"] [data-part="data-table"] tbody tr:nth-child(even) {
+  background: color-mix(in oklch, var(--foreground) 1.5%, transparent);
+}
+
+[data-ww-theme="mission-control"] [data-part="data-table"] tbody tr:hover {
+  background: color-mix(in oklch, var(--foreground) 3.5%, transparent);
+}
+
+/* The health node's ledger rows carry a little air so the signals ledger
+ * fills its tall narrow rung at real signal counts (≈49px rows — the FINAL
+ * owner image's health register). */
+[data-ww-theme="mission-control"] [data-widget="report-health"] [data-part="data-table"] tbody td {
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+/* --- page chrome: the design's sticky console header ---------------------- */
+
+[data-ww-theme="mission-control"] [data-slot="page-header"] {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0.75rem 1.25rem;
+  background: var(--background);
+  border-bottom: 1px solid var(--mc-line);
+}
+
+/* The page filter reads as the design's mc-input. */
+[data-ww-theme="mission-control"] [data-console-filter] {
+  width: 14rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--mc-line-strong);
+  background: var(--mc-panel);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+[data-ww-theme="mission-control"] [data-console-filter]:focus-visible {
+  border-color: color-mix(in oklch, var(--mc-accent) 55%, transparent);
+}
+
+/* Keyboard hint caps (the design's mc-kbd). */
+[data-ww-theme="mission-control"] kbd {
+  border: 1px solid var(--mc-kbd-line);
+  background: var(--mc-panel);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}

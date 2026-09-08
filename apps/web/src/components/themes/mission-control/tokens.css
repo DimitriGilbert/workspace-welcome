@@ -1,0 +1,104 @@
+/*
+ * Mission Control theme tokens (master plan §5 T1, §3.6.1).
+ *
+ * The full required-token manifest under `[data-ww-theme="mission-control"]`,
+ * ported from the design stylesheet `components/designs/mission-control/
+ * mission-control.css` (the `.mc.mc` scope). The console forces its own cold,
+ * near-black terminal palette regardless of the app theme — the base shadcn
+ * set is overridden here with the design's real values so every shared part
+ * rendered inside the scope resolves the mc palette. Severity keeps the
+ * canonical `--sev-*` names (§3.7); the semantic part vocabulary and the one
+ * chart token-fill block (--chart-1..6) comes straight from the design.
+ *
+ * Mission Control's chrome is flat terminal panels: hairline borders, square
+ * corners, raised panel fill — hence the 0px radius and the low-alpha white
+ * hairline. `--eyebrow` mirrors the design's micro mono caps labels
+ * (`.mc-label` / `.mc-th`), which render in muted-foreground.
+ *
+ * Color literals appear ONLY on custom-property declaration lines
+ * (grep-invariant #3). The semantic/scoped groups are declared on the scope
+ * itself because the base :root cascade would otherwise satisfy resolution
+ * and hide a missing theme stylesheet from the token-completeness probe.
+ *
+ * The font pair is declared because the base `@theme inline` block only
+ * emits the font vars the bundle actually uses (--font-sans is pruned) and
+ * the probe requires both to resolve non-empty on the scope.
+ */
+
+[data-ww-theme="mission-control"] {
+  color-scheme: dark;
+
+  /* base shadcn surface tokens, mc terminal palette */
+  --background: oklch(0.13 0.007 250);
+  --foreground: oklch(0.93 0.005 250);
+  --card: oklch(0.155 0.008 250);
+  --card-foreground: oklch(0.93 0.005 250);
+  --popover: oklch(0.17 0.009 250);
+  --popover-foreground: oklch(0.93 0.005 250);
+  --primary: oklch(0.83 0.15 160);
+  --primary-foreground: oklch(0.17 0.03 160);
+  --secondary: oklch(0.21 0.009 250);
+  --secondary-foreground: oklch(0.93 0.005 250);
+  --muted: oklch(0.195 0.009 250);
+  --muted-foreground: oklch(0.65 0.012 250);
+  --accent: oklch(0.22 0.01 250);
+  --accent-foreground: oklch(0.95 0.004 250);
+  --destructive: oklch(0.72 0.17 25);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.83 0.15 160);
+  --radius: 0px;
+
+  /* typography */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  /* severity (canonical --sev-* names, §3.7) */
+  --sev-critical: oklch(0.72 0.17 25);
+  --sev-warning: oklch(0.81 0.13 85);
+  --sev-info: oklch(0.72 0.07 240);
+
+  /* semantic part vocabulary + chrome */
+  --state-positive: oklch(0.82 0.15 160);
+  --recency-fresh: oklch(0.82 0.15 160);
+  --recency-stale: oklch(1 0 0 / 12%);
+  --pinned-accent: oklch(0.82 0.13 90);
+  --eyebrow: oklch(0.65 0.012 250);
+  --chrome-radius: 0px;
+  --chrome-hairline: oklch(1 0 0 / 7%);
+  --chrome-panel-bg: oklch(0.155 0.008 250);
+
+  /* the one chart ramp, 1..6 — the chart engine token fill (§3.6) */
+  --chart-1: oklch(0.82 0.15 160);
+  --chart-2: oklch(0.81 0.13 85);
+  --chart-3: oklch(0.72 0.09 240);
+  --chart-4: oklch(0.75 0.12 300);
+  --chart-5: oklch(0.78 0.1 190);
+  --chart-6: oklch(0.65 0.02 250);
+
+  /* mc structure vocabulary (ported for T2 widget ports: nav rail, ledger,
+     command bar) — wash tokens compose the accents at 10% over panels */
+  --mc-accent: oklch(0.82 0.15 160);
+  --mc-panel: oklch(0.155 0.008 250);
+  --mc-bg-raise: oklch(0.145 0.008 250);
+  --mc-line: oklch(1 0 0 / 7%);
+  --mc-line-strong: oklch(1 0 0 / 14%);
+  --recency-fresh-wash: oklch(0.82 0.15 160 / 0.1);
+  --pinned-accent-wash: oklch(0.82 0.13 90 / 0.1);
+
+  /*
+   * The canvas ground. The scope is the page: it paints the console's
+   * near-black over the app's warm base (the `.dark` body background would
+   * otherwise bleed through as a muddy umber frame around the board) and
+   * spans the viewport so short pages stay grounded. Only paint properties —
+   * no layout, no containing block (the ThemeScope CSS contract).
+   */
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+}
+
+/* Console selection: the design's accent wash (mission-control.css). */
+[data-ww-theme="mission-control"] ::selection {
+  background: color-mix(in oklch, var(--mc-accent) 30%, transparent);
+}

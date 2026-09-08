@@ -49,7 +49,7 @@ export function GitBadges({ git }: { git: GitInfo }) {
       {(git.behind ?? 0) > 0 ? (
         <span
           className="inline-flex items-center gap-0.5"
-          style={{ color: "var(--sev-warn)" }}
+          style={{ color: "var(--sev-warning)" }}
         >
           <ArrowDown className="size-3" />
           {git.behind}
@@ -66,26 +66,26 @@ const ALERT_META: Record<
   AlertCode,
   { icon: LucideIcon; severity: AlertSeverity; label: string }
 > = {
-  "no-remote": { icon: CloudOff, severity: "warn", label: "No remote configured" },
+  "no-remote": { icon: CloudOff, severity: "warning", label: "No remote configured" },
   diverged: {
     icon: Split,
-    severity: "error",
+    severity: "critical",
     label: "Diverged from upstream",
   },
-  behind: { icon: ArrowDown, severity: "warn", label: "Behind upstream" },
+  behind: { icon: ArrowDown, severity: "warning", label: "Behind upstream" },
   unpushed: { icon: ArrowUp, severity: "info", label: "Unpushed commits" },
   dirty: { icon: GitGraph, severity: "info", label: "Uncommitted changes" },
   "stale-wip": {
     icon: AlertTriangle,
-    severity: "warn",
+    severity: "warning",
     label: "Stale WIP (3+ weeks)",
   },
   dormant: { icon: Inbox, severity: "info", label: "Dormant (90+ days)" },
 };
 
 const SEVERITY_CLASS: Record<AlertSeverity, string> = {
-  error: "text-destructive",
-  warn: "text-[var(--sev-warn)]",
+  critical: "text-destructive",
+  warning: "text-[var(--sev-warning)]",
   info: "text-muted-foreground",
 };
 
@@ -129,8 +129,8 @@ export function AlertIcons({
 }
 
 const SEVERITY_PILL_CLASS: Record<string, string> = {
-  error: "bg-destructive/10 text-destructive",
-  warn: "bg-[color-mix(in_oklch,var(--sev-warn)_12%,transparent)] text-[var(--sev-warn)]",
+  critical: "bg-destructive/10 text-destructive",
+  warning: "bg-[color-mix(in_oklch,var(--sev-warning)_12%,transparent)] text-[var(--sev-warning)]",
   info: "bg-muted text-muted-foreground",
 };
 

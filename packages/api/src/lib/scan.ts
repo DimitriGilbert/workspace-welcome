@@ -213,7 +213,7 @@ export function computeAlerts(project: Pick<
 
   if (!git.remote) {
     alerts.push({
-      severity: "warn",
+      severity: "warning",
       code: "no-remote",
       message: "No remote configured",
     });
@@ -223,13 +223,13 @@ export function computeAlerts(project: Pick<
   const behind = git.behind ?? 0;
   if (ahead > 0 && behind > 0) {
     alerts.push({
-      severity: "error",
+      severity: "critical",
       code: "diverged",
       message: `Diverged: ${ahead} ahead, ${behind} behind`,
     });
   } else if (behind > 0) {
     alerts.push({
-      severity: "warn",
+      severity: "warning",
       code: "behind",
       message: `${behind} commit${behind === 1 ? "" : "s"} behind upstream`,
     });
@@ -257,7 +257,7 @@ export function computeAlerts(project: Pick<
 
   if (dirty > 0 && daysSinceCommit > 21) {
     alerts.push({
-      severity: "warn",
+      severity: "warning",
       code: "stale-wip",
       message: "Uncommitted changes sitting for 3+ weeks",
     });

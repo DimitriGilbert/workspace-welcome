@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { FileJson } from "lucide-react";
 
 import type { ReportPeriod } from "@workspace-welcome/api/routers/reports";
 
@@ -54,6 +55,7 @@ export function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
   const trpc = useTRPC();
   const { run, isPending } = useReportRun();
   const roots = useQuery(trpc.roots.list.queryOptions());
+  const jsonExports = useQuery(trpc.reports.jsonExports.queryOptions());
 
   const [path, setPath] = useState<string | null>(null);
   const [period, setPeriod] = useState<ReportPeriod | "all">("all");
@@ -162,6 +164,20 @@ export function ReportSheet({ open, onOpenChange }: ReportSheetProps) {
               checked={force}
               onCheckedChange={(checked) => setForce(checked)}
             />
+          </div>
+
+          {/* Every finished run also persists a structured JSON export next
+              to the HTML (same report key) — the data source dashboard charts
+              read via reports.jsonExport. Failure to list is silent: the hint
+              is informational, not a promise about this exact click. */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <FileJson className="size-3.5" aria-hidden />
+            <span>
+              JSON saved with every report
+              {jsonExports.data && jsonExports.data.length > 0
+                ? ` — ${jsonExports.data.length} cached`
+                : ""}
+            </span>
           </div>
 
           <SheetFooter>

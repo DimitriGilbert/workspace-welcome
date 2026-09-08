@@ -1,0 +1,91 @@
+/*
+ * Mission Control — "daylight" color scheme (owner order: light AND dark
+ * per preset). The full required-token manifest re-declared in the mc
+ * hues at LIGHT registers, under
+ * `[data-ww-theme="mission-control"][data-ww-scheme="daylight"]` — the
+ * same cold hue family as the default console dark, inverted for a paper
+ * terminal: light ground, near-black text, darkened green accent so the
+ * LEDs/charts keep >= 4.5:1 body contrast on panels. The mc ride-alongs
+ * (--mc-*) and the wash tokens are re-declared too, so the chrome skin
+ * (custom.css, all var-driven) flips with the scheme. Color literals appear
+ * ONLY on custom-property declaration lines (grep-invariant #3).
+ *
+ * Activation is one `data-ww-scheme="daylight"` attribute on the scope —
+ * the two-attribute selector out-specifies tokens.css's single one, so the
+ * scheme wins while it is active and vanishes without a reload when the
+ * attribute flips back.
+ */
+
+[data-ww-theme="mission-control"][data-ww-scheme="daylight"] {
+  color-scheme: light;
+
+  /* base shadcn surface tokens, mc palette at daylight registers */
+  --background: oklch(0.96 0.004 250);
+  --foreground: oklch(0.24 0.012 250);
+  --card: oklch(0.985 0.003 250);
+  --card-foreground: oklch(0.24 0.012 250);
+  --popover: oklch(0.995 0.002 250);
+  --popover-foreground: oklch(0.24 0.012 250);
+  --primary: oklch(0.46 0.12 160);
+  --primary-foreground: oklch(0.98 0.01 160);
+  --secondary: oklch(0.92 0.005 250);
+  --secondary-foreground: oklch(0.28 0.012 250);
+  --muted: oklch(0.93 0.005 250);
+  --muted-foreground: oklch(0.45 0.015 250);
+  --accent: oklch(0.9 0.006 250);
+  --accent-foreground: oklch(0.22 0.012 250);
+  --destructive: oklch(0.5 0.17 25);
+  --border: oklch(0 0 0 / 11%);
+  --input: oklch(0 0 0 / 15%);
+  --ring: oklch(0.46 0.12 160);
+  --radius: 0px;
+
+  /* typography (same faces as the default scheme) */
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+
+  /* severity (canonical --sev-* names, §3.7), darkened for the light ground */
+  --sev-critical: oklch(0.5 0.17 25);
+  --sev-warning: oklch(0.52 0.11 85);
+  --sev-info: oklch(0.5 0.08 240);
+
+  /* semantic part vocabulary + chrome */
+  --state-positive: oklch(0.46 0.12 160);
+  --recency-fresh: oklch(0.46 0.12 160);
+  --recency-stale: oklch(0 0 0 / 14%);
+  --pinned-accent: oklch(0.5 0.11 90);
+  --eyebrow: oklch(0.45 0.015 250);
+  --chrome-radius: 0px;
+  --chrome-hairline: oklch(0 0 0 / 9%);
+  --chrome-panel-bg: oklch(0.985 0.003 250);
+
+  /* the one chart ramp, 1..6 — the dark ramp darkened one register */
+  --chart-1: oklch(0.46 0.12 160);
+  --chart-2: oklch(0.52 0.11 85);
+  --chart-3: oklch(0.5 0.09 240);
+  --chart-4: oklch(0.52 0.11 300);
+  --chart-5: oklch(0.5 0.09 190);
+  --chart-6: oklch(0.55 0.02 250);
+
+  /* mc structure vocabulary + washes, daylight registers */
+  --mc-accent: oklch(0.46 0.12 160);
+  --mc-panel: oklch(0.985 0.003 250);
+  --mc-bg-raise: oklch(0.945 0.004 250);
+  --mc-line: oklch(0 0 0 / 9%);
+  --mc-line-strong: oklch(0 0 0 / 16%);
+  --recency-fresh-wash: oklch(0.46 0.12 160 / 0.1);
+  --pinned-accent-wash: oklch(0.5 0.11 90 / 0.12);
+
+  /*
+   * The canvas ground (same rule tokens.css declares for the dark scheme):
+   * the scope paints the paper terminal over the app's dark base.
+   */
+  background-color: var(--background);
+  color: var(--foreground);
+  min-height: 100dvh;
+}
+
+/* Console selection: the accent wash, daylight register. */
+[data-ww-theme="mission-control"][data-ww-scheme="daylight"] ::selection {
+  background: color-mix(in oklch, var(--mc-accent) 30%, transparent);
+}

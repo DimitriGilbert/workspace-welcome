@@ -48,7 +48,7 @@ export function CommitHistoryCell({
   }
   if (history.isError) {
     return (
-      <p className="text-xs" style={{ color: "var(--sev-error)" }}>
+      <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
         {history.error.message}
       </p>
     );

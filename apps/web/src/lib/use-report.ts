@@ -1,9 +1,8 @@
-import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { ReportPeriod } from "@workspace-welcome/api/routers/reports";
 
-import { useTRPC } from "@/utils/trpc";
+import { useReportGenerateMutation } from "@/lib/queries/reports";
 
 export interface ReportRunOptions {
   kind: "repo" | "scan";
@@ -19,10 +18,13 @@ export interface ReportRunOptions {
  * SYNCHRONOUSLY inside the click handler — popup blockers only permit
  * window.open during a user gesture, and the job key only exists once the
  * mutation resolves. The /reports page handles the wait-and-swap itself.
+ *
+ * All query/mutation wiring delegates to `lib/queries/` — this hook owns
+ * only the open-a-tab choreography (no job tracking, no invalidation: the
+ * query module's settle path covers refreshes for whoever polls the key).
  */
 export function useReportRun() {
-  const trpc = useTRPC();
-  const generate = useMutation(trpc.reports.generate.mutationOptions());
+  const generate = useReportGenerateMutation();
 
   const run = ({
     kind,
