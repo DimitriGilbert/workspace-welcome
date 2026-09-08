@@ -77,12 +77,6 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
       <header className="flex h-full min-h-0 w-full flex-col justify-center gap-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <WorkspaceBrand render={<Link to="/" />} />
-          <Link
-            to="/designs/bento"
-            className="rounded-full border border-border bg-white/[0.04] px-2.5 py-0.5 font-mono text-[0.66rem] uppercase tracking-[0.14em] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            bento
-          </Link>
 
           <div className="ml-auto flex flex-wrap items-center gap-1.5">
             {/* The bento chrome hides the runtime's console header (the
