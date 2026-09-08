@@ -27,14 +27,15 @@ import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, GitGlyphs, RollNumber } from "../bits";
 
-/** Deep-link into this theme's project page (the top-level splat route). */
+/** Open this theme's project page (the top-level splat route, clean URL —
+ * user links never carry `?preset=`; the page renders the SAVED preset,
+ * which loading this board persisted, so the theme carries over). */
 function useOpenBentoProject() {
   const navigate = useNavigate();
   return (path: string) => {
     void navigate({
       to: "/project/$",
       params: { _splat: path.replace(/^\/+/, "") },
-      search: { preset: "bento" },
     });
   };
 }

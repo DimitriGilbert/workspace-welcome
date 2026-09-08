@@ -14,6 +14,10 @@
  *    `[data-ready]` stamp after settle).
  * 3. From the themed board, project links navigate to the project surface
  *    while the `[data-ww-theme][data-theme-scope]` scope REMAINS mounted.
+ * 4. (PC.5) The clicked project link lands on a CLEAN URL — no `?preset=`
+ *    cargo. User links never carry the param (owner order: it is agent
+ *    deep-link cargo only); same-theme continuity rides the persisted
+ *    prefs (`ww.prefs.v1`), not the URL.
  *
  * Project links mount with the renderer's projects query, which can lag
  * the settle stamp: settle's `[data-ready]`+ double-rAF has fired before
@@ -125,6 +129,15 @@ export async function run(page, report, ctx) {
     return { ok: false };
   }
   const afterPath = await page.getLocation();
+  // PC.5: the clicked link is user-facing, so it must land CLEAN — `?preset=`
+  // is agent deep-link cargo; continuity comes from the persisted prefs.
+  if (afterPath.includes("preset=")) {
+    report.fail(
+      `interaction:${name}`,
+      `project link carried ?preset= cargo (${afterPath}) — user links must be clean URLs (PC.5)`,
+    );
+    return { ok: false };
+  }
   // The project anchor is a plain href, so arriving here can be a full
   // document load — the pathname flips before React mounts the new page's
   // scope. Wait bounded (D5: no fixed-sleep settle assumptions) and only
@@ -137,6 +150,9 @@ export async function run(page, report, ctx) {
     );
     return { ok: false };
   }
-  report.pass(`interaction:${name}`, `same-theme navigation to ${afterPath} kept the theme scope mounted`);
+  report.pass(
+    `interaction:${name}`,
+    `same-theme navigation to ${afterPath} kept the theme scope mounted (clean URL, no ?preset= cargo)`,
+  );
   return { ok: true };
 }

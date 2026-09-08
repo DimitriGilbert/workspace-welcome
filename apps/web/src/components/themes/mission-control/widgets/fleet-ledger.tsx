@@ -62,17 +62,14 @@ import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
  * `/designs`, never legacy `/projects/`.
  */
 
-/** This theme's slug — kind ids and routes are theme-local. */
-export const MC_THEME = "mission-control";
-
 /**
  * Same-theme project-route href for a project path (splat = absolute path).
- * `?preset=` carries the slug so the top-level project page mounts THIS
- * theme's board (the contract the dead `/app/<slug>/project/…` redirect's
- * cargo used to carry).
+ * Clean URL — user links never carry `?preset=` (owner order: the param is
+ * agent deep-link cargo); the project page renders the SAVED preset, which
+ * loading this board persisted, so the theme carries over without it.
  */
 export function projectHref(path: string): string {
-  return `/project/${path.replace(/^\/+/, "")}?preset=${MC_THEME}`;
+  return `/project/${path.replace(/^\/+/, "")}`;
 }
 
 /**

@@ -130,7 +130,6 @@ export function ThemeNotFound({ slug }: { slug: string }) {
               <li key={id}>
                 <Link
                   to="/"
-                  search={{ preset: id }}
                   className="font-mono text-xs underline underline-offset-2 hover:text-foreground"
                 >
                   {id}
@@ -243,7 +242,6 @@ function ProjectNotKnown({
                 <Link
                   to="/project/$"
                   params={{ _splat: project.path.replace(/^\/+/, "") }}
-                  search={{ preset: theme }}
                   className="block truncate font-mono text-xs underline underline-offset-2 hover:text-foreground"
                 >
                   {project.name}
@@ -285,10 +283,11 @@ function ProjectGateCard({
 }
 
 function GateBackLink({ theme }: { theme: string }) {
+  // Clean URL (owner order: `?preset=` is agent cargo, never user-visible) —
+  // `/` renders the SAVED preset, which this page's own load persisted.
   return (
     <Link
       to="/"
-      search={{ preset: theme }}
       className="font-mono text-xs underline underline-offset-2 hover:text-foreground"
     >
       Back to the {theme} board

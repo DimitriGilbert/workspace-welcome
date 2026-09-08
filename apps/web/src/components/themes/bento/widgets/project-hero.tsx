@@ -103,7 +103,7 @@ export function BentoProjectNav(_props: RegisteredWidgetProps) {
   return (
     <BentoTile className="flex h-full min-h-0 w-full flex-col justify-center gap-2 px-3 py-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <Button variant="ghost" size="sm" render={<Link to="/" search={{ preset: "bento" }} />} aria-label="Back to bento dashboard">
+      <Button variant="ghost" size="sm" render={<Link to="/" />} aria-label="Back to bento dashboard">
         <ArrowLeft className="size-3.5" /> bento
       </Button>
       <nav className="hidden max-w-full items-center gap-1 md:flex" aria-label="Project sections">

@@ -45,7 +45,6 @@ export function MeadowProjectHeader({ size }: RegisteredWidgetProps) {
   const back = (
     <Link
       to="/"
-      search={{ preset: "meadow" }}
       className="meadow-focus group inline-flex shrink-0 items-center gap-1.5 rounded-full text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
       aria-label="Back to the Meadow dashboard"
     >

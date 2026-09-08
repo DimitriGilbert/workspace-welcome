@@ -39,10 +39,11 @@ export function MeadowAttention(_props: RegisteredWidgetProps) {
   const hidden = projects.length - visible.length;
 
   const openProject = (path: string) => {
+    // Clean URL — the project page renders the SAVED preset (this board's
+    // load persisted it), so no `?preset=` cargo rides the link.
     void navigate({
       to: "/project/$",
       params: { _splat: path.replace(/^\/+/, "") },
-      search: { preset: "meadow" },
     });
   };
 

@@ -82,10 +82,11 @@ export function MeadowProjectTile({ node, size }: RegisteredWidgetProps) {
       : (workspace.projects.find((p) => p.path === path) ?? null);
 
   const openProject = (target: string) => {
+    // Clean URL — the project page renders the SAVED preset (this board's
+    // load persisted it), so no `?preset=` cargo rides the link.
     void navigate({
       to: "/project/$",
       params: { _splat: target.replace(/^\/+/, "") },
-      search: { preset: "meadow" },
     });
   };
 

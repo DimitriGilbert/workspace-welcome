@@ -21,7 +21,8 @@ built.
 
 ## Hard constraints (violating any = phase fails)
 
-1. **No behavior change** (sole exception: the owner-ordered `/app` route kill in P0.2). Every
+1. **No behavior change** (approved exceptions: the owner-ordered `/app` route kill in P0.2 and
+   the owner-ordered clean user links in PC.5). Every
    route, theme, scheme, interaction, and setting works identically after every phase. Themes are
    complete designs and move **intact** — no consolidation.
 2. **DOM/probe contracts preserved:** `data-ww-theme`, `data-ww-scheme`, `data-theme-scope`,
@@ -273,6 +274,33 @@ Per-file map:
 - Final report: files moved / deleted / relocated, line deltas per directory, gate results,
   residual risks.
 
+### PC.5 User links never carry `?preset=`  *(owner order: "?preset= is for agents loading a
+controlled page — the user should NEVER see it")*
+- **Behavior change (owner-ordered, joins P0.2 as an approved exception):** every in-app
+  link/navigate to `/` or `/project/$` authored by theme widgets (and route gate chrome) drops
+  the `preset` search cargo — user-facing URLs are clean. Sites: bento
+  `{project-tile,signals,project-bento,chrome,project-hero}.tsx`, meadow
+  `{project-bento,meadow-attention,project-header,tile}.tsx`, mission-control `fleet-ledger.tsx`
+  (`projectHref` string template + the now-unused `MC_THEME` export removed; `triage-board.tsx`
+  consumers unchanged), and `routes/-theme-shell.tsx` (`ThemeNotFound` list, `ProjectNotKnown`
+  picker, `GateBackLink`).
+- **Agent path untouched:** `themeSearchSchema` still accepts `preset` (and `scheme`);
+  `/?preset=<slug>` and `/project/<path>?preset=<slug>` still render that theme when present,
+  and the routes still persist the param to `ww.prefs.v1` on mount (`routes/index.tsx` +
+  `routes/project.$.tsx` `appliedPreset` effects — the pre-existing continuity mechanism this
+  phase relies on). `?scheme=` handling is a separate axis — untouched.
+- **Continuity without the param:** loading `/?preset=<slug>` persists the slug (the effect
+  above), so a fresh browser clicking a param-less project link stays on that theme via the
+  saved-prefs resolution order (`?preset=` > saved > registry default). No new persistence was
+  needed — PC.5 verified the existing one and cites it.
+- **Harness:** `interactions/navigation.mjs` gains the clean-URL assertion (contract item 4:
+  clicked project link must land with no `preset=` in the URL; scope-stays-mounted assertion
+  unchanged). `run.mjs` theme probes keep passing `?preset=` explicitly — the agent deep-link
+  contract they prove.
+- **Validation:** full matrix + interactions ×3 + a fresh-browser continuity proof per
+  non-default theme (goto `/?preset=<slug>` → click project link → clean URL + same scope
+  mounted).
+
 ---
 
 ## Future direction (NOT this effort — recorded so Stage A doesn't preclude it)
@@ -310,6 +338,10 @@ start one — if unreachable, live suites defer to the next stage boundary and t
 6. **(2026-09-07, execution) Zero-failure policy:** the owner overruled "pre-existing failures
    frozen as golden" — ALL tests must pass at every gate. The two bento failures are fixed in
    P0.2b and the baseline is re-recorded all-green before any Stage A phase runs.
+7. **(2026-09-07, PC.5) Clean user links:** owner order — `?preset=` is for agents loading a
+   controlled page; the user must never see it. User-authored links/navigations to `/` or
+   `/project/$` carry no `preset` cargo; the schema + explicit-param resolution stay (agent
+   contract), continuity rides the persisted prefs.
 
 ## Execution protocol
 
