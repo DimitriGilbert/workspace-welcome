@@ -49,8 +49,7 @@ export function BentoProjectSurface(_props: RegisteredWidgetProps) {
         </TabsList>
         {/* The shared browser clamps, never scrolls: the pane split sizes to
             its content inside the tile and the card's own overflow-hidden
-            crops what the band doesn't fit (the board's no-inner-scroll law —
-            the same FilesList contract mc's console runs). */}
+            crops what the band doesn't fit. */}
         <TabsContent value="files" className="mt-2 flex min-h-0 flex-1 flex-col">
           <FilesList height="100%" className="h-full min-h-0 w-full" />
         </TabsContent>
@@ -71,13 +70,14 @@ export function BentoProjectSurface(_props: RegisteredWidgetProps) {
 
 export function BentoProjectCommits(_props: RegisteredWidgetProps) {
   return (
-    <BentoTile className="flex h-full min-h-0 w-full flex-col p-5">
+    <BentoTile className="flex h-full min-h-0 w-full flex-col p-4">
       <h2 className="b-label">commit history</h2>
       {/* The design embeds the commit graph in a scroller; the board keeps
-          the band height honest — the part's graph view, windowed to the
+          the band height honest — the part's graph view in the DENSE
+          register (22px rows, inline sha · author · age), windowed to the
           rows the band fits. */}
       <div className="min-h-0 flex-1 overflow-hidden pt-2">
-        <CommitsListPart view="graph" limit={11} />
+        <CommitsListPart view="graph" dense limit={16} />
       </div>
     </BentoTile>
   );

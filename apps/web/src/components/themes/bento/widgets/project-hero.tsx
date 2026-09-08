@@ -2,7 +2,10 @@
  * Bento's project hero band — ports of `components/designs/bento/
  * project-page.tsx`'s overview band: the glazed nav bar (back + live git
  * status), the identity tile, and the GROUPED state tile (git controls and
- * the last commit together — the owner-mandated grouping).
+ * the last commit together — the owner-mandated grouping). The state tile's
+ * "right behind it" mini-log and the identity's created/updated/opened
+ * meta are DELETED — both repeated content the board already carries (the
+ * commit-history widget; the nav's updated line + the recency ring).
  *
  * Interactive git rides the provider stack (§3.4): the git quintet and IDE
  * choreography come from `useProject()`; the branch switcher and actions
@@ -32,7 +35,7 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 
 import { AlertBadge } from "@/components/git-badges";
-import { absoluteDate, relativeTime } from "@/lib/format";
+import { relativeTime } from "@/lib/format";
 
 import { setSurfaceTab } from "../surface-tabs";
 import { hostLabel, stackIcon } from "@/lib/icons";
@@ -45,9 +48,6 @@ import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, GitGlyphs, RecencyRing } from "../bits";
 
-/** The "right behind it" window — the provider's cached log, newest first. */
-const RECENT_COMMITS = 4;
-
 /* ------------------------------------------------------------ helpers --- */
 
 /** The design's mono-caps eyebrow register (`b-label`). */
@@ -55,49 +55,41 @@ function Eyebrow({ children }: { children: ReactNode }) {
   return <span className="b-label">{children}</span>;
 }
 
-/** One label/value row of the design's meta register. */
-function Meta({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-w-0 flex-col">
-      <dt className="b-label">{label}</dt>
-      <dd className="mt-0.5 truncate font-mono text-[0.72rem] text-foreground/90" title={value}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------- nav --- */
 
-/** The nav's section register: the design's tabs (icon + label), the region
- * each one scrolls to, and — for the working-surface trio — the pane the
- * surface widget brings forward (the prototype's tab structure). */
+/**
+ * The nav's section register: the design's tabs (icon + label) and — for the
+ * working-surface trio — the pane the surface widget brings forward (the
+ * prototype's tab structure). Targets are WIDGET ids (the canvas stamps
+ * `data-widget` per placement): on the single-canvas board a widget may sit
+ * anywhere, so the tabs follow the widget, not a fixed band.
+ */
 const NAV_SECTIONS: readonly {
   label: string;
   icon: typeof Folder;
-  region: string;
+  widget: string;
   pane?: "files" | "artifacts" | "ideation";
 }[] = [
-  { label: "Overview", icon: Package, region: "hero" },
-  { label: "Pulse", icon: Activity, region: "pulse" },
-  { label: "Files", icon: Folder, region: "surface", pane: "files" },
-  { label: "Artifacts", icon: Images, region: "surface", pane: "artifacts" },
-  { label: "Ideation", icon: MessagesSquare, region: "surface", pane: "ideation" },
-  { label: "History", icon: History, region: "commits" },
+  { label: "Overview", icon: Package, widget: "project-identity" },
+  { label: "Pulse", icon: Activity, widget: "project-pulse" },
+  { label: "Files", icon: Folder, widget: "project-surface", pane: "files" },
+  { label: "Artifacts", icon: Images, widget: "project-surface", pane: "artifacts" },
+  { label: "Ideation", icon: MessagesSquare, widget: "project-surface", pane: "ideation" },
+  { label: "History", icon: History, widget: "project-commits" },
 ];
 
 /**
  * The project nav bar: the design's full-width glazed bar — back to the
  * dashboard, the page's section tabs, and the project's live git status on
- * the right. The board shows the sections as regions, so the tabs scroll
- * to their region (the Files/Artifacts/Ideation trio shares the surface).
+ * the right. The tabs scroll to their widget wherever the owner placed it
+ * (the Files/Artifacts/Ideation trio shares the surface).
  */
 export function BentoProjectNav(_props: RegisteredWidgetProps) {
   const { project } = useProject();
 
-  const scrollTo = (region: string, pane?: "files" | "artifacts" | "ideation") => {
+  const scrollTo = (widget: string, pane?: "files" | "artifacts" | "ideation") => {
     if (pane !== undefined) setSurfaceTab(pane);
-    document.querySelector(`[data-region="${region}"]`)?.scrollIntoView({ behavior: "smooth" });
+    document.querySelector(`[data-widget="${widget}"]`)?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -111,7 +103,7 @@ export function BentoProjectNav(_props: RegisteredWidgetProps) {
           <button
             key={section.label}
             type="button"
-            onClick={() => scrollTo(section.region, section.pane)}
+            onClick={() => scrollTo(section.widget, section.pane)}
             className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[0.66rem] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
           >
             <section.icon className="size-3" /> {section.label}
@@ -158,7 +150,7 @@ export function BentoProjectIdentity(_props: RegisteredWidgetProps) {
     f >= 0.95 ? "hero" : f >= 0.45 ? "feature" : f >= 0.2 ? "medium" : "compact";
 
   return (
-    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-4 p-5">
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-4">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
@@ -195,14 +187,8 @@ export function BentoProjectIdentity(_props: RegisteredWidgetProps) {
         <RecencyRing updatedAtMs={updatedAtMs} score={f} tier={ringTier} now={now} px={48} />
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-        <Meta label="Created" value={absoluteDate(project.createdAt)} />
-        <Meta label="Updated" value={relativeTime(project.updatedAt)} />
-        <Meta
-          label="Last opened"
-          value={project.lastOpenedAt ? relativeTime(project.lastOpenedAt) : "—"}
-        />
-      </dl>
+      {/* Created/updated/opened live in the nav bar's "updated" line and the
+          recency ring — repeating them here was void filler. */}
 
       <div className="flex flex-wrap items-center gap-1.5">
         <Button size="sm" onClick={() => page.open("editor")}>
@@ -234,7 +220,7 @@ export function BentoProjectIdentity(_props: RegisteredWidgetProps) {
         </Button>
       </div>
 
-      <div className="mt-auto flex min-h-0 flex-col gap-1.5 border-t border-border pt-3.5">
+      <div className="mt-auto flex min-h-0 flex-col gap-1.5 border-t border-border pt-3">
         <div className="flex items-baseline justify-between gap-3">
           <Eyebrow>where i left off</Eyebrow>
           <span className="font-mono text-[0.62rem] text-muted-foreground/70">
@@ -263,17 +249,16 @@ export function BentoProjectState(_props: RegisteredWidgetProps) {
 
   if (project === null) {
     return (
-      <BentoTile className="flex h-full min-h-0 w-full items-center justify-center p-5">
+      <BentoTile className="flex h-full min-h-0 w-full items-center justify-center p-4">
         <p className="text-sm text-muted-foreground">Resolving project…</p>
       </BentoTile>
     );
   }
 
   const gitInfo = project.git;
-  const recent = page.commitLog.data ?? [];
 
   return (
-    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-4">
       <div className="flex min-h-7 items-center justify-between gap-2">
         <h2 className="b-label">state</h2>
         {gitInfo.isRepo && gitInfo.remote ? <GitActionsToolbarPart /> : null}
@@ -319,6 +304,10 @@ export function BentoProjectState(_props: RegisteredWidgetProps) {
             ) : null}
           </div>
 
+          {/* The "right behind it" mini-log is GONE — it duplicated the
+              commit-history widget on the same board (the mc redundancy
+              round). The log lives in ONE place; issues/PRs stay glued to
+              the last-commit register. */}
           <div className="flex min-w-0 flex-col gap-2.5 md:pl-5">
             <h3 className="b-label">last commit</h3>
             {gitInfo.lastCommit ? (
@@ -333,39 +322,16 @@ export function BentoProjectState(_props: RegisteredWidgetProps) {
             ) : (
               <p className="text-xs text-muted-foreground">No commits yet.</p>
             )}
-
-            <div className="mt-auto flex min-h-0 flex-1 flex-col gap-1 border-t border-border pt-2.5">
-              <h3 className="b-label">right behind it</h3>
-              {page.commitLog.isPending ? (
-                <p className="text-xs text-muted-foreground">Loading history…</p>
-              ) : recent.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No earlier commits.</p>
-              ) : (
-                <ul className="flex min-h-0 flex-1 flex-col justify-evenly">
-                  {recent.slice(0, RECENT_COMMITS).map((commit) => (
-                    <li key={commit.hash} className="flex min-w-0 items-baseline gap-2 text-xs">
-                      <span className="b-glyph shrink-0">{commit.hash.slice(0, 7)}</span>
-                      <span className="min-w-0 flex-1 truncate" title={commit.subject}>
-                        {commit.subject}
-                      </span>
-                      <span className="shrink-0 font-mono text-[0.62rem] text-muted-foreground">
-                        {relativeTime(new Date(commit.timestamp * 1000).toISOString())}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {gitInfo.remote ? (
-                <div className="flex shrink-0 flex-wrap gap-1 pt-1.5">
-                  <Button size="xs" variant="outline" render={<a href={gitInfo.remote.links.issues} target="_blank" rel="noreferrer" />}>
-                    Issues
-                  </Button>
-                  <Button size="xs" variant="outline" render={<a href={gitInfo.remote.links.pulls} target="_blank" rel="noreferrer" />}>
-                    Pull requests
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+            {gitInfo.remote ? (
+              <div className="mt-auto flex flex-wrap gap-1 pt-1.5">
+                <Button size="xs" variant="outline" render={<a href={gitInfo.remote.links.issues} target="_blank" rel="noreferrer" />}>
+                  Issues
+                </Button>
+                <Button size="xs" variant="outline" render={<a href={gitInfo.remote.links.pulls} target="_blank" rel="noreferrer" />}>
+                  Pull requests
+                </Button>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

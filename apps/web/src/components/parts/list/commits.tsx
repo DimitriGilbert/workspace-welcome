@@ -48,6 +48,9 @@ export interface CommitsListProps extends ComponentPropsWithoutRef<"div"> {
   limit?: number;
   /** Fixed view; omitted → internal tab switcher over all three. */
   view?: CommitsView;
+  /** Dense register: 22px rows with inline sha · author · age trailing
+   * meta — the board-ledger register (more rows per cell). */
+  dense?: boolean;
 }
 
 const VIEW_TABS: { id: CommitsView; label: string }[] = [
@@ -117,6 +120,7 @@ function useObservedWidth(ref: RefObject<HTMLDivElement | null>): number | null 
 export function CommitsList({
   limit = 200,
   view,
+  dense,
   className,
   ...rest
 }: CommitsListProps) {
@@ -165,14 +169,34 @@ export function CommitsList({
         ) : active === "graph" ? (
           <CommitGraph
             entries={commits}
+            dense={dense}
             renderHoverDetail={(entry) => (
               <span className="flex flex-col gap-0.5">
                 <span>{entry.subject}</span>
                 <span className="text-muted-foreground">
                   {entry.author} · {commitAge(entry.timestamp)}
+                  {" · "}
+                  {entry.hash.slice(0, 7)}
                 </span>
               </span>
             )}
+            renderTrailing={
+              dense
+                ? (entry) => (
+                    <>
+                      <span className="hidden font-mono text-[10px] text-muted-foreground @[520px]:inline">
+                        {entry.author}
+                      </span>
+                      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                        {commitAge(entry.timestamp)}
+                      </span>
+                      <span className="font-mono text-[10px] text-foreground">
+                        {entry.hash.slice(0, 7)}
+                      </span>
+                    </>
+                  )
+                : undefined
+            }
           />
         ) : active === "list" ? (
           <KvList

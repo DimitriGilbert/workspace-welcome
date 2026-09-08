@@ -5,7 +5,7 @@
  * meta, cadence shape, worst signal) and the full "Pulse" band (the same
  * ReportPanel the dashboard runs, repo-scoped by the page's provider).
  */
-import { Activity, ArrowLeft } from "lucide-react";
+import { Activity } from "lucide-react";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 
@@ -31,11 +31,11 @@ export function BentoProjectSummary(_props: RegisteredWidgetProps) {
     report.exportData !== null && isReportStale(report.exportData.generatedAt, project?.updatedAt ?? null);
 
   const scrollToPulse = () => {
-    document.querySelector('[data-region="pulse"]')?.scrollIntoView({ behavior: "smooth" });
+    document.querySelector('[data-widget="project-pulse"]')?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
-    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-5">
+    <BentoTile className="flex h-full min-h-0 w-full flex-col gap-3 p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="b-label">pulse</h2>
         {entry ? (
@@ -75,31 +75,12 @@ export function BentoProjectSummary(_props: RegisteredWidgetProps) {
             <Meta label="Signals" value={String(entry.alerts.length)} />
           </dl>
 
+          {/* The worst-signal blurb is GONE — the nav bar carries the alert
+              chips and the pulse band's Health tab carries the full ledger;
+              a third copy was filler. The chart takes the room. */}
           <div className="flex min-h-0 flex-1 flex-col justify-center">
             <CadenceArea cadence={entry.cadence} />
           </div>
-
-          {entry.alerts[0] ? (
-            <p
-              className="line-clamp-2 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5 text-[0.66rem] leading-snug text-muted-foreground"
-              title={entry.alerts[0].summary}
-            >
-              <span
-                className="font-medium"
-                style={{
-                  color:
-                    entry.alerts[0].severity === "critical"
-                      ? "var(--sev-critical)"
-                      : entry.alerts[0].severity === "warning"
-                        ? "var(--sev-warning)"
-                        : "var(--sev-info)",
-                }}
-              >
-                {entry.alerts[0].label}:
-              </span>{" "}
-              {entry.alerts[0].summary}
-            </p>
-          ) : null}
         </>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col items-start justify-center gap-2.5">
@@ -112,10 +93,6 @@ export function BentoProjectSummary(_props: RegisteredWidgetProps) {
           </Button>
         </div>
       )}
-
-      <Button size="xs" variant="ghost" className="self-start" onClick={scrollToPulse}>
-        Full pulse <ArrowLeft className="size-3 rotate-180" />
-      </Button>
     </BentoTile>
   );
 }
