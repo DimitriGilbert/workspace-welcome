@@ -10,7 +10,7 @@
  * Since the T2-meadow rework each card is placed by its own widget kind
  * (`digests.tsx`) as a full-width band, so the cards stretch to their
  * placement (`h-full`) and clip their content overflow — band rungs have a
- * definite height and no-inner-scroll forbids inner scrolling.
+ * definite height and the clipped tail is the honest end of the list.
  */
 import { useMemo } from "react";
 import type { ComponentType } from "react";

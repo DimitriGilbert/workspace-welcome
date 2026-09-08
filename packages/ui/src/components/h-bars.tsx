@@ -20,6 +20,12 @@ export interface HBarsProps {
   rows: HBarRow[];
   /** Show at most N rows; overflow collapses into a "+N" footer. */
   maxRows?: number;
+  /**
+   * Fixed label column width in px — every bar then starts on the same
+   * edge (natural-width labels stagger the bar starts). Long names
+   * truncate; pair with a row tooltip at the call site when needed.
+   */
+  labelWidth?: number;
   onRowClick?: (row: HBarRow) => void;
   /** Accessible description; defaults to a row summary. */
   ariaLabel?: string;
@@ -37,6 +43,7 @@ export function minContent(rows: number): { w: number; h: number } {
 export function HBars({
   rows,
   maxRows,
+  labelWidth,
   onRowClick,
   ariaLabel,
   className,
@@ -71,7 +78,11 @@ export function HBars({
         {shown.map((row) => {
           const body = (
             <>
-              <span className="min-w-0 shrink-0 truncate text-[11px] leading-none font-medium text-foreground">
+              <span
+                className="min-w-0 shrink-0 truncate text-[11px] leading-none font-medium text-foreground"
+                style={labelWidth === undefined ? undefined : { width: labelWidth }}
+                title={row.label}
+              >
                 {row.label}
               </span>
               <span

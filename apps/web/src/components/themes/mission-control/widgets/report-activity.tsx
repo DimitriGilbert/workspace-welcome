@@ -1,8 +1,10 @@
 /**
  * McReportActivity — the ACTIVITY report widget: the snitch-style cadence
  * time graph; the meta titlebar slot carries the totals + generated age +
- * HTML link. The owner collapsed the design's GRAPH/TABLE toggle class of
- * things — the chart is the section, no view switch under it.
+ * HTML link. Pages ride the shell's WidgetTabs (the bento pulse pattern):
+ * `graph` (the cadence plot), `by repo` (per-project commit leaders) and
+ * `table` (the period census) — tabs render only when the report carries
+ * more than the graph (a repo scope IS one repo).
  *
  * The plot is this theme's own full-bleed area graph. The ui `Chart` engine
  * is anchored to a [0, auto] nice-number domain with internal chart-library
@@ -11,13 +13,15 @@
  * register (monotone curve over an accent wash) but computes the TIGHT
  * domain — the peak rides the top edge, the baseline the bottom edge —
  * paints the under-curve area edge to edge, and carries zero internal
- * padding: the graph IS the panel. The period axis renders as an HTML
- * label row under the plot (exact positions, no SVG text distortion); the
- * meta line carries the exact totals. Below the graph's floor the rung
- * presents the totals trio instead (a real composition, never a lone
- * numeral).
+ * padding: the graph IS the panel. A unit register above the plot names the
+ * measure and the peak, and a pointer crosshair reads the exact bucket out
+ * (`{period} · {n} commits`) — the graph is never a bare shape. The period
+ * axis renders as an HTML label row under the plot (exact positions, no SVG
+ * text distortion); the meta line carries the exact totals. Below the
+ * graph's floor the rung presents the totals trio instead (a real
+ * composition, never a lone numeral).
  */
-import { useId, useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Stat } from "@workspace-welcome/ui/components/stat";
 
@@ -25,110 +29,46 @@ import { useReport } from "@/lib/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
-import { McReportGate } from "./report-shared";
+import { McReportGate, PLOT_H, PLOT_W, plotPaths, usePlotHover } from "./report-shared";
 
 /** Pixel floor below which the rung ladders down to the totals trio. */
 export const GRAPH_MIN = { w: 200, h: 140 };
 
-/** Plot geometry in viewBox units — stretched to the box, stroke unscaled. */
-const PLOT_W = 1000;
-const PLOT_H = 400;
+/** Leader cap for the `by repo` page. */
+const REPO_LEADER_LIMIT = 8;
+
+/** The graph's window: LAST 12 buckets (the engine's maxPoints register) —
+ * the full multi-year series at this width degrades into noise spikes. */
+const GRAPH_BUCKETS = 12;
 
 /**
- * Fritsch–Carlson monotone tangents over the uniform grid — the same
- * no-overshoot register as the engine's `type="monotone"`, hand-rolled so
- * the theme stays inside its import surface (invariant 1).
+ * The measure noun for a bucket label: month keys ("2026-06") read as
+ * "commits / mo"; anything else stays generic.
  */
-function monotoneTangents(ys: number[]): number[] {
-  const n = ys.length;
-  const dx = 1 / (n - 1);
-  const delta: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    const rise = ys[i + 1];
-    if (rise === undefined) break;
-    delta.push((rise - (ys[i] ?? 0)) / dx);
-  }
-  const m: number[] = new Array<number>(n).fill(0);
-  const first = delta[0];
-  const last = delta[n - 2];
-  if (first !== undefined) m[0] = first;
-  if (last !== undefined) m[n - 1] = last;
-  for (let i = 1; i < n - 1; i++) {
-    const d0 = delta[i - 1];
-    const d1 = delta[i];
-    if (d0 === undefined || d1 === undefined) continue;
-    m[i] = d0 * d1 <= 0 ? 0 : (d0 + d1) / 2;
-  }
-  for (let i = 0; i < n - 1; i++) {
-    const d = delta[i];
-    const m0 = m[i];
-    const m1 = m[i + 1];
-    if (d === undefined || m0 === undefined || m1 === undefined) continue;
-    if (d === 0) {
-      m[i] = 0;
-      m[i + 1] = 0;
-      continue;
-    }
-    const a = m0 / d;
-    const b = m1 / d;
-    const s = a * a + b * b;
-    if (s > 9) {
-      const t = 3 / Math.sqrt(s);
-      m[i] = t * a * d;
-      m[i + 1] = t * b * d;
-    }
-  }
-  return m;
+function bucketUnit(labels: string[]): string {
+  return labels.every((l) => /^\d{4}-\d{2}$/.test(l)) ? "mo" : "period";
 }
 
 /**
- * The plot paths in viewBox units: the monotone curve and the under-curve
- * area closing against the bottom edge. Tight domain — ys arrive already
- * scaled (peak = 0, baseline = PLOT_H).
- */
-function plotPaths(ys: number[]): { line: string; area: string } {
-  const n = ys.length;
-  if (n === 0) return { line: "", area: "" };
-  if (n === 1) {
-    const y = ys[0] ?? PLOT_H;
-    const flat = `M 0 ${y} L ${PLOT_W} ${y}`;
-    return { line: flat, area: `${flat} L ${PLOT_W} ${PLOT_H} L 0 ${PLOT_H} Z` };
-  }
-  const m = monotoneTangents(ys);
-  const dx = PLOT_W / (n - 1);
-  let line = `M 0 ${(ys[0] ?? PLOT_H).toFixed(2)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const y0 = ys[i];
-    const y1 = ys[i + 1];
-    const t0 = m[i];
-    const t1 = m[i + 1];
-    if (y0 === undefined || y1 === undefined || t0 === undefined || t1 === undefined) continue;
-    const x0 = i * dx;
-    const x1 = (i + 1) * dx;
-    line += ` C ${(x0 + dx / 3).toFixed(2)} ${(y0 + (t0 * (dx / PLOT_W)) / 3).toFixed(2)}`;
-    line += ` ${(x1 - dx / 3).toFixed(2)} ${(y1 - (t1 * (dx / PLOT_W)) / 3).toFixed(2)}`;
-    line += ` ${x1.toFixed(2)} ${y1.toFixed(2)}`;
-  }
-  const area = `${line} L ${PLOT_W} ${PLOT_H} L 0 ${PLOT_H} Z`;
-  return { line, area };
-}
-
-/**
- * The full-bleed cadence graph. Renders the monotone curve over its wash
- * stretched to the whole box (non-scaling stroke keeps the 2px register);
- * `ariaLabel` carries the accessible summary — the meta line holds the
- * exact totals.
+ * The full-bleed cadence graph with its pointer crosshair. Renders the
+ * monotone curve over its wash stretched to the whole box (non-scaling
+ * stroke keeps the 2px register); hovering reads the exact bucket in a mono
+ * callout; `ariaLabel` carries the accessible summary — the meta line holds
+ * the exact totals.
  */
 function McAreaGraph({
   points,
   color,
+  valueNoun,
   ariaLabel,
 }: {
   points: { label: string; value: number }[];
   color: string;
+  valueNoun: string;
   ariaLabel: string;
 }) {
   const gradientId = useId();
+  const { hover, onPointerMove, onPointerLeave } = usePlotHover(points.length);
   const max = points.reduce((peak, p) => Math.max(peak, p.value), 0);
   const n = points.length;
   const ys = points.map((p) => {
@@ -137,36 +77,67 @@ function McAreaGraph({
   });
   const { line, area } = plotPaths(ys);
 
+  const xPct = hover !== null && n > 1 ? (hover / (n - 1)) * 100 : 0;
+  const hovered = hover !== null ? points[hover] : undefined;
+  const calloutLeft = Math.min(85, Math.max(15, xPct));
+
   return (
-    <svg
-      role="img"
-      aria-label={ariaLabel}
-      viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-      preserveAspectRatio="none"
-      className="block h-full w-full"
+    <div
+      className="relative h-full w-full"
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
     >
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.42} />
-          <stop offset="60%" stopColor={color} stopOpacity={0.16} />
-          <stop offset="100%" stopColor={color} stopOpacity={0.04} />
-        </linearGradient>
-      </defs>
-      {n > 0 ? (
+      <svg
+        role="img"
+        aria-label={ariaLabel}
+        viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
+        preserveAspectRatio="none"
+        className="block h-full w-full"
+      >
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.42} />
+            <stop offset="60%" stopColor={color} stopOpacity={0.16} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.04} />
+          </linearGradient>
+        </defs>
+        {n > 0 ? (
+          <>
+            <path d={area} fill={`url(#${gradientId})`} />
+            <path
+              d={line}
+              fill="none"
+              stroke={color}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </>
+        ) : null}
+      </svg>
+      {hovered !== undefined ? (
         <>
-          <path d={area} fill={`url(#${gradientId})`} />
-          <path
-            d={line}
-            fill="none"
-            stroke={color}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
+          <div
+            aria-hidden
+            className="absolute inset-y-0 w-px bg-(--mc-line-strong)"
+            style={{ left: `${xPct}%` }}
           />
+          <div
+            aria-hidden
+            className="absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-(--mc-panel) bg-(--mc-accent)"
+            style={{ left: `${xPct}%`, top: `${((ys[hover ?? 0] ?? PLOT_H) / PLOT_H) * 100}%` }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 border border-(--mc-line-strong) bg-(--mc-panel) px-2 py-1 font-mono text-[9.5px] leading-none whitespace-nowrap tabular-nums text-foreground"
+            style={{ left: `${calloutLeft}%` }}
+          >
+            {hovered.label} · {hovered.value.toLocaleString()} {valueNoun}
+          </div>
         </>
       ) : null}
-    </svg>
+    </div>
   );
 }
 
@@ -195,6 +166,30 @@ function PeriodAxis({ points }: { points: { label: string; value: number }[] }) 
   );
 }
 
+/**
+ * The unit register above the plot: what the y axis measures and the peak
+ * it rides to — the tight domain's scale, readable at a glance.
+ */
+function UnitRow({
+  points,
+  valueNoun,
+  unit,
+}: {
+  points: { label: string; value: number }[];
+  valueNoun: string;
+  unit: string;
+}) {
+  const peak = points.reduce((p, point) => Math.max(p, point.value), 0);
+  return (
+    <div className="flex shrink-0 items-baseline justify-between gap-2 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+      <span>
+        {valueNoun} / {unit}
+      </span>
+      <span className="normal-case tracking-normal tabular-nums">peak {peak.toLocaleString()}</span>
+    </div>
+  );
+}
+
 /** Totals trio — the below-graph-floor presentation. */
 function TotalsRun({ commits, contributors, repositories }: { commits: number; contributors: number; repositories: number }) {
   return (
@@ -206,26 +201,90 @@ function TotalsRun({ commits, contributors, repositories }: { commits: number; c
   );
 }
 
+/** One proportional ledger row — the mc register (hairline, mono, accent
+ * fill), shared by the `by repo` page. */
+function LeaderRow({
+  name,
+  value,
+  max,
+  whole,
+}: {
+  name: string;
+  value: number;
+  max: number;
+  whole: number;
+}) {
+  const barShare = max > 0 ? Math.max(2, Math.round((value / max) * 100)) : 0;
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2.5 border-t border-(--mc-line) px-1 first:border-t-0">
+      <span className="w-28 shrink-0 truncate font-mono text-[11px] text-muted-foreground" title={name}>
+        {name}
+      </span>
+      <span className="block h-1.5 min-w-0 flex-1 overflow-hidden bg-[color-mix(in_oklch,var(--foreground)_6%,transparent)]">
+        <span
+          className="block h-full"
+          style={{ width: `${barShare}%`, background: "var(--mc-accent)" }}
+        />
+      </span>
+      <span className="w-12 shrink-0 text-right font-mono text-[11px] tabular-nums text-foreground">
+        {value.toLocaleString()}
+      </span>
+      <span className="w-9 shrink-0 text-right font-mono text-[9.5px] tabular-nums text-muted-foreground">
+        {whole > 0 ? Math.round((value / whole) * 100) : 0}%
+      </span>
+    </div>
+  );
+}
+
 export function McReportActivity(_props: RegisteredWidgetProps) {
   const report = useReport();
   const view = report.view;
   const placed = useWidgetSize();
+  const [tab, setTab] = useState("graph");
 
   const cadence = useMemo(
     () => (view === null ? [] : view.cadence.map((point) => ({ label: point.period, value: point.commits }))),
     [view],
   );
   const total = useMemo(() => cadence.reduce((sum, p) => sum + p.value, 0), [cadence]);
-  // The graph windows the LAST 12 buckets (the engine's maxPoints register):
-  // the full multi-year series at this width degrades into noise spikes.
-  // The meta line still carries the whole-window totals.
-  const shown = useMemo(() => cadence.slice(-12), [cadence]);
+  // The graph + table window the LAST 12 buckets: the full multi-year series
+  // at this width degrades into noise spikes. The meta line still carries
+  // the whole-window totals.
+  const shown = useMemo(() => cadence.slice(-GRAPH_BUCKETS), [cadence]);
+  const shownTotal = useMemo(() => shown.reduce((sum, p) => sum + p.value, 0), [shown]);
+
+  // Per-project commit leaders (the `by repo` page) — straight from the
+  // export's per-project cadence sums.
+  const repoLeaders = useMemo(() => {
+    if (view === null) return [];
+    return view.export.projects
+      .map((p) => ({ name: p.name, commits: p.cadence.reduce((sum, c) => sum + c.commits, 0) }))
+      .filter((r) => r.commits > 0)
+      .sort((a, b) => b.commits - a.commits)
+      .slice(0, REPO_LEADER_LIMIT);
+  }, [view]);
 
   const full = placed.cols >= 3 && placed.rows >= 3;
+
+  // Pages: the graph always stands; the census pages render only when the
+  // report carries more than the plot (a repo scope IS one repo; a
+  // single-bucket window has no table to read).
+  const pages = useMemo(() => {
+    const list: { id: string; label: string }[] = [{ id: "graph", label: "graph" }];
+    if (repoLeaders.length >= 2) list.push({ id: "repos", label: "by repo" });
+    if (shown.length >= 2) list.push({ id: "table", label: "table" });
+    return list;
+  }, [repoLeaders.length, shown.length]);
+  const active = pages.some((p) => p.id === tab) ? tab : "graph";
+
+  const unit = useMemo(() => bucketUnit(shown.map((p) => p.label)), [shown]);
 
   return (
     <WidgetShell
       className="h-full w-full"
+      tabs={view !== null && full && pages.length > 1 ? pages : undefined}
+      activeTab={active}
+      onTabChange={setTab}
       meta={
         view === null ? undefined : (
           <span className="font-mono text-[9.5px] tabular-nums text-muted-foreground">
@@ -252,18 +311,63 @@ export function McReportActivity(_props: RegisteredWidgetProps) {
               style={{ minWidth: GRAPH_MIN.w, minHeight: GRAPH_MIN.h }}
               className="mx-3.5 mb-1.5 flex min-h-0 min-w-0 flex-1 flex-col"
             >
-              <div className="relative min-h-0 min-w-0 flex-1">
-                {/* Definite box: an absolutely-filled inset resolves to a real
-                    rectangle so the full-bleed plot measures on first paint. */}
-                <div className="absolute inset-0">
-                  <McAreaGraph
-                    points={shown}
-                    color="var(--mc-accent)"
-                    ariaLabel="Commit cadence over the report window"
-                  />
+              {active === "graph" ? (
+                <>
+                  <UnitRow points={shown} valueNoun="commits" unit={unit} />
+                  <div className="relative min-h-0 min-w-0 flex-1">
+                    {/* Definite box: an absolutely-filled inset resolves to a real
+                        rectangle so the full-bleed plot measures on first paint. */}
+                    <div className="absolute inset-0">
+                      <McAreaGraph
+                        points={shown}
+                        color="var(--mc-accent)"
+                        valueNoun="commits"
+                        ariaLabel="Commit cadence over the report window"
+                      />
+                    </div>
+                  </div>
+                  <PeriodAxis points={shown} />
+                </>
+              ) : active === "repos" ? (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-0.5">
+                  <p className="shrink-0 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                    commits in window · {repoLeaders.length} of {view.totals.repositories} repos
+                  </p>
+                  {repoLeaders.map((r) => (
+                    <LeaderRow
+                      key={r.name}
+                      name={r.name}
+                      value={r.commits}
+                      max={repoLeaders[0]?.commits ?? 0}
+                      whole={total}
+                    />
+                  ))}
                 </div>
-              </div>
-              <PeriodAxis points={shown} />
+              ) : (
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-0.5">
+                  <div className="flex shrink-0 items-baseline gap-2.5 border-b border-(--mc-line-strong) px-1 pb-1 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                    <span className="min-w-0 flex-1">period</span>
+                    <span className="w-12 shrink-0 text-right">commits</span>
+                    <span className="w-9 shrink-0 text-right">share</span>
+                  </div>
+                  {shown.map((p) => (
+                    <div
+                      key={p.label}
+                      className="flex min-h-0 min-w-0 flex-1 items-center gap-2.5 border-t border-(--mc-line) px-1 first:border-t-0"
+                    >
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+                        {p.label}
+                      </span>
+                      <span className="w-12 shrink-0 text-right font-mono text-[11px] tabular-nums text-foreground">
+                        {p.value.toLocaleString()}
+                      </span>
+                      <span className="w-9 shrink-0 text-right font-mono text-[9.5px] tabular-nums text-muted-foreground">
+                        {shownTotal > 0 ? Math.round((p.value / shownTotal) * 100) : 0}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         ) : (

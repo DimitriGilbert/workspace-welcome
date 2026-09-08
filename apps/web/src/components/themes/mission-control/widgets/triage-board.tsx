@@ -20,6 +20,7 @@ import { Pin } from "lucide-react";
 import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
 import { AlertIcons } from "@/components/git-badges";
 import { cn } from "@workspace-welcome/ui/lib/utils";
+import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { freshnessCounts } from "@/lib/scan-metrics";
@@ -29,7 +30,7 @@ import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { projectHref } from "./fleet-ledger";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 const SEV_LABEL: Record<AlertSeverity, string> = {
   critical: "ERR",
@@ -58,15 +59,12 @@ function openProject(path: string): void {
   window.location.href = projectHref(path);
 }
 
-/** Row rhythm of the triage band: py-[7px] + one text line + hairline — the
- * FINAL owner image's airy register (~34px rows). */
-const ROW_PX = 34;
 /**
- * Chrome above and below the rows: header, overflow footer, paddings —
- * budgeted so the 4-row placement windows the FINAL image's eight rows
- * (the console shows a window; the rows never stretch to fill).
+ * Row rhythm of the triage band: py-[7px] + one text line + hairline — the
+ * FINAL owner image's airy register (~34px rows). The FULL triage population
+ * renders — everything that outruns the placement scrolls in the band's
+ * ScrollArea (shadcn register), no "+N more" footer.
  */
-const TRIAGE_CHROME_PX = 120;
 
 /** The severity rows, worst first, freshest tiebreak — the design's sort. */
 function triagedProjects(projects: Project[]): Project[] {
@@ -118,7 +116,6 @@ function dirtyN(value: number | null): string {
 
 export function McTriage(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
-  const { rows: placedRows } = useWidgetSize();
   const triaged = triagedProjects(workspace.projects).filter(
     (p) => p.alerts.some((a) => a.severity === "critical") || p.alerts.some((a) => a.severity === "warning"),
   );
@@ -135,15 +132,6 @@ export function McTriage(_props: RegisteredWidgetProps) {
     );
   }
 
-  // The visible window rides the placed height on the row's pixel budget —
-  // same contract as the fleet ledger's cap (placed px includes the canvas's
-  // 12px inter-row gaps).
-  const previewRows = Math.max(
-    3,
-    Math.floor((placedRows * 96 + (placedRows - 1) * 12 - TRIAGE_CHROME_PX) / ROW_PX),
-  );
-  const preview = triaged.slice(0, previewRows);
-  const overflow = triaged.length - preview.length;
   const errors = triaged.filter((p) => worstSeverity(p) === "critical").length;
   const warns = triaged.length - errors;
 
@@ -163,77 +151,74 @@ export function McTriage(_props: RegisteredWidgetProps) {
               {warns > 0 ? <span>{warns} warn</span> : null}
             </span>
           </header>
-          <ul className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {preview.map((p) => {
-              const worst = worstSeverity(p);
-              const primary = p.alerts.find((a) => a.severity === worst) ?? p.alerts[0];
-              return (
-                <li
-                  key={p.path}
-                  className="group flex cursor-pointer items-center gap-3 border-b border-(--mc-line) px-4 py-[7px] transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
-                  onClick={() => openProject(p.path)}
-                >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "w-7 shrink-0 font-mono text-[9px] tracking-[0.1em]",
-                      worst === "critical" && "text-(--sev-critical)",
-                      worst === "warning" && "text-(--sev-warning)",
-                      worst === "info" && "text-(--sev-info)",
-                    )}
+          <ScrollArea className="min-h-0 flex-1">
+            <ul className="m-0 flex w-full min-w-0 list-none flex-col p-0">
+              {triaged.map((p) => {
+                const worst = worstSeverity(p);
+                const primary = p.alerts.find((a) => a.severity === worst) ?? p.alerts[0];
+                return (
+                  <li
+                    key={p.path}
+                    className="group flex cursor-pointer items-center gap-3 border-b border-(--mc-line) px-4 py-[7px] transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
+                    onClick={() => openProject(p.path)}
                   >
-                    {worst ? SEV_LABEL[worst] : ""}
-                  </span>
-                  {/* Severity + name + the alert message: the message is the
-                      FLEXIBLE column and absorbs the row's spare width. */}
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
-                    <a
-                      href={projectHref(p.path)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex min-w-0 max-w-[16rem] shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "w-7 shrink-0 font-mono text-[9px] tracking-[0.1em]",
+                        worst === "critical" && "text-(--sev-critical)",
+                        worst === "warning" && "text-(--sev-warning)",
+                        worst === "info" && "text-(--sev-info)",
+                      )}
                     >
-                      {p.name}
-                      {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
-                    </a>
-                    <span className="min-w-0 truncate text-xs text-muted-foreground">{primary?.message}</span>
-                  </span>
-                  {/* Real per-project data closes the row, content-proportioned
-                      like the fleet ledger: stack glyph, branch, uncommitted
-                      files, open alerts — then the update age. */}
-                  <span
-                    aria-hidden
-                    className="shrink-0"
-                    title={p.stack?.label ?? "No stack detected"}
-                  >
-                    <StackIcon project={p} />
-                  </span>
-                  <span
-                    className="hidden w-36 shrink-0 truncate font-mono text-[11px] text-muted-foreground min-[2200px]:block"
-                    title={p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
-                  >
-                    {p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
-                  </span>
-                  <span className="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums">
-                    {dirtyN(p.git.dirtyCount)}
-                  </span>
-                  <span className="flex shrink-0 items-center">
-                    {p.alerts.length > 0 ? <AlertIcons alerts={p.alerts} /> : null}
-                  </span>
-                  <span
-                    className="hidden shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
-                    title={dateTooltip(p.updatedAt)}
-                  >
-                    {relativeTime(p.updatedAt)}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-          {overflow > 0 ? (
-            <p className="shrink-0 border-t border-(--mc-line) px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              +{overflow} more in full triage
-            </p>
-          ) : null}
+                      {worst ? SEV_LABEL[worst] : ""}
+                    </span>
+                    {/* Severity + name + the alert message: the message is the
+                        FLEXIBLE column and absorbs the row's spare width. */}
+                    <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                      <a
+                        href={projectHref(p.path)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex min-w-0 max-w-[16rem] shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        {p.name}
+                        {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
+                      </a>
+                      <span className="min-w-0 truncate text-xs text-muted-foreground">{primary?.message}</span>
+                    </span>
+                    {/* Real per-project data closes the row, content-proportioned
+                        like the fleet ledger: stack glyph, branch, uncommitted
+                        files, open alerts — then the update age. */}
+                    <span
+                      aria-hidden
+                      className="shrink-0"
+                      title={p.stack?.label ?? "No stack detected"}
+                    >
+                      <StackIcon project={p} />
+                    </span>
+                    <span
+                      className="hidden w-36 shrink-0 truncate font-mono text-[11px] text-muted-foreground min-[2200px]:block"
+                      title={p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
+                    >
+                      {p.git.isRepo ? (p.git.branch ?? "detached") : "no git"}
+                    </span>
+                    <span className="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums">
+                      {dirtyN(p.git.dirtyCount)}
+                    </span>
+                    <span className="flex shrink-0 items-center">
+                      {p.alerts.length > 0 ? <AlertIcons alerts={p.alerts} /> : null}
+                    </span>
+                    <span
+                      className="hidden shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
+                      title={dateTooltip(p.updatedAt)}
+                    >
+                      {relativeTime(p.updatedAt)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </ScrollArea>
         </div>
       )}
     </WidgetShell>

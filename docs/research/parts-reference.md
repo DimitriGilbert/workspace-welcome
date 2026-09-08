@@ -68,7 +68,7 @@ that contract mechanically (fixed box == viewport).
 | `led-project` | `ledState(project, useWorkspace().now)` → ui `Led` | `project`, `tag?`, `pulse?` | 8×8 (`Led`) | Renders at every rung | 1x1 |
 | `branch-switcher` | `useProject().git` | — | — | Closed select fits any rung | 1x1 |
 | `git-actions-toolbar` | `useProject().git` quintet | — | — | Wraps; clipped only under starvation | 1x1 |
-| `files-list` | `useProject().path` → shared FileBrowser | `height?` (forwarded; kills the 70vh override hack) | — | Needs real height — preview authors a 2x3 smallest rung; internal scrolling is the G1 `data-scroll="widget"` exemption question | 2x3 (preview) |
+| `files-list` | `useProject().path` → shared FileBrowser | `height?` (forwarded; kills the 70vh override hack) | — | Needs real height — preview authors a 2x3 smallest rung; scrolls internally | 2x3 (preview) |
 | `artifacts-list` | `useProject().path` | — | — | Needs room for rows — preview authors a 2x3 smallest rung | 2x3 (preview) |
 | `commits-list` | `useCommitLogQuery(path, limit)` direct hook | `limit?`, `view?: "table" \| "graph" \| "list"` | — | `view="list"` at small rungs; the table view swaps to KVList below 420 px | 2x2 (preview) |
 | `form-create-project` | `lib/forms` scaffold flow | `open`, `onOpenChange`, `onCreated?` | — | Dialog chrome is viewport-fixed, not ladder-bound | n/a |

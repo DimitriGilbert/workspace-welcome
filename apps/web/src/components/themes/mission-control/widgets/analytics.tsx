@@ -357,6 +357,7 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
                   color: "var(--sev-warning)",
                 }))}
                 maxRows={LEADER_LIMIT}
+                labelWidth={96}
                 ariaLabel="Projects carrying the most uncommitted files, heaviest first"
               />
               <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">

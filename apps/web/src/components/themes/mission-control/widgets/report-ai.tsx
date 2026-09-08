@@ -9,8 +9,9 @@
  * (additive, old exports stay valid); this widget renders it:
  *
  * - weighted header figures: est. cost (unsubsidized) + token total;
- * - the `byDay` timeline as a tight-domain stacked bar chart (input over
- *   output per day, exact day axis, the peak day called out);
+ * - the `byDay` timeline as a tight-domain line chart (input and output as
+ *   two monotone lines, exact day axis, the peak day called out, pointer
+ *   crosshair reading the exact day) — the owner prefers lines;
  * - the `byModel` census as a dense fill-or-shrink ledger;
  * - one exact-totals footer line (in / out / cache / Σ / est. cost).
  *
@@ -19,21 +20,17 @@
  * records counts anywhere (banned by the owner). No AI usage in the window
  * renders the workspace totals trio honestly.
  */
-import { useId, useMemo } from "react";
+import { useMemo } from "react";
 
 import { useReport } from "@/lib/contexts/report-context";
 import type { ReportView } from "@/lib/report-view";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
-import { McReportGate } from "./report-shared";
+import { McReportGate, PLOT_H, PLOT_W, plotPaths, usePlotHover } from "./report-shared";
 
 type AiUsage = NonNullable<ReportView["aiUsage"]>;
 type AiBreakdownRow = NonNullable<AiUsage["breakdowns"]>["byDay"][number];
-
-/** Chart geometry in viewBox units — stretched to the box, fills stay solid. */
-const PLOT_W = 1000;
-const PLOT_H = 400;
 
 /** Compact 12.4k / 1.2M numeral for figure blocks and ledger values. */
 function compactCount(n: number): string {
@@ -61,54 +58,102 @@ function dayTick(key: string): string {
   return key.length >= 10 ? key.slice(5) : key;
 }
 
+/** Line ramp per series — `in` rides chart-5, `out` chart-1 (the ramp order
+ * the stacked bars used, carried over so the legend chips match). */
+const SERIES_IN = "var(--chart-5)";
+const SERIES_OUT = "var(--chart-1)";
+
 /**
- * The per-day stacked bar chart: input (base) + output (top) per day over a
- * TIGHT domain — the tallest day rides the top edge, the baseline the
- * bottom. No gridlines, no headroom, no padding: the bars ARE the box.
+ * The per-day line chart: input and output as two monotone lines over a
+ * TIGHT domain — the busiest series rides the top edge, the baseline the
+ * bottom. No gridlines, no headroom, no padding: the lines ARE the box. A
+ * pointer crosshair reads the exact day (`{date} · in {n} · out {n}`).
  */
-function DayBars({ days, maxDay }: { days: AiBreakdownRow[]; maxDay: number }) {
-  const gradientId = useId();
+function DayLines({ days, maxSeries }: { days: AiBreakdownRow[]; maxSeries: number }) {
+  const { hover, onPointerMove, onPointerLeave } = usePlotHover(days.length);
+  const scale = (v: number): number =>
+    maxSeries > 0 ? PLOT_H - (v / maxSeries) * PLOT_H : PLOT_H - 1;
+  const { line: inLine } = plotPaths(days.map((d) => scale(d.tokens.input)));
+  const { line: outLine } = plotPaths(days.map((d) => scale(d.tokens.output)));
+
   const n = days.length;
-  const slot = PLOT_W / Math.max(1, n);
-  const barW = Math.max(2, slot * 0.72);
+  const xPct = hover !== null && n > 1 ? (hover / (n - 1)) * 100 : 0;
+  const hovered = hover !== null ? days[hover] : undefined;
+  const calloutLeft = Math.min(85, Math.max(15, xPct));
+
   return (
-    <svg
-      role="img"
-      aria-label="Token usage per day: input and output stacked"
-      viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
-      preserveAspectRatio="none"
-      className="block h-full w-full"
+    <div
+      className="relative h-full w-full"
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
     >
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.92} />
-          <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0.55} />
-        </linearGradient>
-      </defs>
-      {days.map((day, i) => {
-        const hIn = maxDay > 0 ? (day.tokens.input / maxDay) * PLOT_H : 0;
-        const hOut = maxDay > 0 ? (day.tokens.output / maxDay) * PLOT_H : 0;
-        const x = i * slot + (slot - barW) / 2;
-        return (
-          <g key={day.key}>
-            <rect
-              x={x}
-              y={PLOT_H - hIn}
-              width={barW}
-              height={hIn}
-              fill="var(--chart-5)"
+      <svg
+        role="img"
+        aria-label="Token usage per day: input and output lines"
+        viewBox={`0 0 ${PLOT_W} ${PLOT_H}`}
+        preserveAspectRatio="none"
+        className="block h-full w-full"
+      >
+        {n > 0 ? (
+          <>
+            <path
+              d={inLine}
+              fill="none"
+              stroke={SERIES_IN}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
             />
-            <rect
-              x={x}
-              y={Math.max(0, PLOT_H - hIn - hOut)}
-              width={barW}
-              height={hOut}
-              fill={`url(#${gradientId})`}
+            <path
+              d={outLine}
+              fill="none"
+              stroke={SERIES_OUT}
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
             />
-          </g>
-        );
-      })}
-    </svg>
+          </>
+        ) : null}
+      </svg>
+      {hovered !== undefined ? (
+        <>
+          <div
+            aria-hidden
+            className="absolute inset-y-0 w-px bg-(--mc-line-strong)"
+            style={{ left: `${xPct}%` }}
+          />
+          {/* Series dots ride the crosshair at each line's exact height. */}
+          <div
+            aria-hidden
+            className="absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-(--mc-panel)"
+            style={{
+              left: `${xPct}%`,
+              top: `${(scale(hovered.tokens.input) / PLOT_H) * 100}%`,
+              background: SERIES_IN,
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-(--mc-panel)"
+            style={{
+              left: `${xPct}%`,
+              top: `${(scale(hovered.tokens.output) / PLOT_H) * 100}%`,
+              background: SERIES_OUT,
+            }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-1 z-10 -translate-x-1/2 border border-(--mc-line-strong) bg-(--mc-panel) px-2 py-1 font-mono text-[9.5px] leading-none whitespace-nowrap tabular-nums text-foreground"
+            style={{ left: `${calloutLeft}%` }}
+          >
+            {dayTick(hovered.key)} · in {hovered.tokens.input.toLocaleString()} · out{" "}
+            {hovered.tokens.output.toLocaleString()}
+          </div>
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -324,17 +369,21 @@ export function McReportAi(_props: RegisteredWidgetProps) {
       ),
     [ai],
   );
-  const maxDay = useMemo(
-    () => days.reduce((peak, d) => Math.max(peak, d.tokens.input + d.tokens.output), 0),
+  const maxSeries = useMemo(
+    () =>
+      days.reduce(
+        (peak, d) => Math.max(peak, d.tokens.input, d.tokens.output),
+        0,
+      ),
     [days],
   );
   const peak = useMemo(() => {
-    if (days.length === 0 || maxDay <= 0) return null;
+    if (days.length === 0 || maxSeries <= 0) return null;
     const best = days.reduce((a, b) =>
       a.tokens.input + a.tokens.output >= b.tokens.input + b.tokens.output ? a : b,
     );
     return { key: best.key, total: best.tokens.input + best.tokens.output };
-  }, [days, maxDay]);
+  }, [days, maxSeries]);
 
   const full = placed.cols >= 2 && placed.rows >= 4;
   const mid = placed.cols >= 2 && placed.rows >= 2;
@@ -350,8 +399,12 @@ export function McReportAi(_props: RegisteredWidgetProps) {
             {hasBreakdowns ? (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
                 <div className="flex shrink-0 items-baseline justify-between gap-2 pb-1">
-                  <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                    tokens / day · in + out
+                  <span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+                    tokens / day
+                    <span aria-hidden className="flex items-center gap-1 normal-case tracking-normal">
+                      <span className="size-1.5" style={{ background: SERIES_IN }} /> in
+                      <span className="size-1.5" style={{ background: SERIES_OUT }} /> out
+                    </span>
                   </span>
                   {peak !== null ? (
                     <span className="font-mono text-[9px] tabular-nums text-muted-foreground">
@@ -361,7 +414,7 @@ export function McReportAi(_props: RegisteredWidgetProps) {
                 </div>
                 <div className="relative min-h-0 min-w-0 flex-1">
                   <div className="absolute inset-0">
-                    <DayBars days={days} maxDay={maxDay} />
+                    <DayLines days={days} maxSeries={maxSeries} />
                   </div>
                 </div>
                 <DayAxis days={days} />
@@ -377,12 +430,12 @@ export function McReportAi(_props: RegisteredWidgetProps) {
             <CostFigures ai={ai} />
             {hasBreakdowns ? (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                <div className="relative min-h-0 min-w-0 flex-1">
-                  <div className="absolute inset-0">
-                    <DayBars days={days} maxDay={maxDay} />
-                  </div>
+              <div className="relative min-h-0 min-w-0 flex-1">
+                <div className="absolute inset-0">
+                  <DayLines days={days} maxSeries={maxSeries} />
                 </div>
-                <DayAxis days={days} />
+              </div>
+              <DayAxis days={days} />
               </div>
             ) : (
               <TokenSplit input={ai.tokens.input} output={ai.tokens.output} axis="h" />

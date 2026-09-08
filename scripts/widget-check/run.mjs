@@ -28,11 +28,8 @@
  * parts-preview suite (P5) runs part-min — the P5-finalized assertions
  * (part floors at every rendered rung, per-scope token resolution,
  * fixed-box == viewport, overflow, open-dialog overlays). The board probes
- * are excluded: density/placement have no `[data-widget-board]` here,
- * no-inner-scroll is meaningless on the preview BY DESIGN — it renders
- * FilesList/Artifacts, whose scroll exemptions the empty allowlist reserves
- * for the owner's G1 decision (no-inner-scroll stays enforced by the
- * theme/lab board suites) — and portal-scope is single-scope (it compares
+ * are excluded: density/placement have no `[data-widget-board]` here —
+ * and portal-scope is single-scope (it compares
  * every surface's --background to the FIRST scope's), which false-FAILs
  * surfaces living in the preview's other theme scopes. `--probe` overrides
  * the suite default explicitly.
@@ -42,13 +39,12 @@ import { fileURLToPath } from "node:url";
 import { Browser } from "./lib/cdp.mjs";
 import { Report, runEntry, writeJsonOut } from "./lib/report.mjs";
 import * as density from "./probes/density.mjs";
-import * as noInnerScroll from "./probes/no-inner-scroll.mjs";
 import * as partMin from "./probes/part-min.mjs";
 import * as placement from "./probes/placement.mjs";
 import * as portalScope from "./probes/portal-scope.mjs";
 import * as tokenCompleteness from "./probes/token-completeness.mjs";
 
-const PROBES = [noInnerScroll, density, tokenCompleteness, portalScope, placement, partMin];
+const PROBES = [density, tokenCompleteness, portalScope, placement, partMin];
 
 const SUITES = {
   theme: { target: "theme", expectProbeFailures: false },

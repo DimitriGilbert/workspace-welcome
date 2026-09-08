@@ -219,8 +219,8 @@ export function WidgetShell({
           // into neighbouring cells or past the scope edge, at any footprint.
           // Drag/resize affordances are siblings of this element (the canvas
           // renders them), so clipping never touches them; popups portal out
-          // via the theme scope. Not auto/scroll, so the no-inner-scroll
-          // contract is untouched.
+          // via the theme scope. Not auto/scroll, so a widget's own
+          // ScrollArea stays the one scrolling element.
           //
           // Query root: canvas-placed shells get `container-type: size` —
           // the grid tracks define the shell's height, so height-aware

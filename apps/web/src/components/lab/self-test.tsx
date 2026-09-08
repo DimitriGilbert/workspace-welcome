@@ -11,10 +11,9 @@
  *   2. placement — two widget frames claim the same grid cells (overlap), and
  *      one frame's `data-x` disagrees with its computed column.
  *   3. density — a widget whose content fills a fraction of its content box.
- *   4. no-inner-scroll — a plain scrollable container inside the scope.
- *   5. portal-scope — a dialog portaled OUTSIDE the scope with a divergent
+ *   4. portal-scope — a dialog portaled OUTSIDE the scope with a divergent
  *      `--background` (token-based, so this file stays color-literal-free).
- *   6. part-min — a part box far below its declared `data-part-min-w/h`, plus
+ *   5. part-min — a part box far below its declared `data-part-min-w/h`, plus
  *      horizontal overflow inside the scope.
  *
  * Geometry is inline-px on purpose: the probes measure the live box, and the
@@ -127,7 +126,7 @@ export function SelfTestPanel() {
           </h1>
           <p className="text-xs leading-relaxed text-muted-foreground">
             Negative fixture — each element below breaks exactly one harness
-            probe; the self-test suite passes only when all six report FAIL
+            probe; the self-test suite passes only when all five report FAIL
             here. Reachable at{" "}
             <span className="font-mono">/__lab?self-test=1</span>; the lab
             board lives at <span className="font-mono">/__lab</span>.
@@ -139,15 +138,6 @@ export function SelfTestPanel() {
             placement + density (board)
           </h2>
           <BadPlacementBoard />
-        </section>
-
-        <section className="flex flex-col gap-1">
-          <h2 className="font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
-            no-inner-scroll
-          </h2>
-          <div style={{ height: 80, overflowY: "auto" }} className="border">
-            <div style={{ height: 400 }} className="bg-muted" />
-          </div>
         </section>
 
         <section className="flex flex-col gap-1">

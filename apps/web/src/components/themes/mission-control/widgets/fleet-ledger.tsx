@@ -25,11 +25,9 @@
  * feeds it through the table's filter row model; the working set is already
  * narrowed by the workspace filter). The table's honest floor is the sum of
  * the columns' pixel content floors — below it the ladder swaps to a
- * `KvList` register (no internal scroll, no overflow, no mid-word cuts).
- * Row counts cap at the placed height on a pixel budget (≈33px ledger rows —
- * the ui cell rhythm; ≈20px KvList rows) with an honest "+N more" footer —
- * the console shows a window, the design's panel scroll becomes the rung's
- * business.
+ * `KvList` register. The FULL filtered fleet renders — everything that
+ * outruns the placement scrolls in the band's ScrollArea (shadcn register),
+ * no "+N more" footer.
  */
 import { useMemo } from "react";
 import { GitFork, Pin } from "lucide-react";
@@ -43,6 +41,7 @@ import {
 import type { DataTableColumns } from "@workspace-welcome/ui/components/data-table";
 import { KvList } from "@workspace-welcome/ui/components/kv-list";
 import { PulseStrip } from "@workspace-welcome/ui/components/pulse-strip";
+import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
@@ -367,21 +366,6 @@ function openProjectRow(path: string): void {
   window.location.href = projectHref(path);
 }
 
-/**
- * The visible-window cap on a pixel budget. Ledger rows run ≈33px (the ui
- * cell rhythm; the theme skin no longer tightens them — the FINAL owner
- * image carries the airier register), KvList rows ≈20px. Chrome: the census
- * label, table head, the "+N more" footer and the shell padding. The placed
- * height includes the canvas's inter-row gaps (12px — the canvas default;
- * PageLayout carries no gap field), so the cap fills the rung honestly.
- */
-const CELL_PX = 96;
-const GRID_GAP_PX = 12;
-const LEDGER_ROW_PX = 33;
-const LEDGER_CHROME_PX = 96;
-const KV_ROW_PX = 20;
-const KV_CHROME_PX = 54;
-
 /** The table's honest floor: the sum of the columns' pixel content floors —
  * below it the name or branch would cut mid-word, so the register swaps. */
 const TABLE_MIN_PX =
@@ -397,7 +381,7 @@ const TABLE_MIN_PX =
 
 export function McFleetLedger(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
-  const { cols, rows: placedRows } = useWidgetSize();
+  const { cols } = useWidgetSize();
 
   const visible = useMemo(
     () => workspace.projects.filter((p) => fleetMatches(p, workspace.filter)),
@@ -408,20 +392,11 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
   // arrangement places it at exactly that footprint); below it the compact
   // register takes over — never a clipped table.
   const table = cols >= 4;
-  const placedPx = placedRows * CELL_PX + (placedRows - 1) * GRID_GAP_PX;
-  const cap = Math.max(
-    3,
-    Math.floor(
-      (placedPx - (table ? LEDGER_CHROME_PX : KV_CHROME_PX)) /
-        (table ? LEDGER_ROW_PX : KV_ROW_PX),
-    ),
-  );
 
-  const shown = useMemo(() => {
-    const sorted = [...visible].sort((a, b) => updatedMs(b) - updatedMs(a));
-    return sorted.slice(0, cap);
-  }, [visible, cap]);
-  const overflow = visible.length - shown.length;
+  const sorted = useMemo(
+    () => [...visible].sort((a, b) => updatedMs(b) - updatedMs(a)),
+    [visible],
+  );
   const notes = useMemo(() => visible.some((p) => noteOf(p).trim().length > 0), [visible]);
   const columns = useMemo(() => buildColumns(notes), [notes]);
   const tableMinWidth = TABLE_MIN_PX + (notes ? MIN_PX.note : 0);
@@ -478,46 +453,46 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
           <>
             {/* Table form on shells wide enough for its content floor; the
                 compact register takes over below it (container query) —
-                never a clipped or overlapping table. */}
-            <div className="hidden min-h-0 min-w-0 @[800px]:block">
-              <DataTable
-                columns={columns}
-                data={shown}
-                initialSort={[{ id: "updated", desc: true }]}
-                minWidth={tableMinWidth}
-                onRowClick={(p) => openProjectRow(p.path)}
-                ariaLabel="Fleet status, one row per project: state, unit, stack, branch, sync counts, uncommitted files, note, alerts, activity signal and last update"
-                empty="No units match the filter"
-              />
+                never a clipped or overlapping table. The full fleet renders;
+                the band's ScrollArea takes the overflow. */}
+            <div className="hidden min-h-0 min-w-0 flex-1 @[800px]:flex">
+              <ScrollArea className="min-h-0 min-w-0 flex-1">
+                <DataTable
+                  columns={columns}
+                  data={sorted}
+                  initialSort={[{ id: "updated", desc: true }]}
+                  minWidth={tableMinWidth}
+                  onRowClick={(p) => openProjectRow(p.path)}
+                  ariaLabel="Fleet status, one row per project: state, unit, stack, branch, sync counts, uncommitted files, note, alerts, activity signal and last update"
+                  empty="No units match the filter"
+                />
+              </ScrollArea>
             </div>
-            <div className="min-h-0 min-w-0 @[800px]:hidden">
-              <KvList
-                density="compact"
-                rows={shown.map((p) => ({
-                  label: p.name,
-                  value: compactStamp(relativeTime(p.updatedAt)),
-                  mono: true,
-                }))}
-              />
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col @[800px]:hidden">
+              <ScrollArea className="min-h-0 min-w-0 flex-1">
+                <KvList
+                  density="compact"
+                  rows={sorted.map((p) => ({
+                    label: p.name,
+                    value: compactStamp(relativeTime(p.updatedAt)),
+                    mono: true,
+                  }))}
+                />
+              </ScrollArea>
             </div>
           </>
         ) : (
-          <div className="min-h-0 min-w-0">
+          <ScrollArea className="flex min-h-0 min-w-0 flex-1 flex-col">
             <KvList
               density="compact"
-              rows={shown.map((p) => ({
+              rows={sorted.map((p) => ({
                 label: p.name,
                 value: compactStamp(relativeTime(p.updatedAt)),
                 mono: true,
               }))}
             />
-          </div>
+          </ScrollArea>
         )}
-        {overflow > 0 ? (
-          <p className="mt-auto shrink-0 pt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-            +{overflow} more in the ledger
-          </p>
-        ) : null}
       </div>
     </WidgetShell>
   );
