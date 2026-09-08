@@ -8,9 +8,9 @@
  * one slug would silently shadow each other in the URL space.
  *
  * An empty (or not-yet-populated) themes directory is a valid state — the
- * glob matches nothing and every `/app/$theme` slug renders the honest
- * "theme not found" state. Real presets land with the T1 theme wave; the
- * routes already handle both worlds.
+ * glob matches nothing and every `?preset=<slug>` the registry does not know
+ * renders the honest "theme not found" state. Real presets land with the T1
+ * theme wave; the routes already handle both worlds.
  */
 import type { ComponentType } from "react";
 
@@ -41,8 +41,8 @@ export interface ThemeScheme {
 
 /**
  * The contract every `<slug>/preset.ts` must default-export. A theme authors
- * exactly two pages: `dashboard` for `/app/<slug>` and `project` for
- * `/app/<slug>/project/<path>`.
+ * exactly two pages: `dashboard` for `/?preset=<slug>` and `project` for
+ * `/project/<path>?preset=<slug>`.
  */
 export interface ThemePreset {
   id: string;
@@ -133,7 +133,7 @@ function buildPresetRegistry(): ReadonlyMap<string, ThemePreset> {
       if (scheme.css !== undefined) {
         if (schemeCssModules[`./${preset.id}/scheme-${scheme.css}.css`] === undefined) {
           throw new Error(
-            `Theme preset "${preset.id}" (${file}) declares scheme "${scheme.id}" but ./themes/${preset.id}/scheme-${scheme.css}.css does not exist`,
+            `Theme preset "${preset.id}" (${file}) declares scheme "${scheme.id}" but ${preset.id}/scheme-${scheme.css}.css does not exist`,
           );
         }
       }
@@ -200,8 +200,8 @@ export function themeSchemeHrefs(preset: ThemePreset): string[] {
 }
 
 /**
- * The entrypoint's fallback preset (`/` with nothing saved, `/app` without a
- * slug) — one source of truth for the owner-flippable default.
+ * The entrypoint's fallback preset (`/` with nothing saved and no
+ * `?preset=`) — one source of truth for the owner-flippable default.
  */
 export const DEFAULT_THEME_ID = "mission-control";
 

@@ -507,12 +507,9 @@ const body = async () => {
         content.includes("@/components/widgets") ||
         content.includes("@/lib/widget") ||
         content.includes("@/lib/contexts") ||
-        content.includes("@workspace-welcome/ui") ||
-        content.includes("../parts") ||
-        content.includes("../../runtime") ||
-        content.includes("../../contexts");
+        content.includes("@workspace-welcome/ui");
       if (!importsSystem) {
-        importViolations.push(`${relToRepo(file)} imports none of parts/runtime/contexts/ui`);
+        importViolations.push(`${relToRepo(file)} imports none of parts/widgets-engine/lib-widget/contexts/ui`);
       }
       for (const match of content.matchAll(/d\s*=\s*["']M/g)) {
         pathDataFlags.push(
@@ -545,7 +542,7 @@ const body = async () => {
       if (ok) {
         report.pass(
           "theme-widgets",
-          `${themeWidgetFiles.length} theme widget file(s) compose parts/runtime/contexts; no part-id collisions (${partIds.length} registry part(s) known)`,
+          `${themeWidgetFiles.length} theme widget file(s) compose parts/widgets-engine/lib-widget/contexts/ui; no part-id collisions (${partIds.length} registry part(s) known)`,
         );
       }
     }

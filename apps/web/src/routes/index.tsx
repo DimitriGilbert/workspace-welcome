@@ -14,7 +14,8 @@ import {
 
 /**
  * `/` IS the widget system (owner order: single entrypoint over the preset
- * registry — `/app` is dead and only redirects here). The registry is an
+ * registry — the killed `/app` namespace 404s, nothing redirects here). The
+ * registry is an
  * eager glob over the themes' `preset.ts` modules, so a new preset appears
  * in the picker and on this page with no edit here.
  *

@@ -1,6 +1,6 @@
 /**
  * Widget-lab page body (master plan §5 W4) — dev-only, mounted by
- * `/app/__lab`.
+ * `/__lab`.
  *
  * Two modes:
  *
@@ -10,7 +10,7 @@
  *   This is the harness `--suite lab` target and the W3 interaction
  *   payoff surface.
  * - **Self-test** (`?self-test=1`): M2's known-bad panel folded in from the
- *   deleted temporary `/app/__check` route, byte for byte. Every probe must
+ *   deleted temporary `__check` route, byte for byte. Every probe must
  *   FAIL it (inverted suite contract) — mounting it anywhere near the lab
  *   board would poison the green suite, so the flag swaps the page body
  *   entirely; it is the SAME negative fixture at its new address.

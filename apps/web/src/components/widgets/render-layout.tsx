@@ -8,8 +8,8 @@
  *   spec): `"workspace"` → Settings > Workspace > Report{scan, roots[0]?.path};
  *   `"project"` → Settings > Project{nests Workspace} > Report{repo, path}.
  *   `report?: false` omits the ReportProvider entirely. Exported separately
- *   as {@link PageProviders} — the builder M3/D8 wire the `/app/$theme`
- *   routes with;
+ *   as {@link PageProviders} — the builder M3/D8 wire the top-level theme
+ *   routes (`/` and `/project/$`) with;
  * - resolves regions to placements: stack regions pass their authored nodes
  *   through, flow regions run their registered generator INSIDE the provider
  *   stack (the structural `WorkspaceContextValue` input; flows never call

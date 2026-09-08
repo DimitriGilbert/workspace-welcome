@@ -151,10 +151,10 @@ function targetUrl(baseUrl, suiteName, options) {
   const params = new URLSearchParams();
   if (options.bare) params.set("bare", "1");
   if (options.scheme !== undefined) params.set("scheme", options.scheme);
-  // Theme URLs are top-level (`/` dashboard, `/project/<path…>`); the dead
-  // `/app/<slug>` routes only redirect here carrying `?preset=<slug>` —
-  // targeting the top-level URLs directly keeps the harness on the app's
-  // real surfaces while staying theme-specific.
+  // Theme URLs are top-level (`/` dashboard, `/project/<path…>`) carrying
+  // `?preset=<slug>` directly — the killed `/app/<slug>` routes are gone
+  // (404). Targeting the top-level URLs keeps the harness on the app's real
+  // surfaces while staying theme-specific.
   if (suite.target === "theme") params.set("preset", options.theme);
   const query = params.size > 0 ? `?${params.toString()}` : "";
   switch (suite.target) {

@@ -18,10 +18,11 @@ import {
  * surface). The splat is the project path without its leading "/" (the same
  * URL-safe encoding the legacy routes used), rejoined here.
  *
- * The page renders the SAVED preset's project board; `?preset=<slug>` (the
- * `/app/<slug>/project/…` redirect's cargo) persists the slug on mount and
- * is honored directly for the SSR paint, so a redirected deep link lands on
- * the right board with no default-theme flash. `?scheme=<id>` forces a
+ * The page renders the SAVED preset's project board; `?preset=<slug>`
+ * (deep-link cargo inherited from the killed `/app/<slug>/project/…`
+ * redirects) persists the slug on mount and is honored directly for the SSR
+ * paint, so a deep link lands on the right board with no default-theme
+ * flash. `?scheme=<id>` forces a
  * color scheme, `?bare=1` drops `custom.css` — the same deep-link contract
  * the entrypoint carries. The known-project gate is unchanged: a path the
  * scanner doesn't know never mounts the provider stack.
@@ -47,9 +48,9 @@ function ProjectPage() {
     prefs.setSavedPreset(presetParam);
   }, [presetParam, prefs]);
 
-  // An explicit `?preset=` wins over the saved selection — it is the dead
-  // `/app/<slug>` contract (that URL always rendered ITS theme) — then the
-  // saved preset, then the registry default.
+  // An explicit `?preset=` wins over the saved selection — the killed
+  // `/app/<slug>` routes' contract (that URL always rendered ITS theme) —
+  // then the saved preset, then the registry default.
   const preset =
     (presetParam !== undefined ? getThemePreset(presetParam) : null) ??
     prefs.savedPreset() ??

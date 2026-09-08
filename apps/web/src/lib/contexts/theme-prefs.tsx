@@ -24,7 +24,7 @@ const WIDGET_PREFS_KEY = "ww.prefs.v1";
 
 /** The persisted shape. Unknown keys are preserved; unknown VALUES are not. */
 interface WidgetPrefs {
-  /** The saved preset slug (`/` renders it; `/app/$theme` ignores it). */
+  /** The saved preset slug (`/` renders it; an explicit `?preset=` overrides it). */
   preset?: string;
   /** Active scheme id per preset slug. */
   schemes?: Record<string, string>;

@@ -27,9 +27,10 @@ import type { ThemePreset } from "@/components/themes";
 /**
  * The theme pages' search params: `?bare=1` drops `custom.css` from the head;
  * `?scheme=<id>` forces a color scheme (harness + deep links — a page that
- * wants the SAVED scheme omits it); `?preset=<slug>` is the dead `/app/<slug>`
- * redirect's cargo — the target page persists it as the saved preset on
- * mount. The router JSON-parses search values, so `bare=1` on the wire
+ * wants the SAVED scheme omits it); `?preset=<slug>` is deep-link cargo
+ * inherited from the killed `/app/<slug>` redirects — the target page
+ * persists it as the saved preset on mount. The router JSON-parses search
+ * values, so `bare=1` on the wire
  * arrives here as the NUMBER 1; the string form is accepted for symmetry
  * (code-passed `search: { bare: "1" }` serializes quoted and round-trips).
  * Anything else catches to absent and the router normalizes it off the URL.
@@ -108,8 +109,9 @@ function RendererPending({
 
 /**
  * Explicit not-found state for a slug the registry does not know — never a
- * fake board. (The dead `/app/<slug>` redirects drop unknown slugs en route;
- * this state remains for callers that resolve a slug directly.)
+ * fake board. (The killed `/app/<slug>` redirects used to drop unknown
+ * slugs en route; this state remains for callers that resolve a slug
+ * directly.)
  */
 export function ThemeNotFound({ slug }: { slug: string }) {
   const available = [...themePresets.keys()];

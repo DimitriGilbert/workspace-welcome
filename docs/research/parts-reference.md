@@ -17,7 +17,7 @@ Two layers, one naming contract (master plan §3.5):
 
 - **Layer 1 — `packages/ui/src/components/`**: presentational, props-in / tokens-only,
   container-query degradation only, headerless. Floors: the `MIN_CONTENT` export.
-- **Layer 2 — `apps/web/src/widgets/parts/`**: context-consuming compositions wrapped by
+- **Layer 2 — `apps/web/src/components/parts/`**: context-consuming compositions wrapped by
   `definePart` (`id` + `min` taken verbatim from the wrapped ui child's export). Floors: the
   widget registry's authored `min` rung clamps placement; the part-level px floor is advisory
   and probe-validated.
@@ -57,7 +57,7 @@ overflow/z-index/position) — portal content keeps `position: fixed` semantics.
 parts-preview mounts a `[data-fixed-box-sentinel]` per scope so the part-min probe can assert
 that contract mechanically (fixed box == viewport).
 
-## 2. Layer 2 — app parts (`apps/web/src/widgets/parts/`)
+## 2. Layer 2 — app parts (`apps/web/src/components/parts/`)
 
 | Part (`definePart` id) | Consumes | Key props | px floor | Below-min behavior | Min rung @96 px |
 |---|---|---|---|---|---|

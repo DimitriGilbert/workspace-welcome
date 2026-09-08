@@ -1,8 +1,8 @@
 /**
  * Self-test panel — the harness's known-bad fixture (master plan §3.8, M2.8).
  *
- * Mounted on the dev-only lab route `/app/__lab?self-test=1` (folded in at
- * W4, replacing the temporary `/app/__check` route). It deliberately renders
+ * Mounted on the dev-only lab route `/__lab?self-test=1` (folded in at
+ * W4, replacing the temporary `__check` route). It deliberately renders
  * ONE broken element per probe, so `run.mjs --suite self-test` must see
  * EVERY probe report FAIL — expected failures that prove detection:
  *
@@ -129,8 +129,8 @@ export function SelfTestPanel() {
             Negative fixture — each element below breaks exactly one harness
             probe; the self-test suite passes only when all six report FAIL
             here. Reachable at{" "}
-            <span className="font-mono">/app/__lab?self-test=1</span>; the lab
-            board lives at <span className="font-mono">/app/__lab</span>.
+            <span className="font-mono">/__lab?self-test=1</span>; the lab
+            board lives at <span className="font-mono">/__lab</span>.
           </p>
         </header>
 
