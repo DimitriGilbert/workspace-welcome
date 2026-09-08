@@ -10,7 +10,7 @@ import {
   SettingsGeneral,
   SettingsIdeation,
   SettingsSnitch,
-} from "@/widgets/settings";
+} from "@/components/settings";
 
 /**
  * The /settings page, rebuilt on the widget system: a SettingsProvider

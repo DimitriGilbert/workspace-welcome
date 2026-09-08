@@ -7,8 +7,8 @@
  *                         @tanstack/react-table, useTRPC, @/lib/queries,
  *                         useQuery(, useMutation( (context hooks are the
  *                         allowed data path).
- *   2. color-literals     zero color literals in apps/web/src/widgets/**,
- *                         apps/web/src/components/{themes,widgets}/**,
+ *   2. color-literals     zero color literals in apps/web/src/components/
+ *                         {themes,widgets,parts,settings,lab}/**,
  *                         apps/web/src/lib/{widget,contexts}/** and
  *                         packages/ui/src/components/** — with a CLOSED
  *                         grandfather allowlist for legacy packages/ui files
@@ -22,7 +22,8 @@
  *                         only on custom-property declaration lines (--x: ...).
  *   4. severity-vocab     zero old severity vocabulary (`"error"`/`"warn"`
  *                         comparisons/assignments against severity) and zero
- *                         `no-root` in widgets/**, components/themes/** and
+ *                         `no-root` in components/{themes,widgets,parts,
+ *                         settings,lab}, lib/{widget,contexts} and
  *                         ui components/**.
  *   5. theme-widgets      theme widget-kind files import ≥ 1 of
  *                         parts/widgets-engine/lib-widget/contexts/ui; no
@@ -31,7 +32,7 @@
  *   6. validate-layout    the validate-layout script runs here when present
  *                         (it lands with W4; until then a WARN note).
  *   7. no-any             zero any-typing in the system namespace
- *                         (widgets, components/themes, components/widgets,
+ *                         (components/{themes,widgets,parts,settings,lab},
  *                         lib/widget, lib/contexts, scripts/widget-check,
  *                         packages/ui/src) — casts included.
  *
@@ -66,7 +67,7 @@ const BASELINE_PATH = fileURLToPath(new URL("./grep-invariants.color-literals.js
 // with POSIX separators.
 const LAYOUT_PATHS = {
   // widget namespace root (invariants 1–5 scan it via the constants below)
-  widgetsDir: "apps/web/src/widgets",
+  widgetsDir: "apps/web/src/components/widgets",
   // complete theme designs: <themesDir>/<slug>/{preset.ts,tokens.css,…}
   themesDir: "apps/web/src/components/themes",
   // theme preset registry barrel (glob-based, location-relative)
@@ -79,7 +80,8 @@ const LAYOUT_PATHS = {
   // widget-namespace dirs (never allowlisted); true the legacy packages/ui
   // components bounded by the closed grandfather baseline
   colorLiteralScopes: [
-    { dir: "apps/web/src/widgets", grandfathered: false },
+    { dir: "apps/web/src/components/settings", grandfathered: false },
+    { dir: "apps/web/src/components/lab", grandfathered: false },
     { dir: "apps/web/src/components/themes", grandfathered: false },
     { dir: "apps/web/src/components/widgets", grandfathered: false },
     { dir: "apps/web/src/components/parts", grandfathered: false },
@@ -90,7 +92,8 @@ const LAYOUT_PATHS = {
   // invariant 4's severity-vocabulary scan scopes (old "error"/"warn" vocab
   // + no-root): the widget system's TS surface, one "code" filter for all
   severityVocabScopes: [
-    "apps/web/src/widgets",
+    "apps/web/src/components/settings",
+    "apps/web/src/components/lab",
     "apps/web/src/components/themes",
     "apps/web/src/components/widgets",
     "apps/web/src/components/parts",
@@ -101,7 +104,8 @@ const LAYOUT_PATHS = {
   // invariant 7's no-any scan scopes, each with its historical file filter
   // ("code" = CODE_EXTENSIONS, ".mjs" = mjs scripts only)
   noAnyScopes: [
-    { dir: "apps/web/src/widgets", files: "code" },
+    { dir: "apps/web/src/components/settings", files: "code" },
+    { dir: "apps/web/src/components/lab", files: "code" },
     { dir: "apps/web/src/components/themes", files: "code" },
     { dir: "apps/web/src/components/widgets", files: "code" },
     { dir: "apps/web/src/components/parts", files: "code" },
@@ -552,7 +556,6 @@ const body = async () => {
     const candidates = [
       path.join(REPO_ROOT, "scripts/validate-layout.mjs"),
       path.join(REPO_ROOT, "apps/web/scripts/validate-layout.mjs"),
-      path.join(REPO_ROOT, "apps/web/src/widgets/validate-layout.mjs"),
     ];
     const scriptPath = candidates.find((candidate) => {
       try {

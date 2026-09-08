@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { LabPage } from "@/widgets/lab/lab-page";
+import { LabPage } from "@/components/lab/lab-page";
 
 /**
  * Dev-only widget-lab route (master plan §3.2, §5 W4): `/__lab`.

@@ -28,7 +28,7 @@ const WEB_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CHECK = "validate-layout";
 
 /** Dev fixtures validated alongside the (currently empty) preset registry. */
-const FIXTURE_MODULES = ["/src/widgets/lab/lab-preset.ts"];
+const FIXTURE_MODULES = ["/src/components/lab/lab-preset.ts"];
 
 /**
  * Core layout modules loaded through Vite SSR. Single source for the
