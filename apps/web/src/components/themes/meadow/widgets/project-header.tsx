@@ -27,7 +27,7 @@ import { Button } from "@workspace-welcome/ui/components/button";
 
 import { ageMs } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 

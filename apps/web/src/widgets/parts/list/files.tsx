@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 
 import { FileBrowser } from "@/components/file-browser";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * FilesList — the project file browser as a part (master plan §3.5). A thin

@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@workspace-welcome/ui/components/button";
 
-import { SettingsProvider } from "@/widgets/contexts/settings-context";
+import { SettingsProvider } from "@/lib/contexts/settings-context";
 import {
   SettingsCommands,
   SettingsExcludeGlobs,

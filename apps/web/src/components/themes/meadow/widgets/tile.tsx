@@ -29,8 +29,8 @@ import { CadenceArea } from "./bits";
 import { ageMs, dateTooltip, formatCost, formatTokens } from "@/lib/format";
 import { hostLabel, stackIcon } from "@/lib/icons";
 import { freshness, tierFromFreshness } from "@/lib/recency";
-import { useReport } from "@/widgets/contexts/report-context";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useReport } from "@/lib/contexts/report-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 

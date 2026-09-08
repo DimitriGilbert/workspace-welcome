@@ -41,7 +41,7 @@ import { useCommitLogQuery } from "@/lib/queries/commit-log";
 import { useScanQuery } from "@/lib/queries/scan";
 import { useTRPC } from "@/utils/trpc";
 
-import { WorkspaceProvider } from "@/widgets/contexts/workspace-context";
+import { WorkspaceProvider } from "./workspace-context";
 
 /** IDE status poll cadence — cheap and local, so 5 s while anything runs. */
 const IDE_POLL_MS = 5_000;

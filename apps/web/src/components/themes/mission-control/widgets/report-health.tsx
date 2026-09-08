@@ -18,7 +18,7 @@ import {
 } from "@workspace-welcome/ui/components/data-table";
 import { Stat } from "@workspace-welcome/ui/components/stat";
 
-import { useReport } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

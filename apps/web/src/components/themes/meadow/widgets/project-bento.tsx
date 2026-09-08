@@ -24,7 +24,7 @@ import { getFlow } from "@/lib/widget/flows";
 import { parseSize } from "@/lib/widget/size-class";
 import type { SizeClass } from "@/lib/widget/size-class";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { MeadowProjectTile } from "./tile";

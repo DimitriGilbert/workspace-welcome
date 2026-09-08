@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { ReportGate } from "@/widgets/parts";
-import { useReport } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
 
 export const REPORT_BUTTON_CLASS =
   "inline-flex h-8 shrink-0 items-center border border-(--mc-line-strong) bg-[color-mix(in_oklch,var(--mc-accent)_14%,transparent)] px-3 font-mono text-[10px] uppercase tracking-[0.14em] text-foreground outline-none transition-colors hover:border-(--mc-accent) hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";

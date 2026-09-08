@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { ProjectKnownGate, themeSearchSchema } from "./-theme-shell";
 import { RenderLayout } from "@/components/widgets/render-layout";
-import { SchemeStylesheets, useWidgetPrefs } from "@/widgets/theme-prefs";
+import { SchemeStylesheets, useWidgetPrefs } from "@/lib/contexts/theme-prefs";
 import {
   DEFAULT_THEME_ID,
   firstThemePreset,

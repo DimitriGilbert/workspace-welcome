@@ -15,7 +15,7 @@ import {
 } from "@workspace-welcome/ui/components/data-table";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

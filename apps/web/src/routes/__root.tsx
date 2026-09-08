@@ -6,7 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@workspace-welcome/ui/components/sonner";
 import { lazy, Suspense, type ComponentProps, type ComponentType } from "react";
 
-import { WidgetPrefsProvider } from "@/widgets/theme-prefs";
+import { WidgetPrefsProvider } from "@/lib/contexts/theme-prefs";
 
 import "@fontsource-variable/geist";
 import "@fontsource-variable/geist-mono";
@@ -83,7 +83,7 @@ function RootDocument() {
          * `enableSystem={false}` keeps the legacy pages' dark styling until
          * the user explicitly picks a scheme (theme picker in the header).
          * WidgetPrefsProvider layers the saved preset slug + per-preset
-         * scheme on the same storage contract (see widgets/theme-prefs).
+         * scheme on the same storage contract (see lib/contexts/theme-prefs).
          *
          * The storage key is app-private ON PURPOSE. next-themes re-applies
          * `storage` events under its key from ANY same-origin tab, so the

@@ -5,7 +5,7 @@ import { NotebookPen } from "lucide-react";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * NoteEditor — "where I left off" (master plan §3.5): a bound view over the

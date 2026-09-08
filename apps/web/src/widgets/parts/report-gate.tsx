@@ -9,8 +9,8 @@ import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { relativeTime } from "@/lib/format";
-import { useReport } from "@/widgets/contexts/report-context";
-import type { ReportStatus } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
+import type { ReportStatus } from "@/lib/contexts/report-context";
 
 /**
  * ReportGate — the ONE gate between a widget and the snitch-report state

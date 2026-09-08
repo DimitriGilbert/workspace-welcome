@@ -24,7 +24,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { useBranchesQuery, useSwitchSafetyQuery } from "@/lib/queries/git";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * BranchSwitcher — the branch label doubles as the switch affordance

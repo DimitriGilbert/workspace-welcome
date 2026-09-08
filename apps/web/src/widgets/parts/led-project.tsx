@@ -4,7 +4,7 @@ import { LED_TAG, Led } from "@workspace-welcome/ui/components/led";
 
 import { ledState } from "@/lib/scan-metrics";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
  * ProjectLed — the 5-tone status lamp composition (master-plan ruling 4):

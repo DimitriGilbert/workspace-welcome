@@ -45,7 +45,7 @@ import {
 } from "./bits";
 import type { ReportView } from "@/lib/report-view";
 import { ageMs, formatCost, formatTokens } from "@/lib/format";
-import { useReport } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
 
 /** git-snitch period presets; "all" = no period flag (full history). */
 const PERIODS = ["all", "7d", "1m", "3m", "6m", "1y"] as const;

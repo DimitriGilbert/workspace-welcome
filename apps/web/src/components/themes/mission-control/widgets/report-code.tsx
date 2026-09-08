@@ -16,7 +16,7 @@ import { Donut } from "@workspace-welcome/ui/components/donut";
 import { Stat } from "@workspace-welcome/ui/components/stat";
 
 import { formatCompact } from "@/lib/format";
-import { useReport } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

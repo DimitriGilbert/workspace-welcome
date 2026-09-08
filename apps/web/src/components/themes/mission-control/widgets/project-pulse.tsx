@@ -20,7 +20,7 @@ import { Stat } from "@workspace-welcome/ui/components/stat";
 
 import { relativeTime } from "@/lib/format";
 import { dayKey } from "@/lib/scan-metrics";
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 

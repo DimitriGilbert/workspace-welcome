@@ -30,7 +30,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { useBranchesQuery } from "@/lib/queries/git";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * GitActionsToolbar — Fetch, fetch-one-branch (the chevron beside Fetch

@@ -38,7 +38,7 @@ import { SoftNumber } from "./bits";
 import { FormAddRoot } from "@/widgets/parts/form/add-root";
 import { FormCloneScript } from "@/widgets/parts/form/clone-script";
 import { FormCreateProject } from "@/widgets/parts/form/create-project";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { ThemePicker } from "@/components/widgets/theme-picker";
 import { WidgetShell } from "@/components/widgets/widget-shell";

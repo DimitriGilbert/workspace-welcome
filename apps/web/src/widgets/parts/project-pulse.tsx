@@ -5,7 +5,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { pulseCells } from "@/lib/scan-metrics";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
  * ProjectPulse — a project's activity sparkline (master plan §3.5): the pure

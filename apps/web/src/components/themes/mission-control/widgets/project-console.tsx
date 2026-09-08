@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { ArtifactsList, FilesList, NoteEditor } from "@/widgets/parts";
 import { WidgetShell } from "@/components/widgets/widget-shell";

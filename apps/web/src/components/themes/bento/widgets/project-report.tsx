@@ -12,8 +12,8 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { formatCost } from "@/lib/format";
 import { isReportStale } from "@workspace-welcome/api/lib/report-staleness";
 
-import { useProject } from "@/widgets/contexts/project-context";
-import { useReport } from "@/widgets/contexts/report-context";
+import { useProject } from "@/lib/contexts/project-context";
+import { useReport } from "@/lib/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, CadenceArea } from "../bits";

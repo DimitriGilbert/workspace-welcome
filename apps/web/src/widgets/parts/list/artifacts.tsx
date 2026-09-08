@@ -2,7 +2,7 @@ import type { ComponentPropsWithoutRef } from "react";
 
 import { ArtifactsPanel } from "@/components/artifacts";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * ArtifactsList — the project artifact gallery as a part (master plan

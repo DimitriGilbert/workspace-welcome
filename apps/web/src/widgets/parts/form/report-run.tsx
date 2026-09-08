@@ -24,7 +24,7 @@ import { Switch } from "@workspace-welcome/ui/components/switch";
 import { REPORT_PERIOD_PRESETS } from "@/lib/queries/reports";
 import { useReportRun } from "@/lib/use-report";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
  * FormReportRun — the workspace HTML-report launcher in a token-styled ui

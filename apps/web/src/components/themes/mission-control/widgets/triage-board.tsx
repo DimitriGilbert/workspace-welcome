@@ -27,7 +27,7 @@ import { stackIcon } from "@/lib/icons";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { projectHref } from "./fleet-ledger";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

@@ -48,7 +48,7 @@ import { formatCompact, formatCost, formatTokens, relativeTime } from "@/lib/for
 import { aiUsageLeaders, alertTally, aggregateCadence, languageRows } from "@/lib/scan-metrics";
 import type { AlertTally } from "@/lib/scan-metrics";
 
-import { useReport } from "@/widgets/contexts/report-context";
+import { useReport } from "@/lib/contexts/report-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile } from "../bits";

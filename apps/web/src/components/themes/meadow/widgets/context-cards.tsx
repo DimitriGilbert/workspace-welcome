@@ -26,8 +26,8 @@ import {
   touchedWithinDays,
 } from "@/lib/scan-metrics";
 import { stackIcon } from "@/lib/icons";
-import { useProject } from "@/widgets/contexts/project-context";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useProject } from "@/lib/contexts/project-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /** Last path segment of an absolute path — for root labels. Ported from the
  * design's derive helper; one line of presentation formatting. */

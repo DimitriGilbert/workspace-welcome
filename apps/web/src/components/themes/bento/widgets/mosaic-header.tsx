@@ -4,7 +4,7 @@
  * shapes at scale with their recency meaning). The row rides the bottom of
  * its band so it sits tight above the mosaic, exactly the design's rhythm.
  */
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { SizeLegend } from "../bits";

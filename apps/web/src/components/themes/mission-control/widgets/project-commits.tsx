@@ -15,7 +15,7 @@ import {
 } from "@workspace-welcome/ui/components/data-table";
 
 import { relativeTime } from "@/lib/format";
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

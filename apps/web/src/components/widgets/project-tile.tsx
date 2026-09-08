@@ -34,7 +34,7 @@ import { compactAge } from "@/lib/format";
 import { ledState, pulseCells } from "@/lib/scan-metrics";
 
 import { parseSize, rankOf } from "@/lib/widget/size-class";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 import type { RegisteredWidgetProps } from "./registry";
 import { useWidgetSize } from "./widget-shell";

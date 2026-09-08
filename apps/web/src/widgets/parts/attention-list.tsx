@@ -9,7 +9,7 @@ import type { Tone } from "@workspace-welcome/ui/lib/tokens";
 import { relativeTime } from "@/lib/format";
 import { attentionProjects, severityCounts } from "@/lib/scan-metrics";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
  * AttentionList — the triage surface (master plan §3.5): projects carrying

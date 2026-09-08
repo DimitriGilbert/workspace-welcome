@@ -25,7 +25,7 @@ import { Stat } from "@workspace-welcome/ui/components/stat";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { relativeTime } from "@/lib/format";
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { BranchSwitcher, GitActionsToolbar } from "@/widgets/parts";
 import { WidgetShell } from "@/components/widgets/widget-shell";

@@ -9,7 +9,7 @@
  *                         allowed data path).
  *   2. color-literals     zero color literals in apps/web/src/widgets/**,
  *                         apps/web/src/components/{themes,widgets}/**,
- *                         apps/web/src/lib/widget/** and
+ *                         apps/web/src/lib/{widget,contexts}/** and
  *                         packages/ui/src/components/** — with a CLOSED
  *                         grandfather allowlist for legacy packages/ui files
  *                         (baseline scan, M2). Files on the list are bounded
@@ -32,8 +32,8 @@
  *                         (it lands with W4; until then a WARN note).
  *   7. no-any             zero any-typing in the system namespace
  *                         (widgets, components/themes, components/widgets,
- *                         lib/widget, scripts/widget-check, packages/ui/src)
- *                         — casts included.
+ *                         lib/widget, lib/contexts, scripts/widget-check,
+ *                         packages/ui/src) — casts included.
  *
  * Layout honesty (P0.3): LAYOUT_PATHS below is the single source of truth
  * for where the widget system lives; the anti-vacuous guard runs before
@@ -83,6 +83,7 @@ const LAYOUT_PATHS = {
     { dir: "apps/web/src/components/themes", grandfathered: false },
     { dir: "apps/web/src/components/widgets", grandfathered: false },
     { dir: "apps/web/src/lib/widget", grandfathered: false },
+    { dir: "apps/web/src/lib/contexts", grandfathered: false },
     { dir: "packages/ui/src/components", grandfathered: true },
   ],
   // invariant 4's severity-vocabulary scan scopes (old "error"/"warn" vocab
@@ -92,6 +93,7 @@ const LAYOUT_PATHS = {
     "apps/web/src/components/themes",
     "apps/web/src/components/widgets",
     "apps/web/src/lib/widget",
+    "apps/web/src/lib/contexts",
     "packages/ui/src/components",
   ],
   // invariant 7's no-any scan scopes, each with its historical file filter
@@ -101,6 +103,7 @@ const LAYOUT_PATHS = {
     { dir: "apps/web/src/components/themes", files: "code" },
     { dir: "apps/web/src/components/widgets", files: "code" },
     { dir: "apps/web/src/lib/widget", files: "code" },
+    { dir: "apps/web/src/lib/contexts", files: "code" },
     { dir: "scripts/widget-check", files: ".mjs" },
     { dir: "packages/ui/src", files: "code" },
   ],
@@ -496,7 +499,7 @@ const body = async () => {
         content.includes("@/widgets/parts") ||
         content.includes("@/components/widgets") ||
         content.includes("@/lib/widget") ||
-        content.includes("@/widgets/contexts") ||
+        content.includes("@/lib/contexts") ||
         content.includes("@workspace-welcome/ui") ||
         content.includes("../parts") ||
         content.includes("../../runtime") ||

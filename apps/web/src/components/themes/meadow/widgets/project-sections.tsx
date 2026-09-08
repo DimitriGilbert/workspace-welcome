@@ -45,8 +45,8 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { IdeationPanel } from "@/components/ideation/ideation-panel";
 import { absoluteDate, ageMs, formatCost, formatTokens, relativeTime } from "@/lib/format";
 import { hostLabel } from "@/lib/icons";
-import { useProject } from "@/widgets/contexts/project-context";
-import { useReport } from "@/widgets/contexts/report-context";
+import { useProject } from "@/lib/contexts/project-context";
+import { useReport } from "@/lib/contexts/report-context";
 import {
   ArtifactsList,
   BranchSwitcher,

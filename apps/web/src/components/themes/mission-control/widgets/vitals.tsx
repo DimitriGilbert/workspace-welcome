@@ -18,7 +18,7 @@ import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 

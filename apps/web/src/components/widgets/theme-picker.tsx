@@ -30,7 +30,7 @@ import {
 
 import { getThemePreset, themePresets } from "@/components/themes";
 import type { ThemeScheme } from "@/components/themes";
-import { useWidgetPrefs } from "@/widgets/theme-prefs";
+import { useWidgetPrefs } from "@/lib/contexts/theme-prefs";
 
 export function ThemePicker({
   theme,

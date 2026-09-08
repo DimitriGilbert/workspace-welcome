@@ -4,7 +4,7 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { Input } from "@workspace-welcome/ui/components/input";
 import { Label } from "@workspace-welcome/ui/components/label";
 
-import { useSettings } from "@/widgets/contexts/settings-context";
+import { useSettings } from "@/lib/contexts/settings-context";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /**

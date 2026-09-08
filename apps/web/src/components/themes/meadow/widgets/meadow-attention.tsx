@@ -13,7 +13,7 @@ import { Bell, Plus } from "lucide-react";
 
 import { SoftNumber } from "./bits";
 import { attentionProjects } from "@/lib/scan-metrics";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 

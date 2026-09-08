@@ -16,7 +16,7 @@ import { hostLabel } from "@/lib/icons";
 import { relativeTime } from "@/lib/format";
 import { useCloneScript } from "@/lib/forms";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
  * FormCloneScript — the bootstrap-clone picker in a token-styled ui Dialog

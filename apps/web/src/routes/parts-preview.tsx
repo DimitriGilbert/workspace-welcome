@@ -67,10 +67,10 @@ import {
   ProjectPulsePart,
   ReportGatePart,
 } from "@/widgets/parts";
-import { ProjectProvider } from "@/widgets/contexts/project-context";
-import { ReportProvider } from "@/widgets/contexts/report-context";
-import { SettingsProvider } from "@/widgets/contexts/settings-context";
-import { useWorkspace, WorkspaceProvider } from "@/widgets/contexts/workspace-context";
+import { ProjectProvider } from "@/lib/contexts/project-context";
+import { ReportProvider } from "@/lib/contexts/report-context";
+import { SettingsProvider } from "@/lib/contexts/settings-context";
+import { useWorkspace, WorkspaceProvider } from "@/lib/contexts/workspace-context";
 import { dayKey } from "@/lib/scan-metrics";
 import { parseSize, SIZE_LADDER } from "@/lib/widget/size-class";
 import type { SizeClass } from "@/lib/widget/size-class";

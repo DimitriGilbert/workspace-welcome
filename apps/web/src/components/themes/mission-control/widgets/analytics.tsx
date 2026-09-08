@@ -36,7 +36,7 @@ import {
   stackDistribution,
   touchedWithinDays,
 } from "@/lib/scan-metrics";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 

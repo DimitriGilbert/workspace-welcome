@@ -28,8 +28,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { formatCompact, formatCost, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 
-import { useReport } from "@/widgets/contexts/report-context";
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useReport } from "@/lib/contexts/report-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, CadenceArea, GitGlyphs, RecencyRing } from "../bits";

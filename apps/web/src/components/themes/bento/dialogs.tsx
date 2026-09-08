@@ -43,7 +43,7 @@ import { useAddRoot } from "@/lib/forms";
 import { hostLabel } from "@/lib/icons";
 import { useReportRun } from "@/lib/use-report";
 
-import { useWorkspace } from "@/widgets/contexts/workspace-context";
+import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 export interface BentoDialogProps {
   open: boolean;

@@ -15,7 +15,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { relativeTime } from "@/lib/format";
 import { useCommitLogQuery } from "@/lib/queries/commit-log";
 
-import { useProject } from "@/widgets/contexts/project-context";
+import { useProject } from "@/lib/contexts/project-context";
 
 /**
  * CommitsList — the per-repo commit history in three views (master plan
