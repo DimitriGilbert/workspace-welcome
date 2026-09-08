@@ -7,8 +7,8 @@ import { ThemeScope } from "@workspace-welcome/ui/components/theme-scope";
 
 import Loader from "@/components/loader";
 import { useScanQuery } from "@/lib/queries/scan";
-import { themeCustomCssHref, themePresets } from "@/widgets/themes";
-import type { ThemePreset } from "@/widgets/themes";
+import { themeCustomCssHref, themePresets } from "@/components/themes";
+import type { ThemePreset } from "@/components/themes";
 
 /**
  * Shared plumbing for the two top-level theme routes (`/` dashboard +

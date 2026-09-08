@@ -10,7 +10,7 @@ import {
   getThemePreset,
   resolveThemeScheme,
   themeCustomCssHref,
-} from "@/widgets/themes";
+} from "@/components/themes";
 
 /**
  * The top-level project page: `/project/<path…>` (owner order: `/app` is

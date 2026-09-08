@@ -1,7 +1,7 @@
 /**
  * Theme preset registry (master plan §3.6).
  *
- * Every theme ships `widgets/themes/<slug>/preset.ts` default-exporting one
+ * Every theme ships `components/themes/<slug>/preset.ts` default-exporting one
  * `ThemePreset`. Presets are plain data, globbed eagerly so they are available
  * during SSR with no async boundary — the resolved page stays pure data end
  * to end. Duplicate preset ids throw at module evaluation: two presets with
@@ -14,8 +14,8 @@
  */
 import type { ComponentType } from "react";
 
-import type { PageLayout } from "../runtime/layout-types";
-import type { ConsoleView } from "../runtime/render-layout";
+import type { PageLayout } from "@/widgets/runtime/layout-types";
+import type { ConsoleView } from "@/widgets/runtime/render-layout";
 
 /**
  * One color scheme a preset ships (owner order: a preset may carry more than

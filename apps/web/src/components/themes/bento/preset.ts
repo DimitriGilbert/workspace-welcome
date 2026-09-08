@@ -47,7 +47,7 @@
  */
 import "./tokens.css";
 
-import type { ThemeScheme, ThemePreset } from "@/widgets/themes";
+import type { ThemeScheme, ThemePreset } from "@/components/themes";
 
 const COLUMNS = { desktop: 12, tablet: 6, phone: 2 } as const;
 

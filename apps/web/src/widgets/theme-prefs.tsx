@@ -16,8 +16,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
-import { getThemePreset, themeSchemeCssHref } from "./themes";
-import type { ThemePreset, ThemeScheme } from "./themes";
+import { getThemePreset, themeSchemeCssHref } from "../components/themes";
+import type { ThemePreset, ThemeScheme } from "../components/themes";
 
 /** localStorage key — namespaced, versioned. */
 const WIDGET_PREFS_KEY = "ww.prefs.v1";

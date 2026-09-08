@@ -1,5 +1,5 @@
 /**
- * The parts barrel — the ONLY import surface for `widgets/themes/*` (and
+ * The parts barrel — the ONLY import surface for `components/themes/*` (and
  * every other consumer): raw components + prop types from the part files,
  * plus the `definePart`-wrapped registry parts (suffixed `*Part`) whose
  * rendered roots carry `data-part` / `data-part-min-*` stamps. Themes must

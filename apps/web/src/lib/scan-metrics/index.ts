@@ -1,6 +1,6 @@
 /**
  * scan-metrics — the ONE pure-TS derivation module for scan and report data.
- * The only import surface widgets/themes should use. No React, no color
+ * The only import surface components/themes should use. No React, no color
  * tokens (fills belong to parts/packages-ui); every time-dependent function
  * takes `now` as a defaulted parameter (SSR-safe).
  */

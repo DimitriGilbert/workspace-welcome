@@ -6,7 +6,7 @@
  * 1. **Static core** — theme-independent common kinds, imported eagerly from
  *    `widgets/core/` (their home; the map here stays the single static
  *    registry site).
- * 2. **Theme kinds** — every `widgets/themes/<slug>/widgets/index.ts` is
+ * 2. **Theme kinds** — every `components/themes/<slug>/widgets/index.ts` is
  *    picked up by an eager `import.meta.glob`, so parallel theme waves never
  *    edit this shared file. A theme module exports its kinds as
  *    `widgetDefs: readonly WidgetDef[]` (see {@link ThemeWidgetModule}).
@@ -56,7 +56,7 @@ export interface WidgetDef {
 }
 
 /**
- * The contract every `widgets/themes/<slug>/widgets/index.ts` module must
+ * The contract every `components/themes/<slug>/widgets/index.ts` module must
  * satisfy — eager-globbed by this registry.
  */
 export interface ThemeWidgetModule {
@@ -99,7 +99,7 @@ export function mergeValidated(
 }
 
 const themeWidgetModules = import.meta.glob<ThemeWidgetModule>(
-  "./themes/*/widgets/index.ts",
+  "../components/themes/*/widgets/index.ts",
   { eager: true },
 );
 

@@ -3,24 +3,26 @@
  * grep-invariants.mjs — the static half of the ONE harness (§3.8): the 7
  * grep invariants, enforced per wave + at C1.
  *
- *   1. themes-deps        widgets/themes/** must not import recharts,
+ *   1. themes-deps        components/themes/** must not import recharts,
  *                         @tanstack/react-table, useTRPC, @/lib/queries,
  *                         useQuery(, useMutation( (context hooks are the
  *                         allowed data path).
- *   2. color-literals     zero color literals in apps/web/src/widgets/** and
+ *   2. color-literals     zero color literals in apps/web/src/widgets/**,
+ *                         apps/web/src/components/themes/** and
  *                         packages/ui/src/components/** — with a CLOSED
  *                         grandfather allowlist for legacy packages/ui files
  *                         (baseline scan, M2). Files on the list are bounded
  *                         by their baseline count (edits may shrink, never
  *                         grow); files NOT on the list must be literal-free.
- *                         widgets/** is never allowlisted.
- *   3. theme-css          color literals in theme stylesheets (widgets/themes)
+ *                         widget-namespace dirs are never allowlisted.
+ *   3. theme-css          color literals in theme stylesheets (components/themes)
  *                         (invariant 2 exempts custom-property DECLARATION
  *                          lines in theme tokens.css files — that is their job)
  *                         only on custom-property declaration lines (--x: ...).
  *   4. severity-vocab     zero old severity vocabulary (`"error"`/`"warn"`
  *                         comparisons/assignments against severity) and zero
- *                         `no-root` in widgets/** + ui components/**.
+ *                         `no-root` in widgets/**, components/themes/** and
+ *                         ui components/**.
  *   5. theme-widgets      theme widget-kind files import ≥ 1 of
  *                         parts/runtime/contexts/ui; no component name
  *                         collides with a registry part id; `d="M` path
@@ -28,7 +30,7 @@
  *   6. validate-layout    the validate-layout script runs here when present
  *                         (it lands with W4; until then a WARN note).
  *   7. no-any             zero any-typing in the system namespace
- *                         (widgets, scripts/widget-check,
+ *                         (widgets, components/themes, scripts/widget-check,
  *                         packages/ui/src) — casts included.
  *
  * Layout honesty (P0.3): LAYOUT_PATHS below is the single source of truth
@@ -64,25 +66,45 @@ const LAYOUT_PATHS = {
   // widget namespace root (invariants 1–5 scan it via the constants below)
   widgetsDir: "apps/web/src/widgets",
   // complete theme designs: <themesDir>/<slug>/{preset.ts,tokens.css,…}
-  themesDir: "apps/web/src/widgets/themes",
+  themesDir: "apps/web/src/components/themes",
   // theme preset registry barrel (glob-based, location-relative)
-  themesIndex: "apps/web/src/widgets/themes/index.ts",
+  themesIndex: "apps/web/src/components/themes/index.ts",
   // widget-kind registry (core kinds + themes glob)
   widgetRegistry: "apps/web/src/widgets/registry.ts",
   // part-id registry read by invariant 5's collision check
   partsRegistry: "apps/web/src/widgets/parts/registry.ts",
+  // invariant 2's color-literal scan scopes. grandfathered: false marks the
+  // widget-namespace dirs (never allowlisted); true the legacy packages/ui
+  // components bounded by the closed grandfather baseline
+  colorLiteralScopes: [
+    { dir: "apps/web/src/widgets", grandfathered: false },
+    { dir: "apps/web/src/components/themes", grandfathered: false },
+    { dir: "packages/ui/src/components", grandfathered: true },
+  ],
+  // invariant 4's severity-vocabulary scan scopes (old "error"/"warn" vocab
+  // + no-root): the widget system's TS surface, one "code" filter for all
+  severityVocabScopes: [
+    "apps/web/src/widgets",
+    "apps/web/src/components/themes",
+    "packages/ui/src/components",
+  ],
   // invariant 7's no-any scan scopes, each with its historical file filter
   // ("code" = CODE_EXTENSIONS, ".mjs" = mjs scripts only)
   noAnyScopes: [
     { dir: "apps/web/src/widgets", files: "code" },
+    { dir: "apps/web/src/components/themes", files: "code" },
     { dir: "scripts/widget-check", files: ".mjs" },
     { dir: "packages/ui/src", files: "code" },
   ],
 };
 
-const WIDGETS_DIR = path.join(REPO_ROOT, LAYOUT_PATHS.widgetsDir);
 const THEMES_DIR = path.join(REPO_ROOT, LAYOUT_PATHS.themesDir);
-const UI_COMPONENTS_DIR = path.join(REPO_ROOT, "packages/ui/src/components");
+
+// Invariant 2: the widget-namespace scopes are never allowlisted — any color
+// literal under these repo-relative prefixes fails outright.
+const WIDGET_NAMESPACE_PREFIXES = LAYOUT_PATHS.colorLiteralScopes
+  .filter((scope) => !scope.grandfathered)
+  .map((scope) => `${scope.dir}/`);
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".mjs", ".js", ".jsx"]);
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git", ".turbo", ".output"]);
@@ -226,6 +248,8 @@ function guardLayout(report) {
     ["themes index", LAYOUT_PATHS.themesIndex],
     ["widget-kind registry", LAYOUT_PATHS.widgetRegistry],
     ["part-id registry", LAYOUT_PATHS.partsRegistry],
+    ...LAYOUT_PATHS.colorLiteralScopes.map((scope) => ["color-literal scope", scope.dir]),
+    ...LAYOUT_PATHS.severityVocabScopes.map((dir) => ["severity-vocab scope", dir]),
     ...LAYOUT_PATHS.noAnyScopes.map((scope) => ["no-any scope", scope.dir]),
   ];
   let ok = true;
@@ -252,13 +276,12 @@ function guardLayout(report) {
   return ok;
 }
 
-/** Invariant 2's live scan: color-literal counts per file for both scopes. */
+/** Invariant 2's live scan: color-literal counts per file for all scopes. */
 function scanColorLiterals() {
   const perFile = new Map();
-  const files = [
-    ...walkFiles(WIDGETS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file)) || file.endsWith(".css")),
-    ...walkFiles(UI_COMPONENTS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file)) || file.endsWith(".css")),
-  ];
+  const files = LAYOUT_PATHS.colorLiteralScopes.flatMap((scope) =>
+    walkFiles(path.join(REPO_ROOT, scope.dir), (file) => CODE_EXTENSIONS.has(path.extname(file)) || file.endsWith(".css")),
+  );
   for (const file of files) {
     // Theme tokens.css AND scheme-*.css files declare the preset's token
     // VALUES — literals on custom-property declaration lines are their
@@ -291,7 +314,7 @@ function updateBaseline(report) {
       "Regenerate with: node scripts/widget-check/grep-invariants.mjs --update-baseline. " +
       "Files on this list are legacy code slated for deletion at K1-K4: their literal count is an UPPER BOUND " +
       "(edits must shrink it, growth fails). New files and everything under " +
-      `${LAYOUT_PATHS.widgetsDir}/** are never allowlisted — any color literal there fails.`,
+      `${WIDGET_NAMESPACE_PREFIXES.map((prefix) => `${prefix}**`).join(" and ")} are never allowlisted — any color literal there fails.`,
     updated: new Date().toISOString(),
     files: sorted,
   };
@@ -352,9 +375,9 @@ const body = async () => {
     const grown = [];
     const widgetsWithLiterals = [];
     for (const [rel, info] of perFile) {
-      const inWidgets = rel.startsWith(`${LAYOUT_PATHS.widgetsDir}/`);
+      const inWidgetNamespace = WIDGET_NAMESPACE_PREFIXES.some((prefix) => rel.startsWith(prefix));
       const allowed = baseline.files[rel];
-      if (inWidgets) {
+      if (inWidgetNamespace) {
         widgetsWithLiterals.push(`${rel}:${info.hits.length}`);
       } else if (allowed === undefined) {
         unlisted.push(`${rel} (${info.hits.length} literal(s))`);
@@ -379,7 +402,7 @@ const body = async () => {
       const grandfathered = Object.keys(baseline.files).length;
       report.pass(
         "color-literals",
-        `zero literals in widgets/**; packages/ui grandfather list intact (baseline ${baseline.updated}, ${grandfathered} file(s))`,
+        `zero literals in the widget namespace; packages/ui grandfather list intact (baseline ${baseline.updated}, ${grandfathered} file(s))`,
       );
     }
   }
@@ -408,10 +431,9 @@ const body = async () => {
 
   // ── Invariant 4: severity vocabulary + no-root ─────────────────────────
   {
-    const files = [
-      ...walkFiles(WIDGETS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
-      ...walkFiles(UI_COMPONENTS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
-    ];
+    const files = LAYOUT_PATHS.severityVocabScopes.flatMap((dir) =>
+      walkFiles(path.join(REPO_ROOT, dir), (file) => CODE_EXTENSIONS.has(path.extname(file))),
+    );
     const violations = [];
     for (const file of files) {
       for (const hit of countMatches(readLines(file), OLD_SEVERITY_PATTERNS)) {

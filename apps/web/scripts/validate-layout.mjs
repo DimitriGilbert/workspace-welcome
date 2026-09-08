@@ -37,7 +37,7 @@ const FIXTURE_MODULES = ["/src/widgets/lab/lab-preset.ts"];
  */
 const LAYOUT_MODULES = {
   registry: "/src/widgets/registry.ts",
-  themes: "/src/widgets/themes/index.ts",
+  themes: "/src/components/themes/index.ts",
   validator: "/src/widgets/runtime/validate-layout.ts",
   flows: "/src/widgets/runtime/flows.ts",
 };

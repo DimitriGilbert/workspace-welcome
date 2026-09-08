@@ -4,13 +4,13 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { themeSearchSchema } from "./-theme-shell";
 import { RenderLayout } from "@/widgets/runtime/render-layout";
 import { SchemeStylesheets, useWidgetPrefs } from "@/widgets/theme-prefs";
-import { themeCustomCssHref } from "@/widgets/themes";
+import { themeCustomCssHref } from "@/components/themes";
 import {
   DEFAULT_THEME_ID,
   firstThemePreset,
   getThemePreset,
   resolveThemeScheme,
-} from "@/widgets/themes";
+} from "@/components/themes";
 
 /**
  * `/` IS the widget system (owner order: single entrypoint over the preset
@@ -105,7 +105,7 @@ function NoThemesRegistered() {
       </h1>
       <p className="text-xs leading-relaxed text-muted-foreground">
         The preset registry is empty — no{" "}
-        <span className="font-mono">widgets/themes/*/preset.ts</span> module
+        <span className="font-mono">components/themes/*/preset.ts</span> module
         matched. Add a theme preset to render the board.
       </p>
       <Link

@@ -28,8 +28,8 @@ import {
   SelectValue,
 } from "@workspace-welcome/ui/components/select";
 
-import { getThemePreset, themePresets } from "../themes";
-import type { ThemeScheme } from "../themes";
+import { getThemePreset, themePresets } from "../../components/themes";
+import type { ThemeScheme } from "../../components/themes";
 import { useWidgetPrefs } from "../theme-prefs";
 
 export function ThemePicker({

@@ -7,7 +7,7 @@
  * Contract under test today:
  * 1. registry-sync — the script's theme list mirrors the preset registry
  *    on disk (the ids declared by each theme's preset.ts module under
- *    apps/web/src/widgets/themes). Divergence FAILs: the list is a sync
+ *    apps/web/src/components/themes). Divergence FAILs: the list is a sync
  *    tripwire, not a second source of truth.
  * 2. `/?preset=<slug>` directly renders THAT slug's board scope hydrated
  *    (`[data-ww-theme="<slug>"][data-theme-scope]` with the board's
@@ -35,13 +35,13 @@ export const name = "navigation";
 
 /**
  * Themes the app registers — MUST mirror the ids declared by each theme's
- * `preset.ts` module under apps/web/src/widgets/themes (verified against
+ * `preset.ts` module under apps/web/src/components/themes (verified against
  * disk at run start; divergence FAILs).
  */
 const REGISTERED_THEMES = ["mission-control", "bento", "meadow"];
 
 const THEMES_DIR = fileURLToPath(
-  new URL("../../../apps/web/src/widgets/themes", import.meta.url),
+  new URL("../../../apps/web/src/components/themes", import.meta.url),
 );
 
 /**
@@ -74,7 +74,7 @@ export async function run(page, report, ctx) {
     if (unregistered.length > 0 || unlisted.length > 0) {
       report.fail(
         `interaction:${name}`,
-        `theme list out of sync with apps/web/src/widgets/themes/*/preset.ts (listed but not registered: [${unregistered.join(", ")}]; registered but not listed: [${unlisted.join(", ")}])`,
+        `theme list out of sync with apps/web/src/components/themes/*/preset.ts (listed but not registered: [${unregistered.join(", ")}]; registered but not listed: [${unlisted.join(", ")}])`,
       );
       return { ok: false };
     }

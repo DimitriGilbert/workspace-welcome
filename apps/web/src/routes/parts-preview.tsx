@@ -74,8 +74,8 @@ import { useWorkspace, WorkspaceProvider } from "@/widgets/contexts/workspace-co
 import { dayKey } from "@/lib/scan-metrics";
 import { parseSize, SIZE_LADDER } from "@/widgets/runtime/size-class";
 import type { SizeClass } from "@/widgets/runtime/size-class";
-import { themePresets } from "@/widgets/themes";
-import type { ThemePreset } from "@/widgets/themes";
+import { themePresets } from "@/components/themes";
+import type { ThemePreset } from "@/components/themes";
 
 /**
  * Parts preview — the dev-only P5 route (master plan §3.2, §5 P5).
