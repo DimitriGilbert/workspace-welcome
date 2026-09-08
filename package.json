@@ -24,6 +24,7 @@
     "widget-check:self-test": "node scripts/widget-check/run.mjs --suite self-test",
     "widget-check:interactions": "node scripts/widget-check/interactions/run.mjs",
     "widget-check:sentinel": "node scripts/widget-check/legacy-sentinel.mjs",
+    "widget-check:settings": "node scripts/widget-check/settings-check.mjs",
     "widget-check:validate-layout": "node apps/web/scripts/validate-layout.mjs",
     "widget-check:snapshot": "node scripts/widget-check/snapshot.mjs"
   },
