@@ -1,6 +1,6 @@
 /*
  * Meadow custom skin (master plan §5 T2-meadow) — chrome + page structure,
- * loaded by the /app route head (stripped by ?bare=1). This file composes
+ * linked by the theme shell (stripped by ?bare=1). This file composes
  * the scope tokens declared in tokens.css; it never declares palette
  * values itself (grep-invariant #3 — every surface below is a var() or a
  * color-mix over var()).

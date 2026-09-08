@@ -4,7 +4,7 @@
  * `routes/designs/mission-control/project.$.tsx`).
  *
  * The design switches the page body through header tabs (files, artifacts,
- * ideation); the /app project page has no page-level views (routes are
+ * ideation); the project page has no page-level views (routes are
  * frozen), so the console is a widget kind whose shell tabs — the ONE
  * WidgetTabs implementation — switch the same three surfaces. Files and
  * artifacts are the `list/` parts (the sanctioned shared-component import

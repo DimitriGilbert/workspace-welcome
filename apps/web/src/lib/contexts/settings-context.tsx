@@ -1,5 +1,6 @@
 /**
- * SettingsProvider — the /app-scoped settings view (master plan §3.4, D5).
+ * SettingsProvider — the widget system's settings substrate (master plan
+ * §3.4, D5).
  *
  * A thin typed view over the `settings.get` cache entry: the raw query
  * result (exposed, never copied), convenience reads for the command fields
@@ -7,8 +8,8 @@
  * the settings page of the widget system writes through this wrapper, so
  * every reader of `useSettings()` sees the persisted shape after a save.
  *
- * Scoping (data plan R7): mounted in the `/app` tree only until K5 — never
- * `__root.tsx`; legacy routes stay machinery-free.
+ * Scoping (data plan R7): mounted per page by the widget-system shells
+ * (`render-layout`, the settings page, parts-preview) — never `__root.tsx`.
  *
  * Procedure access: `lib/queries/` is the only sanctioned caller of
  * `trpc.<proc>.queryOptions` for SHARED procedures. `settings.get` is not
@@ -73,7 +74,7 @@ export function useSettings(): SettingsContextValue {
   const ctx = useContext(SettingsContext);
   if (ctx === null) {
     throw new Error(
-      "SettingsProvider missing — a widget requires it, but no SettingsProvider is mounted above. Mount the /app provider stack (settings first) around the page.",
+      "SettingsProvider missing — a widget requires it, but no SettingsProvider is mounted above. Mount the widget provider stack (settings first) around the page.",
     );
   }
   return ctx;

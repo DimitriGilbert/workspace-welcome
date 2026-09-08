@@ -8,7 +8,7 @@ import { LabPage } from "@/components/lab/lab-page";
  *
  * Moved to the top level (owner order: nothing lives under `/app` — `/` is
  * THE app and the lab is a harness bench, not an app page). The old
- * `/app/__lab` path redirects here through the dead `/app/$theme` alias.
+ * `/app/__lab` path died with the `/app` kill — it 404s; there is no alias.
  *
  * The file name uses the generator's `[...]` escape: a bare `__lab.tsx`
  * parses as a PATHLESS route (leading-underscore convention) and the URL
