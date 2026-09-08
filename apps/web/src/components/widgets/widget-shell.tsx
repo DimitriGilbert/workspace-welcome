@@ -48,7 +48,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { resolveSizeClass, type ParsedSize, type SizeClass } from "./size-class";
+import { resolveSizeClass, type ParsedSize, type SizeClass } from "@/lib/widget/size-class";
 
 /** Canonical severity a shell can signal (decision 8). Themes map these to
  * `--sev-*` tokens; `neutral` is the unaccented default. */

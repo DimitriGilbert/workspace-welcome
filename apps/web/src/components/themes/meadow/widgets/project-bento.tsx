@@ -20,12 +20,12 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { ageMs } from "@/lib/format";
 
-import { getFlow } from "@/widgets/runtime/flows";
-import { parseSize } from "@/widgets/runtime/size-class";
-import type { SizeClass } from "@/widgets/runtime/size-class";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import { getFlow } from "@/lib/widget/flows";
+import { parseSize } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { MeadowProjectTile } from "./tile";
 

@@ -55,8 +55,8 @@ import {
   GitActionsToolbar,
   NoteEditor,
 } from "@/widgets/parts";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 import type { ReportAlertRow } from "@/lib/report-view";
 
 type PageTab =

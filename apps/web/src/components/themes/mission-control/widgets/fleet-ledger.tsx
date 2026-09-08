@@ -51,8 +51,8 @@ import { pulseCells, updatedMs } from "@/lib/scan-metrics";
 import { stackIcon } from "@/lib/icons";
 import { ProjectLed } from "@/widgets/parts";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 /**
  * Fleet helpers shared by the console kinds. `fleetMatches` is the design's

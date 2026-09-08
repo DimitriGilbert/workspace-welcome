@@ -17,7 +17,8 @@
  */
 import "./lab-tokens.css";
 
-import { RenderLayout } from "../runtime/render-layout";
+import { RenderLayout } from "@/components/widgets/render-layout";
+
 import { SelfTestPanel } from "./self-test";
 import { LAB_THEME, labConsoleViews, labPreset } from "./lab-preset";
 

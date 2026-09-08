@@ -41,7 +41,7 @@ import { useReportRun } from "@/lib/use-report";
 
 import { BranchSwitcherPart, GitActionsToolbarPart } from "@/widgets/parts";
 import { useProject } from "@/widgets/contexts/project-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, GitGlyphs, RecencyRing } from "../bits";
 

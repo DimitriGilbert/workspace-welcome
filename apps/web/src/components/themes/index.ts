@@ -14,8 +14,8 @@
  */
 import type { ComponentType } from "react";
 
-import type { PageLayout } from "@/widgets/runtime/layout-types";
-import type { ConsoleView } from "@/widgets/runtime/render-layout";
+import type { PageLayout } from "@/lib/widget/layout-types";
+import type { ConsoleView } from "@/components/widgets/render-layout";
 
 /**
  * One color scheme a preset ships (owner order: a preset may carry more than

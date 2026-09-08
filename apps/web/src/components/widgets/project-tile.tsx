@@ -1,12 +1,12 @@
 /**
  * ProjectTile — THE core widget kind (master plan §3.3, W2's flows contract).
  *
- * The `"projects"` flow generator (`widgets/runtime/flows.ts`) stamps one
+ * The `"projects"` flow generator (`lib/widget/flows.ts`) stamps one
  * node per scanned project with `widget: "project-tile"` and
  * `props: { path, score }`; this kind is its registered renderer. It is a
  * common widget, so it lives in the registry's static core layer
- * (`widgets/core/` — the home of theme-independent kinds) instead of any
- * theme directory.
+ * (`components/widgets/` — the home of theme-independent kinds) instead of
+ * any theme directory.
  *
  * Rung presentation (self-degradation precedence, §3.3): the authored
  * ladder is the author's tool, so the tile reads `useWidgetSize()` and
@@ -33,10 +33,11 @@ import { ScoreChip } from "@workspace-welcome/ui/components/score-ring";
 import { compactAge } from "@/lib/format";
 import { ledState, pulseCells } from "@/lib/scan-metrics";
 
-import { useWorkspace } from "../contexts/workspace-context";
-import type { RegisteredWidgetProps } from "../registry";
-import { parseSize, rankOf } from "../runtime/size-class";
-import { useWidgetSize } from "../runtime/widget-shell";
+import { parseSize, rankOf } from "@/lib/widget/size-class";
+import { useWorkspace } from "@/widgets/contexts/workspace-context";
+
+import type { RegisteredWidgetProps } from "./registry";
+import { useWidgetSize } from "./widget-shell";
 
 /** Node props as the flow stamps them (`WidgetNode.props` is JsonValue). */
 interface ProjectTileProps {

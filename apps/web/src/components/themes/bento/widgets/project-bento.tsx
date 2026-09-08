@@ -26,11 +26,11 @@ import { useNavigate } from "@tanstack/react-router";
 
 import { ageMs } from "@/lib/format";
 
-import { getFlow } from "@/widgets/runtime/flows";
-import { parseSize } from "@/widgets/runtime/size-class";
-import type { SizeClass } from "@/widgets/runtime/size-class";
+import { getFlow } from "@/lib/widget/flows";
+import { parseSize } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, RecencyRing } from "../bits";
 import { SizeLegend } from "../bits";

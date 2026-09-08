@@ -16,8 +16,8 @@ import {
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 interface RootRow {
   id: string;

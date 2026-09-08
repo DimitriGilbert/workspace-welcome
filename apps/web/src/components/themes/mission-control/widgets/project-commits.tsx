@@ -16,8 +16,8 @@ import {
 
 import { relativeTime } from "@/lib/format";
 import { useProject } from "@/widgets/contexts/project-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 interface CommitRow {
   hash: string;

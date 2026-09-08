@@ -8,7 +8,8 @@
  *                         useQuery(, useMutation( (context hooks are the
  *                         allowed data path).
  *   2. color-literals     zero color literals in apps/web/src/widgets/**,
- *                         apps/web/src/components/themes/** and
+ *                         apps/web/src/components/{themes,widgets}/**,
+ *                         apps/web/src/lib/widget/** and
  *                         packages/ui/src/components/** — with a CLOSED
  *                         grandfather allowlist for legacy packages/ui files
  *                         (baseline scan, M2). Files on the list are bounded
@@ -24,14 +25,15 @@
  *                         `no-root` in widgets/**, components/themes/** and
  *                         ui components/**.
  *   5. theme-widgets      theme widget-kind files import ≥ 1 of
- *                         parts/runtime/contexts/ui; no component name
- *                         collides with a registry part id; `d="M` path
- *                         data in themes is flagged (WARN).
+ *                         parts/widgets-engine/lib-widget/contexts/ui; no
+ *                         component name collides with a registry part id;
+ *                         `d="M` path data in themes is flagged (WARN).
  *   6. validate-layout    the validate-layout script runs here when present
  *                         (it lands with W4; until then a WARN note).
  *   7. no-any             zero any-typing in the system namespace
- *                         (widgets, components/themes, scripts/widget-check,
- *                         packages/ui/src) — casts included.
+ *                         (widgets, components/themes, components/widgets,
+ *                         lib/widget, scripts/widget-check, packages/ui/src)
+ *                         — casts included.
  *
  * Layout honesty (P0.3): LAYOUT_PATHS below is the single source of truth
  * for where the widget system lives; the anti-vacuous guard runs before
@@ -70,7 +72,7 @@ const LAYOUT_PATHS = {
   // theme preset registry barrel (glob-based, location-relative)
   themesIndex: "apps/web/src/components/themes/index.ts",
   // widget-kind registry (core kinds + themes glob)
-  widgetRegistry: "apps/web/src/widgets/registry.ts",
+  widgetRegistry: "apps/web/src/components/widgets/registry.ts",
   // part-id registry read by invariant 5's collision check
   partsRegistry: "apps/web/src/widgets/parts/registry.ts",
   // invariant 2's color-literal scan scopes. grandfathered: false marks the
@@ -79,6 +81,8 @@ const LAYOUT_PATHS = {
   colorLiteralScopes: [
     { dir: "apps/web/src/widgets", grandfathered: false },
     { dir: "apps/web/src/components/themes", grandfathered: false },
+    { dir: "apps/web/src/components/widgets", grandfathered: false },
+    { dir: "apps/web/src/lib/widget", grandfathered: false },
     { dir: "packages/ui/src/components", grandfathered: true },
   ],
   // invariant 4's severity-vocabulary scan scopes (old "error"/"warn" vocab
@@ -86,6 +90,8 @@ const LAYOUT_PATHS = {
   severityVocabScopes: [
     "apps/web/src/widgets",
     "apps/web/src/components/themes",
+    "apps/web/src/components/widgets",
+    "apps/web/src/lib/widget",
     "packages/ui/src/components",
   ],
   // invariant 7's no-any scan scopes, each with its historical file filter
@@ -93,6 +99,8 @@ const LAYOUT_PATHS = {
   noAnyScopes: [
     { dir: "apps/web/src/widgets", files: "code" },
     { dir: "apps/web/src/components/themes", files: "code" },
+    { dir: "apps/web/src/components/widgets", files: "code" },
+    { dir: "apps/web/src/lib/widget", files: "code" },
     { dir: "scripts/widget-check", files: ".mjs" },
     { dir: "packages/ui/src", files: "code" },
   ],
@@ -486,7 +494,8 @@ const body = async () => {
       const content = readFileSync(file, "utf8");
       const importsSystem =
         content.includes("@/widgets/parts") ||
-        content.includes("@/widgets/runtime") ||
+        content.includes("@/components/widgets") ||
+        content.includes("@/lib/widget") ||
         content.includes("@/widgets/contexts") ||
         content.includes("@workspace-welcome/ui") ||
         content.includes("../parts") ||

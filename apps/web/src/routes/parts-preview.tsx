@@ -72,8 +72,8 @@ import { ReportProvider } from "@/widgets/contexts/report-context";
 import { SettingsProvider } from "@/widgets/contexts/settings-context";
 import { useWorkspace, WorkspaceProvider } from "@/widgets/contexts/workspace-context";
 import { dayKey } from "@/lib/scan-metrics";
-import { parseSize, SIZE_LADDER } from "@/widgets/runtime/size-class";
-import type { SizeClass } from "@/widgets/runtime/size-class";
+import { parseSize, SIZE_LADDER } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
 import { themePresets } from "@/components/themes";
 import type { ThemePreset } from "@/components/themes";
 

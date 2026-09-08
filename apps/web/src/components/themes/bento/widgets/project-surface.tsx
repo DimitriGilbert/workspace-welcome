@@ -16,7 +16,7 @@ import { CommitsListPart, FilesList } from "@/widgets/parts";
 import { useProject } from "@/widgets/contexts/project-context";
 
 import { onSurfaceTab } from "../surface-tabs";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile } from "../bits";
 

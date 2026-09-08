@@ -28,8 +28,8 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { ageMs } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { useProject } from "@/widgets/contexts/project-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** Last path segment of an absolute path — for the trail label. Ported from
  * the design's derive helper; one line of presentation formatting. */

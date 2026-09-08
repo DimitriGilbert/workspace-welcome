@@ -19,7 +19,7 @@ import { Chart } from "@workspace-welcome/ui/components/chart";
 import { healthSummary, stackDistribution, weeklyActivity } from "@/lib/scan-metrics";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, HealthGauge, RollNumber } from "../bits";
 import { STACK_RAMP } from "../metrics";

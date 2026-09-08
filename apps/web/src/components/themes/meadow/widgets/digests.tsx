@@ -35,8 +35,8 @@ import { ageMs } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
 import type { ReportStatus } from "@/widgets/contexts/report-context";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** Fill-box wrapper every rung renders through. */
 function Fill({ children }: { children: ReactNode }) {

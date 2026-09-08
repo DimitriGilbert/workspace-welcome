@@ -26,9 +26,9 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { relativeTime } from "@/lib/format";
 import { useProject } from "@/widgets/contexts/project-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { BranchSwitcher, GitActionsToolbar } from "@/widgets/parts";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** History column window — the design's CommitHistoryCell presentation (the
  * ui `CommitGraph`, fed by the ONE cached commit-log entry, limit 200): a

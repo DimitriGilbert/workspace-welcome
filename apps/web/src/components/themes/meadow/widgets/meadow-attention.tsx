@@ -14,8 +14,8 @@ import { Bell, Plus } from "lucide-react";
 import { SoftNumber } from "./bits";
 import { attentionProjects } from "@/lib/scan-metrics";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** Chips shown before collapsing into a "+N more" chip. */
 const PREVIEW_CHIPS = 8;

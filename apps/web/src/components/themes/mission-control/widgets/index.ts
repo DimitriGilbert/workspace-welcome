@@ -1,7 +1,7 @@
 /**
  * Mission Control's widget kinds (master plan §3.3, §5 T1/T2).
  *
- * The eager glob in `widgets/registry.ts` picks this module up and merges
+ * The eager glob in `components/widgets/registry.ts` picks this module up and merges
  * its `widgetDefs` into the validated registry — theme waves never edit
  * the shared registry file, and duplicate ids throw at module evaluation.
  *
@@ -22,7 +22,7 @@
  * same parts the command bar's Actions menu opens — so every flow has a
  * board surface without a second flow implementation.
  */
-import type { WidgetDef } from "@/widgets/registry";
+import type { WidgetDef } from "@/components/widgets/registry";
 
 import { McActions } from "./actions";
 import { McActivityHeatmap, McAlertsDonut, McDirtyLeaders, McStackMix } from "./analytics";

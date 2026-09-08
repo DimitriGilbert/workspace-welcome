@@ -17,8 +17,8 @@ import { Stat } from "@workspace-welcome/ui/components/stat";
 
 import { formatCompact } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 import { McReportGate } from "./report-shared";
 

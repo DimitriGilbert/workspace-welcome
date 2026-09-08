@@ -53,12 +53,12 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { packGrid } from "@/lib/grid-layout/pack-grid";
 import type { PackItem } from "@/lib/grid-layout/pack-grid";
+import { getPageSession, subscribeSession } from "@/lib/widget/grid-session";
+import { nodeSizeForBreakpoint } from "@/lib/widget/layout-types";
+import type { WidgetNode } from "@/lib/widget/layout-types";
+import { parseSize, resolveSizeClass, SIZE_LADDER } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
 
-import { getPageSession, subscribeSession } from "./grid-session";
-import { nodeSizeForBreakpoint } from "./layout-types";
-import type { WidgetNode } from "./layout-types";
-import { parseSize, resolveSizeClass, SIZE_LADDER } from "./size-class";
-import type { SizeClass } from "./size-class";
 import { GridItemContext } from "./widget-shell";
 import { useGridDrag } from "./use-grid-drag";
 import type { DragWidgetMeta, ResizeEdge } from "./use-grid-drag";

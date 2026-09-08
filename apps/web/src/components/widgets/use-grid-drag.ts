@@ -35,10 +35,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import { commitArrangement, getBaseline } from "./grid-session";
-import type { SessionPlacement } from "./grid-session";
 import { settleArrangement } from "@/lib/grid-layout/pack-grid";
-import type { ParsedSize } from "./size-class";
+import { commitArrangement, getBaseline } from "@/lib/widget/grid-session";
+import type { SessionPlacement } from "@/lib/widget/grid-session";
+import type { ParsedSize } from "@/lib/widget/size-class";
 
 /** Resize affordance directions: the four edges (north/south/east/west) and
  * the four corners. North/west growth moves the widget's origin (x/y shift

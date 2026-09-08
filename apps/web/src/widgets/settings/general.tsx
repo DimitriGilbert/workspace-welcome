@@ -10,7 +10,7 @@ import { useTRPC } from "@/utils/trpc";
 import { relativeTime } from "@/lib/format";
 import { useReportRun } from "@/lib/use-report";
 import { AddRootSheet } from "@/components/add-root-sheet";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /**
  * SettingsGeneral — the /settings entries with no dedicated widget home, in

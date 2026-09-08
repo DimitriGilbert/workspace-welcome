@@ -19,8 +19,8 @@ import { Button } from "@workspace-welcome/ui/components/button";
 import { Donut, HBars, SLICE_COLORS, SoftNumber } from "./bits";
 import { formatCost, formatTokens } from "@/lib/format";
 import { useReport } from "@/widgets/contexts/report-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 import type { ReportView } from "@/lib/report-view";
 
 function StatCell({

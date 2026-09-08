@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { themeSearchSchema } from "./-theme-shell";
-import { RenderLayout } from "@/widgets/runtime/render-layout";
+import { RenderLayout } from "@/components/widgets/render-layout";
 import { SchemeStylesheets, useWidgetPrefs } from "@/widgets/theme-prefs";
 import { themeCustomCssHref } from "@/components/themes";
 import {

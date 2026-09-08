@@ -23,7 +23,7 @@
 import type { PageLayout, RegionNode, WidgetNode } from "./layout-types";
 import { parseSize, rankOf } from "./size-class";
 import type { SizeClass } from "./size-class";
-import type { ContextKey } from "../registry";
+import type { ContextKey } from "@/components/widgets/registry";
 
 /** Structural slice of a WidgetDef the validator needs (no React). */
 export interface WidgetMeta {

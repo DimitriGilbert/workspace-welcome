@@ -28,9 +28,9 @@ import {
   SelectValue,
 } from "@workspace-welcome/ui/components/select";
 
-import { getThemePreset, themePresets } from "../../components/themes";
-import type { ThemeScheme } from "../../components/themes";
-import { useWidgetPrefs } from "../theme-prefs";
+import { getThemePreset, themePresets } from "@/components/themes";
+import type { ThemeScheme } from "@/components/themes";
+import { useWidgetPrefs } from "@/widgets/theme-prefs";
 
 export function ThemePicker({
   theme,

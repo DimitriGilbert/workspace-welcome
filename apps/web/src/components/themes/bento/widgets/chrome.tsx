@@ -31,8 +31,8 @@ import { formatElapsed } from "@/lib/format";
 import { matchProject } from "@/lib/search";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { ThemePicker } from "@/widgets/runtime/theme-picker";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { ThemePicker } from "@/components/widgets/theme-picker";
 
 import { AddRootDialog, CloneScriptDialog, CreateProjectDialog, ReportRunDialog } from "../dialogs";
 

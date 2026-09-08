@@ -5,7 +5,7 @@
  * its band so it sits tight above the mosaic, exactly the design's rhythm.
  */
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { SizeLegend } from "../bits";
 

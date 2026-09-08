@@ -23,8 +23,8 @@ import { useId, useMemo } from "react";
 
 import { useReport } from "@/widgets/contexts/report-context";
 import type { ReportView } from "@/lib/report-view";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 import { McReportGate } from "./report-shared";
 

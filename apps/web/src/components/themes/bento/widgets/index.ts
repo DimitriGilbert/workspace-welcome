@@ -14,7 +14,7 @@
  * grouped state tiles, the pulse-summary slice, the full repo report band,
  * the files/artifacts/ideation surface, and the commit history band.
  */
-import type { WidgetDef } from "@/widgets/registry";
+import type { WidgetDef } from "@/components/widgets/registry";
 
 import { BentoActivity, BentoHealth, BentoStacks } from "./vitals";
 import { BentoAttention, BentoSignals } from "./signals";

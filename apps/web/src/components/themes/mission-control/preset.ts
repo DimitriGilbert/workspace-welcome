@@ -31,7 +31,7 @@
  */
 import "./tokens.css";
 
-import type { ConsoleView } from "@/widgets/runtime/render-layout";
+import type { ConsoleView } from "@/components/widgets/render-layout";
 import type { ThemeScheme, ThemePreset } from "@/components/themes";
 
 import { McCommandRegister } from "./widgets/command-bar";

@@ -21,8 +21,8 @@ import { Stat } from "@workspace-welcome/ui/components/stat";
 import { relativeTime } from "@/lib/format";
 import { dayKey } from "@/lib/scan-metrics";
 import { useProject } from "@/widgets/contexts/project-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** The design's span rule: cover the real log span, 12–26 weeks, legible. */
 function pulseWeeks(first: number | undefined, last: number | undefined): number {

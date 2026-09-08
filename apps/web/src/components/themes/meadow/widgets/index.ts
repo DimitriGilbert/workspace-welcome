@@ -3,7 +3,7 @@
  * the owner's verdict — the context rail is gone, every digest is its own
  * kind).
  *
- * The eager glob in `widgets/registry.ts` picks this module up and merges
+ * The eager glob in `components/widgets/registry.ts` picks this module up and merges
  * its `widgetDefs` into the validated registry — theme waves never edit
  * the shared registry file, and duplicate ids throw at module evaluation.
  *
@@ -20,7 +20,7 @@
  * the report-at-a-glance card (stats + language donut) packed in the
  * right-hand rail.
  */
-import type { WidgetDef } from "@/widgets/registry";
+import type { WidgetDef } from "@/components/widgets/registry";
 
 import { MeadowAttention } from "./meadow-attention";
 import { MeadowHeader } from "./meadow-header";

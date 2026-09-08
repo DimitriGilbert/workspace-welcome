@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ProjectKnownGate, themeSearchSchema } from "./-theme-shell";
-import { RenderLayout } from "@/widgets/runtime/render-layout";
+import { RenderLayout } from "@/components/widgets/render-layout";
 import { SchemeStylesheets, useWidgetPrefs } from "@/widgets/theme-prefs";
 import {
   DEFAULT_THEME_ID,

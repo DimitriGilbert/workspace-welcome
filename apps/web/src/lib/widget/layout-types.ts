@@ -4,7 +4,7 @@
  * Pure data, JSON-shape by construction: presets reference widgets by registry id and
  * carry only serializable values. `props` is `Record<string, JsonValue>` — never JSX;
  * content variants belong to the widget component, not the layout. Flow regions are
- * code seams registered by `from` key (W2's `widgets/runtime/flows.ts`); generators
+ * code seams registered by `from` key (W2's `lib/widget/flows.ts`); generators
  * run INSIDE the provider stack at render time and never call tRPC. The resolved page
  * (flat `WidgetNode[]` with concrete placements) is the exact artifact a future
  * persistence layer would save.

@@ -253,9 +253,11 @@ Per-file map:
 
 1. No agent on this devbox can see pixels (Read returns CDN URLs). Visual verdicts come from:
    ImageMagick forensics + DOM probes; semantic claims only with quoted tool output.
-2. Known capture artifact: the TanStack Router Devtools badge (dev-only, lazy-mount race,
-   `routes/__root.tsx:114`, present ~1/3 of captures). Vision comparisons EXCLUDE bbox
-   (0,755)–(165,800) — fixed-position viewport chrome, no app content ever renders there.
+2. Known capture artifacts (dev-only, lazy-mount races, excluded from comparisons with blanked
+   zones on BOTH sides): TanStack Router Devtools badge — bbox (0,755)–(165,800); React Query
+   Devtools flame badge — bbox (1200,735)–(1275,800) (proven nondeterministic 3-of-6 vs 4-of-6
+   across 12 captures, PA.2 validation). Fixed-position viewport chrome; no app content renders
+   in either zone.
 3. A/B captures: fresh browser per capture, explicit tab selection when a specific panel is
    under test, probe controls on both sides of any code flip.
 

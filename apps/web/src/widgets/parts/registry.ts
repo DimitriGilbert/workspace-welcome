@@ -14,7 +14,7 @@
 import { MIN_CONTENT as LED_MIN_CONTENT } from "@workspace-welcome/ui/components/led";
 import { MIN_CONTENT as PULSE_STRIP_MIN_CONTENT } from "@workspace-welcome/ui/components/pulse-strip";
 
-import { definePart } from "@/widgets/runtime/part";
+import { definePart } from "@/lib/widget/part";
 
 import { AttentionList } from "./attention-list";
 import { FormAddRoot } from "./form/add-root";

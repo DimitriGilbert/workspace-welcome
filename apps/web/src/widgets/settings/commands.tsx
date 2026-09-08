@@ -5,7 +5,7 @@ import { Input } from "@workspace-welcome/ui/components/input";
 import { Label } from "@workspace-welcome/ui/components/label";
 
 import { useSettings } from "@/widgets/contexts/settings-context";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /**
  * SettingsCommands — editor + terminal open commands (the /settings page's

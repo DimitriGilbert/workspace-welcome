@@ -28,8 +28,8 @@ import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
 
 import { projectHref } from "./fleet-ledger";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 const SEV_LABEL: Record<AlertSeverity, string> = {
   critical: "ERR",

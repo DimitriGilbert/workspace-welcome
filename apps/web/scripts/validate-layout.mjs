@@ -36,10 +36,10 @@ const FIXTURE_MODULES = ["/src/widgets/lab/lab-preset.ts"];
  * of surfacing as an opaque ssrLoadModule error (P0.3).
  */
 const LAYOUT_MODULES = {
-  registry: "/src/widgets/registry.ts",
+  registry: "/src/components/widgets/registry.ts",
   themes: "/src/components/themes/index.ts",
-  validator: "/src/widgets/runtime/validate-layout.ts",
-  flows: "/src/widgets/runtime/flows.ts",
+  validator: "/src/lib/widget/validate-layout.ts",
+  flows: "/src/lib/widget/flows.ts",
 };
 
 async function loadLayoutModules() {

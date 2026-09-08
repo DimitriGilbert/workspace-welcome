@@ -30,7 +30,7 @@ import { stackIcon } from "@/lib/icons";
 
 import { useReport } from "@/widgets/contexts/report-context";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, CadenceArea, GitGlyphs, RecencyRing } from "../bits";
 import { DataCarousel } from "../data-carousel";

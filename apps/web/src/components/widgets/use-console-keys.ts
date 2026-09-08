@@ -20,7 +20,7 @@
  */
 import { useEffect } from "react";
 
-import { useWorkspace } from "../contexts/workspace-context";
+import { useWorkspace } from "@/widgets/contexts/workspace-context";
 
 export interface ConsoleKeysOptions {
   /** View ids in 1..N order. Omit when the page has no views. */

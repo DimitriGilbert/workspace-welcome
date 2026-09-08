@@ -8,11 +8,11 @@
  * `PageLayout`, so `validate-layout` (grep-invariant #6) checks it exactly
  * like a theme preset — the runner loads this module as a fixture.
  */
-import type { ConsoleView } from "../runtime/render-layout";
-import type { PageLayout, WidgetNode } from "../runtime/layout-types";
-import { SIZE_LADDER, parseSize, rankOf } from "../runtime/size-class";
-import type { SizeClass } from "../runtime/size-class";
-import { widgetRegistry } from "../registry";
+import type { ConsoleView } from "@/components/widgets/render-layout";
+import type { PageLayout, WidgetNode } from "@/lib/widget/layout-types";
+import { SIZE_LADDER, parseSize, rankOf } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
+import { widgetRegistry } from "@/components/widgets/registry";
 
 /** The lab scope's slug — `lab-tokens.css` declares its fallback tokens. */
 export const LAB_THEME = "__lab";

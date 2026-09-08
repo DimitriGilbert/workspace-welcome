@@ -23,7 +23,7 @@ import { attentionProjects, dirtyLeaders, severityCounts } from "@/lib/scan-metr
 import type { SeverityCounts } from "@/lib/scan-metrics";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile, GitGlyphs, RollNumber } from "../bits";
 

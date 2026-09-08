@@ -49,7 +49,7 @@ import { aiUsageLeaders, alertTally, aggregateCadence, languageRows } from "@/li
 import type { AlertTally } from "@/lib/scan-metrics";
 
 import { useReport } from "@/widgets/contexts/report-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 
 import { BentoTile } from "../bits";
 import { DataCarousel } from "../data-carousel";

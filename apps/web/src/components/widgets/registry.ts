@@ -4,8 +4,8 @@
  * Two layers merge into one validated map:
  *
  * 1. **Static core** — theme-independent common kinds, imported eagerly from
- *    `widgets/core/` (their home; the map here stays the single static
- *    registry site).
+ *    this directory (`project-tile.tsx` their home; the map here stays the
+ *    single static registry site).
  * 2. **Theme kinds** — every `components/themes/<slug>/widgets/index.ts` is
  *    picked up by an eager `import.meta.glob`, so parallel theme waves never
  *    edit this shared file. A theme module exports its kinds as
@@ -23,9 +23,10 @@
  */
 import type { ComponentType } from "react";
 
-import { ProjectTile } from "./core/project-tile";
-import type { WidgetNode } from "./runtime/layout-types";
-import type { SizeClass } from "./runtime/size-class";
+import type { WidgetNode } from "@/lib/widget/layout-types";
+import type { SizeClass } from "@/lib/widget/size-class";
+
+import { ProjectTile } from "./project-tile";
 
 /** A context provider key a widget can require (§3.3 `WidgetDef.requires`). */
 export type ContextKey = "workspace" | "project" | "report" | "settings";
@@ -99,7 +100,7 @@ export function mergeValidated(
 }
 
 const themeWidgetModules = import.meta.glob<ThemeWidgetModule>(
-  "../components/themes/*/widgets/index.ts",
+  "../themes/*/widgets/index.ts",
   { eager: true },
 );
 

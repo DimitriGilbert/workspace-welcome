@@ -9,7 +9,7 @@ import { Button } from "@workspace-welcome/ui/components/button";
 
 import { IdeationModelPicker } from "@/components/ideation/ideation-model-picker";
 import { useSettings } from "@/widgets/contexts/settings-context";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /** The settings-less seed: the shared solo defaults (PRD §6), cloned. */
 function defaultModelSet(): IdeationModelSet {

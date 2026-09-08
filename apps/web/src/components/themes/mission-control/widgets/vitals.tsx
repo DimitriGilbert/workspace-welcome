@@ -19,8 +19,8 @@ import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /**
  * One animated console numeral. The spring chases the incoming value so a

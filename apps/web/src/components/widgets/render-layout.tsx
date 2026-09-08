@@ -32,22 +32,23 @@ import type { ComponentType, ReactNode } from "react";
 
 import { ThemeScope } from "@workspace-welcome/ui/components/theme-scope";
 
-import { getFlow } from "./flows";
+import { getThemePreset } from "@/components/themes";
+import type { ThemeScheme } from "@/components/themes";
+import { getFlow } from "@/lib/widget/flows";
+import type { PageLayout, RegionNode, WidgetNode } from "@/lib/widget/layout-types";
+import { resolveSizeClass } from "@/lib/widget/size-class";
+import type { SizeClass } from "@/lib/widget/size-class";
+import { ProjectProvider } from "@/widgets/contexts/project-context";
+import { ReportProvider } from "@/widgets/contexts/report-context";
+import { SettingsProvider } from "@/widgets/contexts/settings-context";
+import { useWorkspace, WorkspaceProvider } from "@/widgets/contexts/workspace-context";
+
 import { GridCanvas } from "./grid-canvas";
 import type { PlacedRegion } from "./grid-canvas";
-import type { PageLayout, RegionNode, WidgetNode } from "./layout-types";
-import { resolveSizeClass } from "./size-class";
-import type { SizeClass } from "./size-class";
+import { widgetRegistry } from "./registry";
 import { ThemePicker } from "./theme-picker";
 import { useConsoleKeys } from "./use-console-keys";
 import { WidgetShell, WidgetTabs } from "./widget-shell";
-import { getThemePreset } from "../../components/themes";
-import type { ThemeScheme } from "../../components/themes";
-import { ProjectProvider } from "../contexts/project-context";
-import { ReportProvider } from "../contexts/report-context";
-import { SettingsProvider } from "../contexts/settings-context";
-import { useWorkspace, WorkspaceProvider } from "../contexts/workspace-context";
-import { widgetRegistry } from "../registry";
 
 /** A console view: digit-key-switchable page section. `regions` names the
  * preset regions the view shows (all regions when omitted). */

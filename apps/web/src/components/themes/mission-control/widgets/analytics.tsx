@@ -37,8 +37,8 @@ import {
   touchedWithinDays,
 } from "@/lib/scan-metrics";
 import { useWorkspace } from "@/widgets/contexts/workspace-context";
-import type { RegisteredWidgetProps } from "@/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/widgets/runtime/widget-shell";
+import type { RegisteredWidgetProps } from "@/components/widgets/registry";
+import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
 
 const HEATMAP_WEEKS = 12;
 const LEADER_LIMIT = 6;
