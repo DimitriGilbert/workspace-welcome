@@ -189,12 +189,12 @@ export const widgetDefs: readonly WidgetDef[] = [
   },
   {
     id: "mc-project-commits",
-    title: "Recent commits",
+    title: "Commits",
     component: McProjectCommits,
     requires: ["project"],
     defaultSize: "3x4",
     min: "1x1",
-    hosts: ["data-table"],
+    hosts: ["commit-graph"],
   },
   {
     id: "mc-project-note",

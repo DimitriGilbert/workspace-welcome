@@ -14,16 +14,16 @@
  * below them stay empty (authored anchors, never filled). The heatmap and
  * roots kinds stay registered but off this board.
  *
- * The project page (T3) ports the design project readout
- * (`routes/designs/mission-control/project.$.tsx`) onto the same grid: the
- * full-width state band (git controls, project facts, last commit, history,
- * alerts strip), the readout zone (commit pulse beside the four report
- * channels — the T2 `mc-report-*` kinds reused on the per-project
- * `ReportContext` scope the page stack mounts), then the working surface
- * (the note beside the files/artifacts/ideation console, whose shell tabs
- * are the design's console tabs). Reading-order packing again — the
- * console's 56/24/20 percentage geometry maps to the 3/5/4 and 4/4/4
- * column bands.
+ * The project page (T3, owner compactness pass) is ONE canvas — a single
+ * stack region, so every widget drags everywhere on the board (the old
+ * state|readout|console region split walled the working surface into the
+ * last band; owner round: "last row widgets are stuck in this row"). The
+ * authored reading order is the owner's FINAL arrangement: the state
+ * register (one 96px row) → health (2) | activity (5) | code (3) | commits
+ * (2) → ai (3) beside the files/artifacts/ideation console (9) → the note.
+ * The commit pulse (`mc-project-pulse`, 6x4 heatmap) is OFF the board — the
+ * ledger + cadence chart present the same log — and stays registered for
+ * the lab/catalog.
  *
  * The scope tokens ship as real mc values (`./tokens.css`, loaded from this
  * module — the one per-theme module the preset glob always evaluates); the
@@ -130,34 +130,22 @@ export const missionControlPreset: ThemePreset = {
     regions: [
       {
         kind: "stack",
-        id: "state",
+        // THE ONE CANVAS: every widget drags everywhere (the drag controller
+        // is region-scoped, so a single stack region is the whole-board
+        // droppable surface). The node ORDER packs the owner's final
+        // arrangement in reading order — no `at` anchors, which would be
+        // immovable geometry. The phone board re-bands through the v2
+        // overrides; tablet re-packs flush (ai/note take full-width bands).
+        id: "canvas",
         widgets: [
-          { id: "state-band", widget: "mc-project-state-band", size: "12x4" },
-        ],
-      },
-      {
-        kind: "stack",
-        id: "readout",
-        widgets: [
-          // The design's overview row: the commit pulse beside the recent
-          // commits ledger; the report channels re-run against this
-          // project's repo-scope report beneath. Tablet re-bands the 6/7-wide
-          // spans (which strand a 1-2 col void on 8 columns) into pairs and
-          // full-width bands that tile flush.
-          { id: "commit-pulse", widget: "mc-project-pulse", size: "6x4", tablet: "4x4" },
-          { id: "recent-commits", widget: "mc-project-commits", size: "6x4", tablet: "4x4" },
-          { id: "report-activity", widget: "mc-report-activity", size: "7x5", tablet: "8x5" },
-          { id: "report-ai", widget: "mc-report-ai", size: "5x4", tablet: "4x4" },
-          { id: "report-health", widget: "mc-report-health", size: "5x4", tablet: "4x4" },
-          { id: "report-code", widget: "mc-report-code", size: "7x5", tablet: "8x5" },
-        ],
-      },
-      {
-        kind: "stack",
-        id: "console",
-        widgets: [
-          { id: "note", widget: "mc-project-note", size: "4x3" },
-          { id: "working-surface", widget: "mc-project-console", size: "12x7" },
+          { id: "state-band", widget: "mc-project-state-band", size: "12x1", tablet: "8x1", phone: "4x4" },
+          { id: "report-health", widget: "mc-report-health", size: "2x3", tablet: "4x3", phone: "4x3" },
+          { id: "report-activity", widget: "mc-report-activity", size: "5x3", tablet: "4x3", phone: "4x3" },
+          { id: "report-code", widget: "mc-report-code", size: "3x3", tablet: "4x3", phone: "4x4" },
+          { id: "recent-commits", widget: "mc-project-commits", size: "2x3", tablet: "4x3", phone: "4x4" },
+          { id: "report-ai", widget: "mc-report-ai", size: "3x4", tablet: "8x2", phone: "4x4" },
+          { id: "working-surface", widget: "mc-project-console", size: "9x6", tablet: "8x3", phone: "4x6" },
+          { id: "note", widget: "mc-project-note", size: "3x3", tablet: "8x2", phone: "4x3" },
         ],
       },
     ],

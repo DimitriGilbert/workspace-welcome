@@ -387,7 +387,7 @@ export function McReportAi(_props: RegisteredWidgetProps) {
             ) : (
               <TokenSplit input={ai.tokens.input} output={ai.tokens.output} axis="h" />
             )}
-            {models.length > 0 && placed.rows >= 5 ? <ModelLedger models={models} /> : null}
+            {models.length > 0 && placed.rows >= 3 ? <ModelLedger models={models} /> : null}
             <ExactTotals ai={ai} />
           </div>
         ) : ai !== null ? (

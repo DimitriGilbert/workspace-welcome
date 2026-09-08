@@ -181,22 +181,32 @@ export function ReportGate({
   return (
     <GateRoot status={status} {...rest}>
       {stale ? (
-        <span
-          className={
-            mode === "banner"
-              ? "flex items-center gap-2"
-              : "flex items-center gap-2 rounded-none border border-dashed p-2"
-          }
-          style={{ borderColor: "color-mix(in oklch, var(--sev-warning) 40%, transparent)" }}
-        >
-          <Chip tone="warning" title={`Generated ${age}`}>
-            Stale
-          </Chip>
-          <span className="text-xs text-muted-foreground">
-            Project activity is newer than this report.
+        mode === "banner" ? (
+          <span className="flex items-center gap-2">
+            <Chip tone="warning" title={`Generated ${age}`}>
+              Stale
+            </Chip>
+            <span className="text-xs text-muted-foreground">
+              Project activity is newer than this report.
+            </span>
+            <RegenerateButton />
           </span>
-          <RegenerateButton />
-        </span>
+        ) : (
+          // The gate strip is per-widget chrome a page renders up to four
+          // times — one slim line: the chip carries the why in its tooltip.
+          <span
+            className="flex shrink-0 items-center gap-2 rounded-none border border-dashed px-2 py-1"
+            style={{ borderColor: "color-mix(in oklch, var(--sev-warning) 40%, transparent)" }}
+          >
+            <Chip
+              tone="warning"
+              title={`Project activity is newer than this report. Generated ${age}`}
+            >
+              Stale
+            </Chip>
+            <RegenerateButton />
+          </span>
+        )
       ) : null}
       {children}
     </GateRoot>

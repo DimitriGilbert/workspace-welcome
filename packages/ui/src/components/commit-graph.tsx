@@ -32,11 +32,23 @@ type CommitGraphProps = {
    * supply author and formatted time without date handling living here.
    */
   renderHoverDetail?: (entry: CommitGraphEntry) => ReactNode;
+  /**
+   * Right-aligned per-row slot after the subject/refs (sha, author, age) —
+   * the meta the ledger rungs render inline so rows read without hovering.
+   */
+  renderTrailing?: (entry: CommitGraphEntry) => ReactNode;
+  /**
+   * Dense register: 22px rows and a smaller subject — the windowed board
+   * ledgers (more rows per cell) against the default 30px reading register.
+   */
+  dense?: boolean;
   className?: string;
 };
 
 /** Height of one row's SVG band; the subject row keeps the same height. */
 const ROW_HEIGHT = 30;
+/** Dense-register row band (see {@link CommitGraphProps.dense}). */
+const DENSE_ROW_HEIGHT = 22;
 /** Horizontal distance between two lanes inside the gutter. */
 const LANE_WIDTH = 12;
 /** Inset of the lane area inside the gutter. */
@@ -107,7 +119,7 @@ type RowGeometry = {
  *   window run to the bottom edge of the last row, and root commits end
  *   their lane at the node.
  */
-function layoutCommitGraph(entries: CommitGraphEntry[]): {
+function layoutCommitGraph(entries: CommitGraphEntry[], rowHeight: number): {
   rows: RowGeometry[];
   laneCount: number;
 } {
@@ -122,8 +134,8 @@ function layoutCommitGraph(entries: CommitGraphEntry[]): {
   };
 
   for (const entry of entries) {
-    const nodeY = ROW_HEIGHT / 2;
-    const quarter = ROW_HEIGHT / 4;
+    const nodeY = rowHeight / 2;
+    const quarter = rowHeight / 4;
     const segments: LaneSegment[] = [];
 
     // Lanes already flowing into this commit, leftmost first.
@@ -140,7 +152,7 @@ function layoutCommitGraph(entries: CommitGraphEntry[]): {
     for (let lane = 0; lane < targets.length; lane += 1) {
       const target = targets[lane];
       if (target !== null && target !== entry.hash) {
-        segments.push({ lane, d: `M ${laneX(lane)} 0 V ${ROW_HEIGHT}` });
+        segments.push({ lane, d: `M ${laneX(lane)} 0 V ${rowHeight}` });
       }
     }
 
@@ -164,7 +176,7 @@ function layoutCommitGraph(entries: CommitGraphEntry[]): {
       targets[nodeLane] = firstParent;
       segments.push({
         lane: nodeLane,
-        d: `M ${laneX(nodeLane)} ${nodeY} V ${ROW_HEIGHT}`,
+        d: `M ${laneX(nodeLane)} ${nodeY} V ${rowHeight}`,
       });
       for (const parent of mergeParents) {
         // Join a lane already flowing to this parent, else open a free one.
@@ -175,7 +187,7 @@ function layoutCommitGraph(entries: CommitGraphEntry[]): {
         }
         segments.push({
           lane,
-          d: `M ${laneX(nodeLane)} ${nodeY} C ${laneX(nodeLane)} ${nodeY + quarter} ${laneX(lane)} ${nodeY + quarter} ${laneX(lane)} ${ROW_HEIGHT}`,
+          d: `M ${laneX(nodeLane)} ${nodeY} C ${laneX(nodeLane)} ${nodeY + quarter} ${laneX(lane)} ${nodeY + quarter} ${laneX(lane)} ${rowHeight}`,
         });
       }
     }
@@ -188,12 +200,22 @@ function layoutCommitGraph(entries: CommitGraphEntry[]): {
 
 /**
  * Presentational git commit graph: lane lines and node dots in a left SVG
- * gutter, subject + ref badges on the right, hover tooltip per row.
+ * gutter, subject + ref badges on the right, hover tooltip per row, optional
+ * inline trailing meta (see {@link CommitGraphProps.renderTrailing}).
  */
-function CommitGraph({ entries, renderHoverDetail, className }: CommitGraphProps) {
+function CommitGraph({
+  entries,
+  renderHoverDetail,
+  renderTrailing,
+  dense,
+  className,
+}: CommitGraphProps) {
   if (entries.length === 0) return null;
 
-  const { rows, laneCount } = layoutCommitGraph(entries);
+  const rowHeight = dense ? DENSE_ROW_HEIGHT : ROW_HEIGHT;
+  const nodeRadius = dense ? 2.5 : NODE_RADIUS;
+  const headRingRadius = dense ? 4.5 : HEAD_RING_RADIUS;
+  const { rows, laneCount } = layoutCommitGraph(entries, rowHeight);
   const gutterWidth = Math.max(
     MIN_GUTTER_WIDTH,
     GUTTER_PAD * 2 + laneCount * LANE_WIDTH,
@@ -217,8 +239,8 @@ function CommitGraph({ entries, renderHoverDetail, className }: CommitGraphProps
                   data-slot="commit-graph-lanes"
                   aria-hidden="true"
                   width={gutterWidth}
-                  height={ROW_HEIGHT}
-                  viewBox={`0 0 ${gutterWidth} ${ROW_HEIGHT}`}
+                  height={rowHeight}
+                  viewBox={`0 0 ${gutterWidth} ${rowHeight}`}
                   className="block shrink-0"
                 >
                   {row.segments.map((segment, segmentIndex) => (
@@ -234,8 +256,8 @@ function CommitGraph({ entries, renderHoverDetail, className }: CommitGraphProps
                     <circle
                       data-slot="commit-graph-head-ring"
                       cx={laneX(row.nodeLane)}
-                      cy={ROW_HEIGHT / 2}
-                      r={HEAD_RING_RADIUS}
+                      cy={rowHeight / 2}
+                      r={headRingRadius}
                       fill="none"
                       strokeWidth={1.5}
                       className="stroke-ring"
@@ -244,15 +266,15 @@ function CommitGraph({ entries, renderHoverDetail, className }: CommitGraphProps
                   <circle
                     data-slot="commit-graph-node"
                     cx={laneX(row.nodeLane)}
-                    cy={ROW_HEIGHT / 2}
-                    r={NODE_RADIUS}
+                    cy={rowHeight / 2}
+                    r={nodeRadius}
                     strokeWidth={1}
                     className={cn(laneFill(row.nodeLane), "stroke-background")}
                   />
                 </svg>
                 <span
                   data-slot="commit-graph-subject"
-                  className="min-w-0 truncate text-sm"
+                  className={`min-w-0 truncate ${dense ? "text-xs" : "text-sm"}`}
                 >
                   {row.entry.subject}
                 </span>
@@ -270,6 +292,14 @@ function CommitGraph({ entries, renderHoverDetail, className }: CommitGraphProps
                         {ref}
                       </Badge>
                     ))}
+                  </span>
+                ) : null}
+                {renderTrailing !== undefined ? (
+                  <span
+                    data-slot="commit-graph-trailing"
+                    className="ml-auto flex shrink-0 items-center gap-2 pl-1"
+                  >
+                    {renderTrailing(row.entry)}
                   </span>
                 ) : null}
               </TooltipTrigger>

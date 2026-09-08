@@ -155,11 +155,16 @@ export function McReportCode(_props: RegisteredWidgetProps) {
       <McReportGate>
         {full ? (
           <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden px-3.5 pb-3">
-            <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2">
-              <Stat label="commits" value={(view?.totals.commits ?? 0).toLocaleString()} size="sm" />
-              <Stat label="repos" value={view?.totals.repositories ?? 0} size="sm" />
-              <Stat label="contributors" value={view?.totals.contributors ?? 0} size="sm" />
-            </div>
+            {/* The scan-scope totals trio rides the dashboard; on a repo
+                scope it is noise (repos === 1, commits/contributors live in
+                the ledger + activity meta) — the donut unit takes the box. */}
+            {report.scope.kind === "scan" ? (
+              <div className="flex min-w-0 flex-wrap gap-x-5 gap-y-2">
+                <Stat label="commits" value={(view?.totals.commits ?? 0).toLocaleString()} size="sm" />
+                <Stat label="repos" value={view?.totals.repositories ?? 0} size="sm" />
+                <Stat label="contributors" value={view?.totals.contributors ?? 0} size="sm" />
+              </div>
+            ) : null}
             {languages.length === 0 ? (
               <p className="font-mono text-[11px] text-muted-foreground">No language data.</p>
             ) : (
