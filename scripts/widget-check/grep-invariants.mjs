@@ -31,13 +31,20 @@
  *                         (widgets, scripts/widget-check,
  *                         packages/ui/src) — casts included.
  *
+ * Layout honesty (P0.3): LAYOUT_PATHS below is the single source of truth
+ * for where the widget system lives; the anti-vacuous guard runs before
+ * everything else (invariant scans AND baseline rewrites) and hard-FAILs
+ * when a configured path is missing or an expected file class under the
+ * themes tree is gone — a vanished tree can never degrade to
+ * WARN-and-exit-0.
+ *
  * Usage:
  *   node scripts/widget-check/grep-invariants.mjs                 # all 7
  *   node scripts/widget-check/grep-invariants.mjs --update-baseline
  *   node scripts/widget-check/grep-invariants.mjs --out path.json
  */
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -46,13 +53,45 @@ import { Report, runEntry, writeJsonOut } from "./lib/report.mjs";
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 const BASELINE_PATH = fileURLToPath(new URL("./grep-invariants.color-literals.json", import.meta.url));
 
-const WIDGETS_DIR = path.join(REPO_ROOT, "apps/web/src/widgets");
+// ── LAYOUT_PATHS ─────────────────────────────────────────────────────────
+// Single source of truth for where the widget system lives on disk (P0.3).
+// Stage A phases relocate trees; they update THIS map — and only this map —
+// in lockstep, and the anti-vacuous guard (guardLayout) hard-FAILs the
+// moment a path here goes stale, so a moved/vanished tree can never again
+// degrade the harness to a vacuous WARN-and-exit-0. Paths are repo-relative
+// with POSIX separators.
+const LAYOUT_PATHS = {
+  // widget namespace root (invariants 1–5 scan it via the constants below)
+  widgetsDir: "apps/web/src/widgets",
+  // complete theme designs: <themesDir>/<slug>/{preset.ts,tokens.css,…}
+  themesDir: "apps/web/src/widgets/themes",
+  // theme preset registry barrel (glob-based, location-relative)
+  themesIndex: "apps/web/src/widgets/themes/index.ts",
+  // widget-kind registry (core kinds + themes glob)
+  widgetRegistry: "apps/web/src/widgets/registry.ts",
+  // part-id registry read by invariant 5's collision check
+  partsRegistry: "apps/web/src/widgets/parts/registry.ts",
+  // invariant 7's no-any scan scopes, each with its historical file filter
+  // ("code" = CODE_EXTENSIONS, ".mjs" = mjs scripts only)
+  noAnyScopes: [
+    { dir: "apps/web/src/widgets", files: "code" },
+    { dir: "scripts/widget-check", files: ".mjs" },
+    { dir: "packages/ui/src", files: "code" },
+  ],
+};
+
+const WIDGETS_DIR = path.join(REPO_ROOT, LAYOUT_PATHS.widgetsDir);
+const THEMES_DIR = path.join(REPO_ROOT, LAYOUT_PATHS.themesDir);
 const UI_COMPONENTS_DIR = path.join(REPO_ROOT, "packages/ui/src/components");
-const UI_SRC_DIR = path.join(REPO_ROOT, "packages/ui/src");
-const HARNESS_DIR = path.join(REPO_ROOT, "scripts/widget-check");
 
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".mjs", ".js", ".jsx"]);
 const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git", ".turbo", ".output"]);
+
+/** File filters for LAYOUT_PATHS.noAnyScopes entries (invariant 7). */
+const NO_ANY_FILTERS = {
+  code: (file) => CODE_EXTENSIONS.has(path.extname(file)),
+  ".mjs": (file) => file.endsWith(".mjs"),
+};
 
 // Color literal patterns (§3.8 invariant 2). Hex, CONCRETE color functions
 // (rgb/hsl/oklch/… always denote a specific color), and Tailwind
@@ -162,6 +201,57 @@ function loadBaseline() {
   }
 }
 
+// ── Anti-vacuous guard (P0.3) ────────────────────────────────────────────
+// Walking a vanished directory yields zero files, and "nothing to check"
+// historically degraded to a WARN-and-exit-0 — a green harness guarding
+// nothing. guardLayout runs before every invariant and before any baseline
+// rewrite; a stale LAYOUT_PATHS entry or a missing expected file class is a
+// hard FAIL (exit 1) naming the path. Silent on a healthy tree.
+const EXPECTED_THEME_FILE_CLASSES = [
+  { kind: "preset.ts", pattern: /^[^\\/]+[\\/]preset\.ts$/, expected: 3 },
+  { kind: "tokens.css", pattern: /^[^\\/]+[\\/]tokens\.css$/, expected: 3 },
+  { kind: "custom.css", pattern: /^[^\\/]+[\\/]custom\.css$/, expected: 3 },
+  { kind: "scheme-*.css", pattern: /^[^\\/]+[\\/]scheme-[^\\/]+\.css$/, expected: 3 },
+];
+const MIN_THEME_WIDGET_FILES = 40;
+
+/**
+ * @returns {boolean} true when every LAYOUT_PATHS entry resolves and the
+ * themes tree still carries its expected file classes.
+ */
+function guardLayout(report) {
+  const required = [
+    ["widget namespace", LAYOUT_PATHS.widgetsDir],
+    ["themes tree", LAYOUT_PATHS.themesDir],
+    ["themes index", LAYOUT_PATHS.themesIndex],
+    ["widget-kind registry", LAYOUT_PATHS.widgetRegistry],
+    ["part-id registry", LAYOUT_PATHS.partsRegistry],
+    ...LAYOUT_PATHS.noAnyScopes.map((scope) => ["no-any scope", scope.dir]),
+  ];
+  let ok = true;
+  for (const [label, rel] of required) {
+    if (!existsSync(path.join(REPO_ROOT, rel))) {
+      report.fail("layout-paths", `${label} missing: ${rel} — LAYOUT_PATHS in scripts/widget-check/grep-invariants.mjs is stale`);
+      ok = false;
+    }
+  }
+  if (!ok) return false;
+  const themeRels = walkFiles(THEMES_DIR).map((file) => path.relative(THEMES_DIR, file));
+  for (const { kind, pattern, expected } of EXPECTED_THEME_FILE_CLASSES) {
+    const found = themeRels.filter((rel) => pattern.test(rel)).length;
+    if (found !== expected) {
+      report.fail("layout-paths", `expected exactly ${expected} ${kind} under ${LAYOUT_PATHS.themesDir}/<slug>/, found ${found}`);
+      ok = false;
+    }
+  }
+  const themeWidgetFiles = themeRels.filter((rel) => /^[^\\/]+[\\/]widgets[\\/]/.test(rel)).length;
+  if (themeWidgetFiles < MIN_THEME_WIDGET_FILES) {
+    report.fail("layout-paths", `expected ≥${MIN_THEME_WIDGET_FILES} files under ${LAYOUT_PATHS.themesDir}/*/widgets/, found ${themeWidgetFiles}`);
+    ok = false;
+  }
+  return ok;
+}
+
 /** Invariant 2's live scan: color-literal counts per file for both scopes. */
 function scanColorLiterals() {
   const perFile = new Map();
@@ -200,8 +290,8 @@ function updateBaseline(report) {
       "CLOSED grandfather allowlist of legacy packages/ui files containing color literals (invariant 2). " +
       "Regenerate with: node scripts/widget-check/grep-invariants.mjs --update-baseline. " +
       "Files on this list are legacy code slated for deletion at K1-K4: their literal count is an UPPER BOUND " +
-      "(edits must shrink it, growth fails). New files and everything under apps/web/src/widgets/** are never " +
-      "allowlisted — any color literal there fails.",
+      "(edits must shrink it, growth fails). New files and everything under " +
+      `${LAYOUT_PATHS.widgetsDir}/** are never allowlisted — any color literal there fails.`,
     updated: new Date().toISOString(),
     files: sorted,
   };
@@ -217,6 +307,13 @@ const body = async () => {
 
   const report = new Report({ suite: "grep-invariants", meta: { repoRoot: REPO_ROOT } });
 
+  // Anti-vacuous gate: never scan (or rewrite the baseline against) a tree
+  // LAYOUT_PATHS cannot resolve — fail loudly instead.
+  if (!guardLayout(report)) {
+    await writeJsonOut(report, outPath);
+    return report;
+  }
+
   if (updateBaselineOnly) {
     updateBaseline(report);
     await writeJsonOut(report, outPath);
@@ -225,7 +322,7 @@ const body = async () => {
 
   // ── Invariant 1: themes-deps ────────────────────────────────────────────
   {
-    const themeFiles = walkFiles(path.join(WIDGETS_DIR, "themes"), (file) => CODE_EXTENSIONS.has(path.extname(file)));
+    const themeFiles = walkFiles(THEMES_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file)));
     const violations = [];
     for (const file of themeFiles) {
       const lines = readLines(file);
@@ -255,7 +352,7 @@ const body = async () => {
     const grown = [];
     const widgetsWithLiterals = [];
     for (const [rel, info] of perFile) {
-      const inWidgets = rel.startsWith("apps/web/src/widgets/");
+      const inWidgets = rel.startsWith(`${LAYOUT_PATHS.widgetsDir}/`);
       const allowed = baseline.files[rel];
       if (inWidgets) {
         widgetsWithLiterals.push(`${rel}:${info.hits.length}`);
@@ -289,7 +386,7 @@ const body = async () => {
 
   // ── Invariant 3: theme CSS literals only on declaration lines ──────────
   {
-    const cssFiles = walkFiles(path.join(WIDGETS_DIR, "themes"), (file) => file.endsWith(".css"));
+    const cssFiles = walkFiles(THEMES_DIR, (file) => file.endsWith(".css"));
     const violations = [];
     for (const file of cssFiles) {
       readLines(file).forEach((line, index) => {
@@ -331,16 +428,16 @@ const body = async () => {
 
   // ── Invariant 5: theme widget kinds ────────────────────────────────────
   {
-    const themeWidgetFiles = walkFiles(path.join(WIDGETS_DIR, "themes"), (file) => {
+    const themeWidgetFiles = walkFiles(THEMES_DIR, (file) => {
       if (!CODE_EXTENSIONS.has(path.extname(file))) return false;
       // Scope: theme WIDGET-KIND files (themes/<slug>/widgets/*, minus the
       // index.ts barrel — an export surface, not a kind; the plan lets it
       // start empty-ish). Presets + token stylesheets are layout data.
       if (path.basename(file) === "index.ts") return false;
-      const rel = relToRepo(file);
-      return /widgets[\\/]themes[\\/][^\\/]+[\\/]widgets[\\/].+/.test(rel);
+      const rel = path.relative(THEMES_DIR, file);
+      return /^[^\\/]+[\\/]widgets[\\/].+/.test(rel);
     });
-    const registryPath = path.join(WIDGETS_DIR, "parts", "registry.ts");
+    const registryPath = path.join(REPO_ROOT, LAYOUT_PATHS.partsRegistry);
     /** @type {string[]} */
     let partIds = [];
     const registryExists = (() => {
@@ -445,11 +542,9 @@ const body = async () => {
 
   // ── Invariant 7: no any ────────────────────────────────────────────────
   {
-    const files = [
-      ...walkFiles(WIDGETS_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
-      ...walkFiles(HARNESS_DIR, (file) => file.endsWith(".mjs")),
-      ...walkFiles(UI_SRC_DIR, (file) => CODE_EXTENSIONS.has(path.extname(file))),
-    ];
+    const files = LAYOUT_PATHS.noAnyScopes.flatMap((scope) =>
+      walkFiles(path.join(REPO_ROOT, scope.dir), NO_ANY_FILTERS[scope.files]),
+    );
     const violations = [];
     for (const file of files) {
       for (const hit of countMatches(readLines(file), ANY_PATTERNS)) {

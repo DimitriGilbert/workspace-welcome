@@ -16,6 +16,8 @@
  * JSON summary); exit ≠ 0 on any FAIL. `scripts/widget-check/
  * grep-invariants.mjs` discovers and spawns this script (invariant 6).
  */
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { Report, runEntry, writeJsonOut } from "../../../scripts/widget-check/lib/report.mjs";
@@ -28,7 +30,27 @@ const CHECK = "validate-layout";
 /** Dev fixtures validated alongside the (currently empty) preset registry. */
 const FIXTURE_MODULES = ["/src/widgets/lab/lab-preset.ts"];
 
+/**
+ * Core layout modules loaded through Vite SSR. Single source for the
+ * specifiers below; a missing one fails fast with the path named, instead
+ * of surfacing as an opaque ssrLoadModule error (P0.3).
+ */
+const LAYOUT_MODULES = {
+  registry: "/src/widgets/registry.ts",
+  themes: "/src/widgets/themes/index.ts",
+  validator: "/src/widgets/runtime/validate-layout.ts",
+  flows: "/src/widgets/runtime/flows.ts",
+};
+
 async function loadLayoutModules() {
+  for (const specifier of Object.values(LAYOUT_MODULES)) {
+    const filePath = path.join(WEB_ROOT, specifier);
+    if (!existsSync(filePath)) {
+      throw new Error(
+        `layout module ${specifier} not found at ${filePath} — the tree moved; update LAYOUT_MODULES in apps/web/scripts/validate-layout.mjs`,
+      );
+    }
+  }
   const server = await createServer({
     root: WEB_ROOT,
     configFile: `${WEB_ROOT}/vite.config.ts`,
@@ -37,10 +59,10 @@ async function loadLayoutModules() {
     appType: "custom",
   });
   try {
-    const registry = await server.ssrLoadModule("/src/widgets/registry.ts");
-    const themes = await server.ssrLoadModule("/src/widgets/themes/index.ts");
-    const validator = await server.ssrLoadModule("/src/widgets/runtime/validate-layout.ts");
-    const flows = await server.ssrLoadModule("/src/widgets/runtime/flows.ts");
+    const registry = await server.ssrLoadModule(LAYOUT_MODULES.registry);
+    const themes = await server.ssrLoadModule(LAYOUT_MODULES.themes);
+    const validator = await server.ssrLoadModule(LAYOUT_MODULES.validator);
+    const flows = await server.ssrLoadModule(LAYOUT_MODULES.flows);
     const fixtures = [];
     for (const specifier of FIXTURE_MODULES) {
       try {

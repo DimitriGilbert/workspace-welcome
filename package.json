@@ -17,6 +17,14 @@
     "deploy:docs": "pnpm run build:docs && pnpm run prepare:docs-pages && node scripts/deploy-docs-gh-pages.js",
     "release": "bash scripts/release.sh",
     "test:install": "bash scripts/test-install.sh",
+    "widget-check:grep": "node scripts/widget-check/grep-invariants.mjs",
+    "widget-check:theme": "node scripts/widget-check/run.mjs",
+    "widget-check:lab": "node scripts/widget-check/run.mjs --suite lab",
+    "widget-check:parts": "node scripts/widget-check/run.mjs --suite parts-preview",
+    "widget-check:self-test": "node scripts/widget-check/run.mjs --suite self-test",
+    "widget-check:interactions": "node scripts/widget-check/interactions/run.mjs",
+    "widget-check:sentinel": "node scripts/widget-check/legacy-sentinel.mjs",
+    "widget-check:validate-layout": "node apps/web/scripts/validate-layout.mjs",
     "widget-check:snapshot": "node scripts/widget-check/snapshot.mjs"
   },
   "dependencies": {
