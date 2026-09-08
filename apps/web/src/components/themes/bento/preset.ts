@@ -136,15 +136,16 @@ export const bentoPreset: ThemePreset = {
         id: "canvas",
         widgets: [
           { id: "nav", widget: "bento-project-nav", size: "12x1", tablet: "6x1", phone: "2x2" },
-          // Hero trio at THREE rows — the identity's meta trio and the
-          // state's mini-log were deleted as board duplicates, so the tiles
-          // fit their content without filler air.
-          { id: "project-identity", widget: "bento-project-identity", size: "3x3", tablet: "3x3", phone: "2x3" },
-          { id: "project-state", widget: "bento-project-state", size: "5x3", tablet: "3x3", phone: "2x3" },
-          { id: "project-summary", widget: "bento-project-summary", size: "4x3", tablet: "6x3", phone: "2x3" },
-          { id: "project-pulse", widget: "bento-project-pulse", size: "12x4", tablet: "6x4", phone: "2x4" },
-          { id: "project-surface", widget: "bento-project-surface", size: "7x5", tablet: "6x5", phone: "2x5" },
-          { id: "project-commits", widget: "bento-project-commits", size: "5x5", tablet: "6x5", phone: "2x5" },
+          // THREE-RAIL arrangement (owner FINAL): left rail identity →
+          // pulse → state (the glance stack), the working surface TALL in
+          // the centre (the file browser dominates — owner: "why keep the
+          // file browser so small?"), the dense commit ledger as a narrow
+          // right rail.
+          { id: "project-identity", widget: "bento-project-identity", size: "3x3", tablet: "6x3", phone: "2x3" },
+          { id: "project-surface", widget: "bento-project-surface", size: "7x9", tablet: "6x6", phone: "2x8" },
+          { id: "project-commits", widget: "bento-project-commits", size: "2x5", tablet: "6x4", phone: "2x4" },
+          { id: "project-pulse", widget: "bento-project-pulse", size: "3x3", tablet: "6x3", phone: "2x3" },
+          { id: "project-state", widget: "bento-project-state", size: "3x3", tablet: "6x3", phone: "2x3" },
         ],
       },
     ],
