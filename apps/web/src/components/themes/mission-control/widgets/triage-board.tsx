@@ -92,14 +92,14 @@ function NominalCensus() {
         Fleet nominal
       </p>
       <p className="text-xs text-muted-foreground">
-        No alerts are open. Every unit is on branch, in sync and clean —{" "}
+        No alerts are open. Every project is on branch, in sync and clean —{" "}
         {tiers.fresh} fresh, {tiers.recent} recent, {tiers.stale} stale, {tiers.cold} cold.
       </p>
     </div>
   );
 }
 
-/** The unit's stack glyph (the ledger's StackCell register, inline size). */
+/** The project's stack glyph (the ledger's StackCell register, inline size). */
 function StackIcon({ project }: { project: Project }) {
   const Icon = stackIcon(project.stack?.id);
   return (

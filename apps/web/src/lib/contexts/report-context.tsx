@@ -2,17 +2,33 @@
  * ReportProvider — the one snitch-report state machine for the widget
  * system. Thin typed view over the react-query cache mounted per page
  * (`lib/queries/` owns all procedure wiring and the settle invalidation);
- * this provider owns ONLY the status machine, the two staleness rules, and
- * the period scope.
+ * this provider owns ONLY the status machine, the two staleness rules, the
+ * period scope, and the repo→scan fallback.
+ *
+ * ONE pipeline: the scope's key is deterministic, so the workspace report
+ * generated from ANY door (the header dialog, a widget CTA, another tab)
+ * is the same artifact this provider reads. The registry watch
+ * (`useReportJobWatch`) observes the scope key's job — `running` while it
+ * executes, one invalidation when it settles — so a run started elsewhere
+ * reaches these widgets the moment it lands. The provider never wipes the
+ * cached export mid-run.
+ *
+ * Repo→scan fallback: the workspace scan report contains every project
+ * under its root as a full entry, so a repo scope with no dedicated report
+ * serves its entry from the newest covering scan export (same period)
+ * instead of demanding a second run. The dedicated repo report (deeper
+ * history) is still what `generate()` produces for the scope.
  *
  * State machine (priority order, first match wins — draft-data §3.1):
  *
  * | priority | status    | condition                                          |
  * |----------|-----------|----------------------------------------------------|
  * | 1        | no-scope  | scope.path is empty (unresolvable mount scope)     |
- * | 2        | running   | generate mutation pending or a job is being polled |
- * | 3        | loading   | command pending, or key resolved + export pending  |
- * | 4        | missing   | export settled without data for the scope key      |
+ * | 2        | running   | generate mutation pending or the scope job runs    |
+ * | 3        | loading   | command pending; key resolved + export pending;    |
+ * |          |           | or the covering-scan fallback is resolving         |
+ * | 4        | missing   | exports settled without data for the scope (own    |
+ * |          |           | repo export and any covering scan entry)           |
  * | 5        | stale     | export present AND isReportStale(gen, latestUpd)   |
  * | 5        | fresh     | export present AND not stale                       |
  *
@@ -45,9 +61,11 @@ import type { Project } from "@workspace-welcome/api/lib/types";
 import { toReportView } from "@/lib/report-view";
 import type { ReportView } from "@/lib/report-view";
 import {
+  useCoveringScanExport,
   useReportCommand,
   useReportExport,
   useReportGenerate,
+  useReportJobWatch,
 } from "@/lib/queries/reports";
 import type { ReportScope } from "@/lib/queries/reports";
 import { useScanQuery } from "@/lib/queries/scan";
@@ -110,6 +128,34 @@ export interface ReportProviderProps {
 }
 
 /**
+ * Reshape a covering scan export into the repo view for one project entry:
+ * the entry IS the project's report data (same fields the dedicated repo
+ * run produces), so the repo widgets render it unchanged. Key/generatedAt
+ * stay the scan's — the artifact that actually exists.
+ */
+function repoViewFromScan(
+  scan: ReportExport,
+  entry: ReportExportProject,
+  projectPath: string,
+): ReportExport {
+  return {
+    ...scan,
+    kind: "repo",
+    label: "project",
+    targetPath: projectPath,
+    projects: [entry],
+    totals: {
+      commits: entry.totalCommits,
+      contributors: entry.contributors,
+      repositories: 1,
+      languages: entry.languages,
+      alerts: entry.alerts,
+    },
+    aiUsage: entry.aiUsage ?? scan.aiUsage,
+  };
+}
+
+/**
  * Mounted per page, never per widget: `{ kind: "scan", path: roots[0]?.path }`
  * on the dashboard, `{ kind: "repo", path }` on project pages. Rides the
  * same react-query cache the workspace scan warmed (identical input ⇒
@@ -126,10 +172,12 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
   );
   const key = commandQuery.data?.key ?? null;
   const exportQuery = useReportExport(key);
-  // The full write pipeline: generate mutation, 1500 ms job poll, settle
-  // invalidation, failure/lost-job toasts — owned by lib/queries, unchanged.
+  // The write pipeline (mutation only) + the registry watch: the watch is
+  // how runs started ANYWHERE (header dialog, another tab) settle for this
+  // page's readers — one invalidation per run, toasts included.
   const pipeline = useReportGenerate({ kind, path: scopePath, period });
-  const { busy: generating, generate: runPipeline } = pipeline;
+  const watch = useReportJobWatch(key);
+  const generating = pipeline.isPending || watch.running;
 
   // Staleness inputs come from the workspace scan (cached by WorkspaceProvider;
   // this query joins the identical cache entry when mounted under it).
@@ -152,7 +200,24 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
     );
   }, [hasScope, kind, scanProjects, scanProjectsByPath, scopePath]);
 
-  const exportData = exportQuery.data ?? null;
+  const ownExport = exportQuery.data ?? null;
+  // The repo→scan fallback activates only once the repo's own export has
+  // settled missing — an existing (even stale) repo report still wins.
+  const fallbackEnabled =
+    kind === "repo" &&
+    hasScope &&
+    !commandQuery.isError &&
+    !exportQuery.isPending &&
+    ownExport === null;
+  const covering = useCoveringScanExport({ path: scopePath, period }, fallbackEnabled);
+  const exportData = useMemo(() => {
+    if (ownExport !== null) return ownExport;
+    if (covering.data !== null && covering.entry !== null) {
+      return repoViewFromScan(covering.data, covering.entry, scopePath);
+    }
+    return null;
+  }, [covering.data, covering.entry, ownExport, scopePath]);
+
   const byPath = useMemo(
     () => (exportData ? indexProjectsByPath(exportData) : new Map<string, ReportExportProject>()),
     [exportData],
@@ -169,7 +234,11 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
       // The scope was rejected server-side (unknown path, unreachable CLI
       // resolution) — an honest missing-with-error, never an infinite load.
       status = "missing";
-    } else if (commandQuery.isPending || (key !== null && exportQuery.isPending)) {
+    } else if (
+      commandQuery.isPending ||
+      (key !== null && exportQuery.isPending) ||
+      covering.pending
+    ) {
       status = "loading";
     } else if (exportData === null) {
       status = "missing";
@@ -184,7 +253,9 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
       exportData,
       byPath,
       entry: (entryPath: string) => byPath.get(entryPath) ?? null,
-      key,
+      // The artifact that exists: the fallback serves the covering scan's
+      // key; otherwise the scope's own (repo|scan) key from the command.
+      key: exportData?.key ?? key,
       command: commandQuery.data?.command ?? null,
       commandError: commandFailed
         ? (commandQuery.error?.message ?? "Report command failed.")
@@ -202,7 +273,7 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
       setPeriod,
       generate: (options?: { force?: boolean }) => {
         if (!hasScope || commandFailed) return;
-        runPipeline(options?.force ?? false);
+        pipeline.generate(options?.force ?? false);
       },
       generating,
       view: exportData === null ? null : toReportView(exportData, latestUpdated),
@@ -213,6 +284,7 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
     commandQuery.error,
     commandQuery.isError,
     commandQuery.isPending,
+    covering.pending,
     exportData,
     exportQuery.isPending,
     generating,
@@ -221,7 +293,7 @@ export function ReportProvider({ kind, path, children }: ReportProviderProps) {
     kind,
     latestUpdated,
     period,
-    runPipeline,
+    pipeline,
     scanProjectsByPath,
     scopePath,
   ]);
@@ -248,4 +320,13 @@ export function useReport(): ReportContextValue {
     );
   }
   return ctx;
+}
+
+/**
+ * The same state when a provider is mounted, null otherwise — for form
+ * parts that compose anywhere (parts-preview) but adopt the page's report
+ * scope when one exists.
+ */
+export function useReportOptional(): ReportContextValue | null {
+  return useContext(ReportContext);
 }

@@ -11,6 +11,9 @@ catalog:
   "@tanstack/ai-openai": 0.22.3
   "@tanstack/ai-openrouter": 0.19.6
   streamdown: 2.6.0
+  # File-viewer syntax highlighting — exact-pinned (theme/lang surface moves
+  # across minors, same discipline as streamdown).
+  shiki: 4.4.3
   "@types/node": ^22.13.14
   lucide-react: ^1.23.0
   recharts: ^3.0.0

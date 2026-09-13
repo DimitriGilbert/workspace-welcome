@@ -86,6 +86,12 @@ export interface IdeationCatalogModel {
   id: string;
   /** Display name from the dump, falling back to the raw model id. */
   label: string;
+  /** Release timestamp (ms epoch) from the dump's release_date — the
+   * picker's freshness sort and "new" chips; null when undated. */
+  releasedAt: number | null;
+  /** Per-1M-token USD cost from the dump — the picker's price column and
+   * sorts; null when the dump carries no usable numbers. */
+  cost: { input: number; output: number } | null;
 }
 
 export interface IdeationCatalogProvider {

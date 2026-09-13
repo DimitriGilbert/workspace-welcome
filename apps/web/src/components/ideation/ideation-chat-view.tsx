@@ -444,7 +444,10 @@ export function IdeationChatView({
           : "one question at a time — answer, or pick a suggestion";
 
   return (
-    <div className="mt-2 flex min-w-0 flex-col gap-2">
+    // The conversation occupies the panel's width — transcript, run chips,
+    // and composer share it (owner order: width is not to be wasted on a
+    // centered sliver).
+    <div className="mt-2 flex w-full min-w-0 flex-col gap-2">
       <div className="h-[24rem]">
         <MessageScroller className="border border-foreground/10 bg-background">
           <MessageScrollerViewport>
@@ -488,12 +491,18 @@ export function IdeationChatView({
                   ) : (
                     <Message align={item.role === "user" ? "end" : "start"}>
                       <MessageContent>
-                        <Bubble
-                          variant={item.role === "user" ? "default" : "secondary"}
-                          align={item.role === "user" ? "end" : "start"}
-                        >
-                          <BubbleContent>{item.text}</BubbleContent>
-                        </Bubble>
+                        {item.role === "user" ? (
+                          <Bubble variant="default" align="end">
+                            <BubbleContent>{item.text}</BubbleContent>
+                          </Bubble>
+                        ) : (
+                          // The assistant reads as the document, not a
+                          // chat party: plain rendered prose (markdown
+                          // included), no bubble chrome.
+                          <Streamdown className="min-w-0 text-xs leading-relaxed">
+                            {item.text}
+                          </Streamdown>
+                        )}
                         {phase === "grilling" &&
                         item.role === "assistant" &&
                         item.suggestedAnswers !== undefined &&
@@ -570,7 +579,10 @@ export function IdeationChatView({
       ) : null}
 
       {phase === "grilling" ? (
-        <div className="flex items-end gap-2">
+        // The composer pill: the send control rides INSIDE the textarea's
+        // frame (bottom-right), so the field grows and the control follows
+        // it — no button dangling beside a bare full-width input.
+        <div className="relative">
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -586,7 +598,7 @@ export function IdeationChatView({
             }}
             rows={2}
             placeholder="Your answer — direct, skeptical and relentless back"
-            className="min-h-[2.25rem] flex-1"
+            className="min-h-[2.25rem] rounded-[12px] px-3.5 py-2.5 pr-12 pb-2.5"
             disabled={isLoading}
           />
           {isLoading ? (
@@ -596,6 +608,7 @@ export function IdeationChatView({
               onClick={stopTurn}
               aria-label="Stop generating"
               title="Stop — nothing is persisted; the step can be re-run"
+              className="absolute right-2 bottom-2 rounded-lg"
             >
               <Square className="size-3.5" />
             </Button>
@@ -605,6 +618,7 @@ export function IdeationChatView({
               onClick={sendAnswer}
               disabled={draft.trim() === ""}
               aria-label="Send answer"
+              className="absolute right-2 bottom-2 rounded-lg"
             >
               <ArrowUp className="size-3.5" />
             </Button>

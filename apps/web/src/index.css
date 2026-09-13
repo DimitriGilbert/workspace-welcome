@@ -1,1 +1,20 @@
 @import "@workspace-welcome/ui/globals.css";
+
+/*
+ * Shiki dual-theme register (file-viewer code pane): every token carries
+ * both palettes as custom properties (`defaultColor: false` in viewer.tsx);
+ * the app's dark class picks the palette, and the pane keeps its own chrome
+ * so the editor background is neutralized.
+ */
+pre.shiki {
+  background-color: transparent !important;
+}
+pre.shiki code {
+  display: block;
+}
+pre.shiki span {
+  color: var(--shiki-light);
+}
+.dark pre.shiki span {
+  color: var(--shiki-dark);
+}

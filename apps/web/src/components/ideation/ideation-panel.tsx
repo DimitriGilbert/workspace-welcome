@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Layers, Loader2, Plus, Save } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  HelpCircle,
+  Layers,
+  Loader2,
+  Plus,
+  Save,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@workspace-welcome/ui/components/button";
@@ -13,6 +22,7 @@ import {
   DialogTitle,
 } from "@workspace-welcome/ui/components/dialog";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
+import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 import { Textarea } from "@workspace-welcome/ui/components/textarea";
 
 import {
@@ -276,7 +286,13 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
 
   return (
     // The id is the deep-link anchor: ?ideation=new scrolls here (PRD §3).
-    <section id="ideation" className="flex h-full flex-col border border-foreground/10 p-3">
+    // @container: the panel lives in widgets from phone-narrow to the
+    // 9-column console — the fresh form re-bands off the REAL width, not
+    // the viewport.
+    <section
+      id="ideation"
+      className="flex h-full flex-col border border-foreground/10 p-3 @container"
+    >
       <div className="flex min-h-7 items-center justify-between gap-2">
         <span className="font-mono text-[0.65rem] text-muted-foreground">
           ideation{session !== null ? ` · ${session.phase}` : ""}
@@ -310,55 +326,104 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
       </div>
 
       {collapsed ? null : activeSessionId === null ? (
-        <div className="mt-2 flex min-w-0 flex-col gap-2">
-          <Textarea
-            value={ideaDraft}
-            onChange={(e) => setIdeaDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                startSession();
-              }
-            }}
-            rows={2}
-            placeholder="What are you building?"
-          />
-          {/* Criterion 1: the context line under the idea — kiln micro-label
-              voice, full summary on hover, absent while pending or failed. */}
-          {contextPreviewQuery.data ? (
-            <span
-              className="truncate font-mono text-[0.65rem] text-muted-foreground/70"
-              title={contextPreviewQuery.data.contextSummary}
-            >
-              context · {contextPreviewQuery.data.contextSummary}
-            </span>
-          ) : null}
-          {/* Model choice for the session being composed — frozen into
-              session.json at start, so later settings changes never rewrite
-              it (PRD §4.5). No step prop: there is no session yet, so the
-              simple solo picker is the relevant mode. */}
-          <IdeationModelPicker value={modelSet} onChange={handleModelsChange} />
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[0.65rem] text-muted-foreground/70">
-              grill → prd → plan → docs/
-            </span>
-            <Button
-              size="sm"
-              onClick={startSession}
-              disabled={ideaDraft.trim() === "" || startMutation.isPending}
-            >
-              {startMutation.isPending ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : null}
-              Start
-            </Button>
-          </div>
-          {sessionsQuery.isLoading ? (
-            <div className="mt-2 flex flex-col gap-1.5">
-              <Skeleton className="h-8" />
-              <Skeleton className="h-8" />
-            </div>
-          ) : sessionsQuery.isError ? (
+        // The fresh state OCCUPIES the panel width: the composer column
+        // takes what's there, with the how-it-works docs riding BESIDE it
+        // as a rail on wide containers (stacked below on narrow ones).
+        // Vertically centered when it fits, scrolling through the styled
+        // ScrollArea when it doesn't.
+        <ScrollArea className="mt-2 min-h-0 w-full flex-1">
+          <div className="flex min-h-full w-full min-w-0 flex-col">
+            <div className="my-auto flex w-full min-w-0 flex-col gap-3 py-2">
+              <div className="flex min-w-0 flex-col gap-3 @[1000px]:flex-row @[1000px]:items-start @[1000px]:gap-4">
+                <div className="flex min-w-0 flex-1 flex-col gap-3">
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <Sparkles
+                      aria-hidden
+                      className="size-4 text-(--state-positive)"
+                    />
+                    <h3 className="text-base leading-tight font-medium tracking-tight">
+                      What are you building?
+                    </h3>
+                    <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+                      a focused interview — answer a handful of questions and
+                      it lands a PRD and an implementation plan in docs/
+                    </p>
+                  </div>
+                  {/* The composer frame: the panel's hero control. The model
+                      chip rides bottom-left INSIDE the frame, the send
+                      control bottom-right. ⌘⏎ / Ctrl+⏎ starts too. */}
+                  <div className="rounded-[12px] border border-foreground/15 bg-background shadow-sm transition-colors focus-within:border-(--pinned-accent,var(--primary))">
+                    <Textarea
+                      value={ideaDraft}
+                      onChange={(e) => setIdeaDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          startSession();
+                        }
+                      }}
+                      rows={3}
+                      placeholder="Describe the idea — scope, users, constraints…"
+                      className="min-h-20 border-0 bg-transparent px-3.5 pt-3 pb-1 font-sans text-[0.8rem] leading-relaxed shadow-none focus-visible:ring-0"
+                    />
+                    <div className="flex min-w-0 items-center gap-2 px-2 pb-2">
+                      <div className="min-w-0 max-w-full shrink">
+                        <IdeationModelPicker
+                          chrome="bare"
+                          value={modelSet}
+                          onChange={handleModelsChange}
+                        />
+                      </div>
+                      <span className="min-w-0 flex-1" />
+                      <Button
+                        size="icon"
+                        onClick={startSession}
+                        disabled={ideaDraft.trim() === "" || startMutation.isPending}
+                        aria-label="Start the interview"
+                        title="Start the interview (⌘/Ctrl+Enter)"
+                        className="rounded-lg @max-[479px]:h-11 @max-[479px]:w-11"
+                      >
+                        {startMutation.isPending ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <ArrowUp className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  {/* Criterion 1: the context line owns its row — a
+                      two-line clamp with the full summary on hover,
+                      absent while pending or failed. */}
+                  {contextPreviewQuery.data ? (
+                    <span
+                      className="line-clamp-2 font-mono text-[0.65rem] leading-relaxed text-muted-foreground/70"
+                      title={contextPreviewQuery.data.contextSummary}
+                    >
+                      context · {contextPreviewQuery.data.contextSummary}
+                    </span>
+                  ) : null}
+                  <div className="flex items-center justify-center gap-2 font-mono text-[0.65rem] text-muted-foreground">
+                    <span>grill → prd → plan → docs/</span>
+                    <span aria-hidden className="hidden @[680px]:inline">
+                      ·
+                    </span>
+                    <span className="hidden @[680px]:inline">
+                      ⌘⏎ to start
+                    </span>
+                  </div>
+                </div>
+                {/* The capability docs ride beside the composer where
+                    there is width; below it where there isn't. */}
+                <div className="min-w-0 @[1000px]:w-[20rem] @[1000px]:shrink-0">
+                  <IdeationHowItWorks />
+                </div>
+              </div>
+              {sessionsQuery.isLoading ? (
+                <div className="flex flex-col gap-1.5">
+                  <Skeleton className="h-8" />
+                  <Skeleton className="h-8" />
+                </div>
+              ) : sessionsQuery.isError ? (
             <p
               className="mt-2 text-[0.7rem] leading-relaxed"
               style={{ color: "var(--sev-critical)" }}
@@ -388,9 +453,11 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
                   </span>
                 </button>
               ))}
+              </div>
+            ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        </ScrollArea>
       ) : sessionQuery.isError ? (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-[0.7rem] leading-relaxed" style={{ color: "var(--sev-critical)" }}>
@@ -499,5 +566,65 @@ export function IdeationPanel({ project, startNew = false }: IdeationPanelProps)
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+/**
+ * The capability docs (capability transparency, the one thing AI surfaces
+ * keep forgetting): what the interview does, what lands where, what the
+ * model controls mean. Open by default where there is room (containers
+ * ≥680px), a collapsed toggle below — `null` means "auto" and the CSS
+ * carries the default; an explicit toggle always wins.
+ */
+function IdeationHowItWorks() {
+  const [open, setOpen] = useState<boolean | null>(null);
+  const autoVisible = open === null ? "hidden @[680px]:block" : open ? "block" : "hidden";
+  return (
+    <div className="rounded-[12px] border border-dashed border-foreground/15">
+      <button
+        type="button"
+        onClick={() => setOpen(open === null ? false : !open)}
+        aria-expanded={open === null ? undefined : open}
+        className="flex w-full items-center gap-1.5 px-3 py-2 text-left font-mono text-[0.65rem] lowercase text-muted-foreground transition-colors outline-none hover:text-foreground"
+      >
+        <HelpCircle aria-hidden className="size-3.5 shrink-0" />
+        how it works
+        {/* A static "expand" chevron: the auto-open state is CSS-driven
+            (container width), so a rotated "open" marker would lie on one
+            of the bands. */}
+        <ChevronDown aria-hidden className="ml-auto size-3.5" />
+      </button>
+      <div className={autoVisible}>
+        <dl className="flex flex-col gap-2 border-t border-dashed border-foreground/15 px-3 py-2.5">
+          {[
+            {
+              term: "grill",
+              desc: "one question at a time — answer directly or pick a suggestion. ⏎ sends, ⇧⏎ is a newline, stop abandons the turn and keeps nothing.",
+            },
+            {
+              term: "prd → plan",
+              desc: "your answers merge into a product doc, then an implementation plan follows it.",
+            },
+            {
+              term: "save",
+              desc: "writes docs/PRD.md and docs/PLAN.md once; existing files trigger an overwrite confirm. Sessions live in .ideadump/ (gitignored).",
+            },
+            {
+              term: "models",
+              desc: "one model runs every step by default; advanced fans several models per step out and a reconciler merges their answers.",
+            },
+          ].map((row) => (
+            <div key={row.term} className="flex flex-col gap-0.5">
+              <dt className="font-mono text-[0.65rem] lowercase text-muted-foreground">
+                {row.term}
+              </dt>
+              <dd className="text-[0.7rem] leading-relaxed text-muted-foreground">
+                {row.desc}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </div>
   );
 }

@@ -2,17 +2,20 @@
  * Mission Control's theme preset (master plan §5 T1/T2).
  *
  * T2 dashboard port, owner-modded arrangement: the command register (sync
- * clock, Actions menu, Rescan, Settings) rides the COMMON page header
- * (`ThemePreset.headerCommand`) beside the common filter, and the masthead
- * vitals band spreads edge to edge as the board's first row — no filter,
- * action or command rows float on the canvas. The console region packs the
- * owner's FINAL board (`final-GETTING.jpeg`, 12 rows on desktop, holes
- * intentional): masthead vitals, triage (3) and the fleet ledger (8) on the
- * left; activity (3), code (3) and the dirty-leaders | alerts pair (3) in
- * the centre; AI usage (5) with the health (3) | stack-mix (4) pair on the
- * right — the centre and right bands stop at row 9 and the empty cells
- * below them stay empty (authored anchors, never filled). The heatmap and
- * roots kinds stay registered but off this board.
+ * clock, the four workspace verbs as direct buttons, Rescan, Settings) rides
+ * the COMMON page header (`ThemePreset.headerCommand`) beside the common
+ * filter, and the masthead vitals band spreads edge to edge as the board's
+ * first row — no filter, action or command rows float on the canvas. The
+ * console region packs the owner's FINAL board (`final-GETTING.jpeg`, 12
+ * rows on desktop, holes intentional): masthead vitals, triage (3) and the
+ * fleet ledger (8) on the left; activity (3), code (3) and the
+ * dirty-leaders | alerts pair (3) in the centre; AI usage (5) with the
+ * health (3) | stack-mix (4) pair on the right — the centre and right bands
+ * stop at row 9 and the empty cells below them stay empty (authored
+ * anchors, never filled). The heatmap and roots kinds stay registered but
+ * off this board. The board declares no console views — the dashboard is
+ * one canvas, and view tabs that filter the single region to itself show
+ * nothing new (owner round: overview/attention/pinned/archive removed).
  *
  * The project page (T3, owner compactness pass) is ONE canvas — a single
  * stack region, so every widget drags everywhere on the board (the old
@@ -31,7 +34,6 @@
  */
 import "./tokens.css";
 
-import type { ConsoleView } from "@/components/widgets/render-layout";
 import type { ThemeScheme, ThemePreset } from "@/components/themes";
 
 import { McCommandRegister } from "./widgets/command-bar";
@@ -51,28 +53,9 @@ const SCHEMES: readonly ThemeScheme[] = [
   { id: "daylight", label: "Daylight (light)", appearance: "light", css: "daylight" },
 ];
 
-/**
- * The console's digit-switchable views — exactly the fleet views the design
- * declares (`ViewId` in `components/designs/mission-control/metrics.ts`,
- * labeled per its nav rail). Overview is the full console and the `Escape`
- * default; the three fleet views narrow the board to the console stage —
- * triage (the design's one attention surface), the ledger, the context zone
- * and analytics — dropping the command band. Per-view project filtering is a
- * nav-level concern, NOT re-invented as board content: region visibility is
- * the board's honest view contract, so attention/pinned/archive share the
- * stage region and differ by declared id/tab state.
- */
-const CONSOLE_VIEWS: readonly ConsoleView[] = [
-  { id: "overview", label: "Overview" },
-  { id: "attention", label: "Attention", regions: ["console"] },
-  { id: "pinned", label: "Pinned", regions: ["console"] },
-  { id: "archive", label: "Archive", regions: ["console"] },
-];
-
 export const missionControlPreset: ThemePreset = {
   id: "mission-control",
   label: "Mission Control",
-  consoleViews: CONSOLE_VIEWS,
   schemes: SCHEMES,
   // Owner mod 1: the command register (sync clock, Actions, Rescan,
   // Settings) is header chrome — it renders at the common page header's
@@ -92,9 +75,7 @@ export const missionControlPreset: ThemePreset = {
         // ONE droppable surface: the masthead vitals band is the console
         // region's first row, so a widget can be dropped anywhere on the
         // board — onto or beside the vitals — and the band yields like any
-        // free widget (owner round 3). The console views (attention/pinned/
-        // archive) filter this single region, so the vitals figure band
-        // persists across views exactly like the design's sticky header.
+        // free widget (owner round 3).
         //
         // THE FINAL OWNER ARRANGEMENT (final-GETTING.jpeg — the exact board
         // to author, holes included): three 4-column bands over 12 rows.

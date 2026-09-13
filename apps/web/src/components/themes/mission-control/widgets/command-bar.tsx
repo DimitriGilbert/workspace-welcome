@@ -11,11 +11,12 @@
  * (`data-console-filter`, focused by `/`) — the one filter the owner kept
  * common — so this register carries no second search input: the sync clock
  * reads the provider's data-epoch (never wall-clock during render), Rescan
- * rides the provider's `refresh()`, and the Actions menu keeps the workspace
- * verbs reachable, opening the same token-styled form parts the `mc-actions`
- * band renders — one set of flows, two doors (§3.5: themes compose form
- * parts, no new dialogs). The Settings link survives the collapsed action
- * band here.
+ * rides the provider's `refresh()`, and the workspace verbs — add a
+ * directory, create a project, generate the report, build the clone script
+ * — sit as DIRECT one-click buttons, each opening its token-styled form
+ * part (`components/parts/form/*`; §3.5: themes compose the ONE set of
+ * flows — no theme-local dialogs, no new tRPC, no dropdown burying a
+ * click under a click). The Settings link closes the register.
  *
  * `McCommandBar` keeps the kind alive as a canvas-ground wrapper (the lab
  * exercises every registered kind): the same register inside a chrome-stripped
@@ -26,7 +27,6 @@ import {
   ArrowUpRight,
   FolderPlus,
   PackagePlus,
-  Plus,
   RefreshCw,
   Terminal,
   Zap,
@@ -34,12 +34,6 @@ import {
 import { Link } from "@tanstack/react-router";
 
 import { cn } from "@workspace-welcome/ui/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace-welcome/ui/components/dropdown-menu";
 
 import { relativeTime } from "@/lib/format";
 import { FormAddRoot } from "@/components/parts/form/add-root";
@@ -63,9 +57,10 @@ export const MC_ACTION_BUTTON = cn(
 );
 
 /**
- * The register itself — sync state, the Actions menu, Rescan, Settings —
- * plus the four flow dialogs it opens. Renders wherever the theme seats it:
- * the common page header (production) or a canvas shell (the lab kind).
+ * The register itself — sync state, the four workspace verbs as direct
+ * buttons, Rescan, Settings — plus the four flow dialogs the verbs open.
+ * Renders wherever the theme seats it: the common page header (production)
+ * or a canvas shell (the lab kind).
  */
 export function McCommandRegister({ className }: { className?: string }) {
   const workspace = useWorkspace();
@@ -95,30 +90,38 @@ export function McCommandRegister({ className }: { className?: string }) {
         <span className="hidden font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground xl:inline">
           {scanning ? "Syncing…" : `Synced ${syncedLabel}`}
         </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button type="button" className={MC_ACTION_BUTTON}>
-                <Plus aria-hidden className="size-3" />
-                Actions
-              </button>
-            }
-          />
-          <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuItem onClick={() => setAddRootOpen(true)}>
-              <FolderPlus className="size-4" /> Add directory
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCreateOpen(true)}>
-              <PackagePlus className="size-4" /> Create project
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setReportOpen(true)}>
-              <Zap className="size-4" /> Generate report
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setCloneOpen(true)}>
-              <Terminal className="size-4" /> Clone script
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          type="button"
+          onClick={() => setAddRootOpen(true)}
+          className={MC_ACTION_BUTTON}
+        >
+          <FolderPlus aria-hidden className="size-3" />
+          Add directory
+        </button>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className={MC_ACTION_BUTTON}
+        >
+          <PackagePlus aria-hidden className="size-3" />
+          Create project
+        </button>
+        <button
+          type="button"
+          onClick={() => setReportOpen(true)}
+          className={MC_ACTION_BUTTON}
+        >
+          <Zap aria-hidden className="size-3" />
+          Generate report
+        </button>
+        <button
+          type="button"
+          onClick={() => setCloneOpen(true)}
+          className={MC_ACTION_BUTTON}
+        >
+          <Terminal aria-hidden className="size-3" />
+          Clone script
+        </button>
         <button
           type="button"
           onClick={() => workspace.refresh()}

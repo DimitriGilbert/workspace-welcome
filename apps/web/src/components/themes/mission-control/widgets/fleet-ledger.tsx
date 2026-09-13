@@ -5,21 +5,22 @@
  * widths, never scrolling internally — the table library import stays in
  * the ui part where it belongs).
  *
- * The cells are the design's, verbatim: state LED, unit name + pin glyph,
- * stack icon, branch with the git-fork glyph, ahead/behind numerals with
- * the accent/warn registers, dirty count, the pulse-strip signal, note,
- * AlertIcons, relative update age. Rows open the project through the
+ * The cells are the design's, verbatim: state LED, project name + pin
+ * glyph, stack icon, branch with the git-fork glyph, ahead/behind numerals
+ * with the accent/warn registers, dirty count, the pulse-strip signal,
+ * note, AlertIcons, relative update age. Rows open the project through the
  * same-theme project route (the design's whole-row click).
  *
- * Density contract (owner FINAL image + projects-list verdict): every fixed-content
- * column is sized to its content and the freed span goes to UNIT and BRANCH —
- * name and branch display fully, never truncated — while SIGNAL lands at a
- * quarter of its former span as the narrow compact-bar column (a 22px tick at
- * the track's end) with UPDATED closing the row. A NOTE column that no visible
- * unit can fill is a void column — it is omitted and the freed width goes to
- * name/branch instead. The NOTE column shows the project note or, absent, the
- * last commit subject — a unit with neither contributes nothing anywhere, so
- * the census is data-driven.
+ * Density contract (owner FINAL image + projects-list verdict): every
+ * fixed-content column is sized to its content and the freed span goes to
+ * PROJECT and BRANCH — name and branch display fully, never truncated —
+ * while SIGNAL lands at a quarter of its former span as the narrow
+ * compact-bar column (a 22px tick at the track's end) with UPDATED closing
+ * the row. A NOTE column that no visible project can fill is a void column
+ * — it is omitted and the freed width goes to name/branch instead. The
+ * NOTE column shows the project note or, absent, the last commit subject —
+ * a project with neither contributes nothing anywhere, so the census is
+ * data-driven.
  *
  * The command bar's filter executes here over the visible set (the design
  * feeds it through the table's filter row model; the working set is already
@@ -93,7 +94,7 @@ function compactStamp(stamp: string): string {
     .replace(" year ago", "y ago");
 }
 
-/** The note text a unit contributes: the operator note, else the last commit subject. */
+/** The note text a project contributes: the operator note, else the last commit subject. */
 function noteOf(p: Project): string {
   return p.note ?? p.git.lastCommit?.message ?? "";
 }
@@ -125,24 +126,24 @@ const helper = createDataTableColumnHelper<Project>();
  * Column widths, content first — authored in px at the desktop reference row
  * (the FINAL owner image's ~1084px ledger): state LED, stack glyph, sync/
  * dirty/alerts numerals and the update age take what their content needs;
- * the freed span goes to UNIT and BRANCH — name and branch display fully,
- * never truncated — while SIGNAL lands at a quarter of its former span as
- * the narrow compact-bar column with UPDATED closing the row. Every column
- * also carries a PIXEL floor (`minSize`) equal to its longest real content
- * (24-char unit names, 29-char branches, three-digit sync pairs), so the
- * table's honest minWidth is the sum of the floors — below it the ladder
- * swaps to the KvList register instead of clipping (no mid-word cuts at any
- * width). The SIGNAL column is the LAST content column before the update
- * age — the strip starts immediately after the alert data and flexes to the
- * right-aligned timestamps.
+ * the freed span goes to PROJECT and BRANCH — name and branch display
+ * fully, never truncated — while SIGNAL lands at a quarter of its former
+ * span as the narrow compact-bar column with UPDATED closing the row. Every
+ * column also carries a PIXEL floor (`minSize`) equal to its longest real
+ * content (24-char project names, 29-char branches, three-digit sync
+ * pairs), so the table's honest minWidth is the sum of the floors — below
+ * it the ladder swaps to the KvList register instead of clipping (no
+ * mid-word cuts at any width). The SIGNAL column is the LAST content
+ * column before the update age — the strip starts immediately after the
+ * alert data and flexes to the right-aligned timestamps.
  */
 const FLEX_SIZES = { signalWithNotes: 146, signalSolo: 178, note: 330 };
 
 /** Pixel floors — the longest real content each column must hold uncut. */
-const MIN_PX = { state: 14, unit: 214, stack: 22, branch: 218, sync: 68, dirty: 32, note: 60, alerts: 46, signal: 72, updated: 64 };
+const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, note: 60, alerts: 46, signal: 72, updated: 64 };
 
-/** Column px widths at the desktop reference (unit/branch carry the freed span). */
-const SIZE_PX = { state: 27, unit: 274, stack: 41, branch: 274, sync: 55, dirty: 55, alerts: 55, updated: 127 };
+/** Column px widths at the desktop reference (project/branch carry the freed span). */
+const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, alerts: 55, updated: 127 };
 
 function buildColumns(notes: boolean): DataTableColumns<Project> {
   const signal = notes ? FLEX_SIZES.signalWithNotes : FLEX_SIZES.signalSolo;
@@ -155,11 +156,11 @@ function buildColumns(notes: boolean): DataTableColumns<Project> {
       cell: (ctx) => <ProjectLed project={ctx.row.original} />,
     }),
     helper.accessor((p) => p.name, {
-      id: "unit",
+      id: "project",
       sortFn: "alphanumeric",
-      size: SIZE_PX.unit,
-      minSize: MIN_PX.unit,
-      header: "Unit",
+      size: SIZE_PX.project,
+      minSize: MIN_PX.project,
+      header: "Project",
       cell: (ctx) => {
         const p = ctx.row.original;
         return (
@@ -370,7 +371,7 @@ function openProjectRow(path: string): void {
  * below it the name or branch would cut mid-word, so the register swaps. */
 const TABLE_MIN_PX =
   MIN_PX.state +
-  MIN_PX.unit +
+  MIN_PX.project +
   MIN_PX.stack +
   MIN_PX.branch +
   MIN_PX.sync +
@@ -433,7 +434,7 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
       <WidgetShell className="h-full w-full">
         <div className="flex h-full min-h-0 w-full items-center justify-center px-4 pb-2">
           <p className="text-xs text-muted-foreground">
-            No units on record — add a scan root to begin the ledger.
+            No projects on record — add a scan root to begin the ledger.
           </p>
         </div>
       </WidgetShell>
@@ -446,7 +447,7 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
         <p className="shrink-0 font-mono text-[9.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Fleet
           <span className="ml-2 tracking-[0.14em] text-muted-foreground/80">
-            {visible.length} of {workspace.projects.length} units
+            {visible.length} of {workspace.projects.length} projects
           </span>
         </p>
         {table ? (
@@ -463,8 +464,8 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
                   initialSort={[{ id: "updated", desc: true }]}
                   minWidth={tableMinWidth}
                   onRowClick={(p) => openProjectRow(p.path)}
-                  ariaLabel="Fleet status, one row per project: state, unit, stack, branch, sync counts, uncommitted files, note, alerts, activity signal and last update"
-                  empty="No units match the filter"
+                  ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, note, alerts, activity signal and last update"
+                  empty="No projects match the filter"
                 />
               </ScrollArea>
             </div>

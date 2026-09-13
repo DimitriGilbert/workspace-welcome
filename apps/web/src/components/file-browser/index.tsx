@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace-welcome/ui/components/card";
+import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 import type {
   FileEntry,
   ListDirResult,
@@ -200,7 +201,11 @@ export function FileBrowser({
           trash when the machine has one, otherwise it is permanent.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      {/* flex-1 min-h-0: the Card's flex-col pass-through — the split row's
+          percentage height resolves against THIS box, so it must be definite
+          (auto here = panes grow to content and the Card's overflow-hidden
+          clips them: no scroll anywhere). */}
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
         {listing.isError ? (
           <p className="text-xs" style={{ color: "var(--sev-critical)" }}>
             {listing.error.message}
@@ -215,28 +220,32 @@ export function FileBrowser({
             match the query and keep the exact legacy split. */}
         <div
           ref={splitRef}
-          className="flex min-w-0 items-stretch gap-0 @container"
+          className="flex min-h-0 min-w-0 items-stretch gap-0 @container"
           style={{ height }}
         >
+          {/* The tree scrolls through the ui ScrollArea — the register the
+            whole browser uses (the viewer's code pane does too). */}
           <div
-            className="shrink-0 overflow-y-auto @max-[640px]:min-w-0 @max-[640px]:max-w-[55%]"
+            className="h-full shrink-0 @max-[640px]:min-w-0 @max-[640px]:max-w-[55%]"
             style={{ width: `${treeWidth}px` }}
           >
-            <FileTree
-              ref={treeApi}
-              project={project}
-              listDir={listDir}
-              onDirChange={setCurrentDir}
-              onOpenFile={(path, entry) => setViewing({ path, entry })}
-              trashAvailable={trashAvailable}
-              rename={(path, name) =>
-                renameMutation.mutate({ project, path, name })
-              }
-              createFolder={(parent, name) =>
-                createFolderMutation.mutate({ project, parent, name })
-              }
-              remove={(path) => deleteMutation.mutate({ project, path })}
-            />
+            <ScrollArea className="h-full">
+              <FileTree
+                ref={treeApi}
+                project={project}
+                listDir={listDir}
+                onDirChange={setCurrentDir}
+                onOpenFile={(path, entry) => setViewing({ path, entry })}
+                trashAvailable={trashAvailable}
+                rename={(path, name) =>
+                  renameMutation.mutate({ project, path, name })
+                }
+                createFolder={(parent, name) =>
+                  createFolderMutation.mutate({ project, parent, name })
+                }
+                remove={(path) => deleteMutation.mutate({ project, path })}
+              />
+            </ScrollArea>
           </div>
           <div
             role="separator"

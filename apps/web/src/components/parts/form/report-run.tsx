@@ -21,9 +21,13 @@ import {
 } from "@workspace-welcome/ui/components/select";
 import { Switch } from "@workspace-welcome/ui/components/switch";
 
-import { REPORT_PERIOD_PRESETS } from "@/lib/queries/reports";
+import {
+  REPORT_PERIOD_PRESETS,
+  reportPeriodLabel,
+} from "@/lib/queries/reports";
 import { useReportRun } from "@/lib/use-report";
 
+import { useReportOptional } from "@/lib/contexts/report-context";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 
 /**
@@ -34,6 +38,12 @@ import { useWorkspace } from "@/lib/contexts/workspace-context";
  * source of truth with the report pipeline; presets are keyed by label.
  * The root list comes from `useWorkspace().roots` (raw result, exposed not
  * copied).
+ *
+ * ONE report, two views: under a workspace-scope ReportProvider (the
+ * dashboard) the dialog adopts the provider's root and period as its
+ * defaults, and submitting syncs the provider's period — the widgets
+ * re-key to the exact artifact this dialog generates, so "generate the
+ * report" and "what the widgets read" can never drift apart.
  */
 
 export function FormReportRun({
@@ -44,6 +54,7 @@ export function FormReportRun({
   onOpenChange: (open: boolean) => void;
 }) {
   const workspace = useWorkspace();
+  const report = useReportOptional();
   const roots = workspace.roots.data ?? [];
   const { run, isPending } = useReportRun();
 
@@ -53,10 +64,27 @@ export function FormReportRun({
   );
   const [force, setForce] = useState(false);
 
-  // Default to the only choice when there's exactly one root.
+  // Adopt the page's report scope when the dialog opens: the provider's
+  // scan root and period preselect (multi-root falls back to the single
+  // root rule, else an explicit pick). Deps are the scope's primitives —
+  // the provider rebuilds its context object every recompute, and the
+  // open-time adoption must not re-fire under an open dialog.
+  const providerKind = report?.scope.kind;
+  const providerPath = report?.scope.path;
+  const providerPeriod = report?.period;
   useEffect(() => {
-    if (open && roots.length === 1) setPath(roots[0]?.path ?? null);
-  }, [open, roots]);
+    if (!open) return;
+    if (
+      providerKind === "scan" &&
+      providerPath !== undefined &&
+      providerPath.length > 0
+    ) {
+      setPath(providerPath);
+      setPeriodLabel(reportPeriodLabel(providerPeriod));
+      return;
+    }
+    if (roots.length === 1) setPath(roots[0]?.path ?? null);
+  }, [open, providerKind, providerPath, providerPeriod, roots]);
 
   const period: ReportPeriod | undefined =
     REPORT_PERIOD_PRESETS.find((p) => p.label === periodLabel)?.value;
@@ -64,6 +92,16 @@ export function FormReportRun({
 
   const submit = () => {
     if (path === null) return;
+    // Same scope as the page's widgets → same period: the provider re-keys
+    // to the artifact this run produces, and its registry watch settles the
+    // refresh for every widget when the job lands.
+    if (
+      report !== null &&
+      report.scope.kind === "scan" &&
+      report.scope.path === path
+    ) {
+      report.setPeriod(period);
+    }
     run({ kind: "scan", path, force, period });
     onOpenChange(false);
   };

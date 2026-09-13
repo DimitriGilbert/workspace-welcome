@@ -225,7 +225,7 @@ export function McStackMix(_props: RegisteredWidgetProps) {
   // distributed over the legend column's height beside the donut.
   const legend =
     total === 0 ? (
-      <p className="font-mono text-[11px] text-muted-foreground">No units scanned yet.</p>
+      <p className="font-mono text-[11px] text-muted-foreground">No projects scanned yet.</p>
     ) : (
       <ul className="m-0 flex min-h-0 min-w-0 list-none flex-col justify-center p-0">
         {slices.map((s, i) => (
@@ -263,7 +263,7 @@ export function McStackMix(_props: RegisteredWidgetProps) {
         fill
         size={240}
         ariaLabel="Stack mix across the fleet"
-        center={{ value: String(total), label: "units" }}
+        center={{ value: String(total), label: "projects" }}
         slices={slices.map((s) => ({ label: s.label, value: s.count }))}
         legend={legend}
       />
@@ -274,7 +274,7 @@ export function McStackMix(_props: RegisteredWidgetProps) {
       className="h-full w-full"
       meta={
         <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
-          {total} units
+          {total} projects
         </span>
       }
     >
@@ -299,7 +299,7 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
   const tall = placed.rows >= 2;
   const leaders = useMemo(() => dirtyLeaders(workspace.projects, LEADER_LIMIT), [workspace.projects]);
   // The headline total is the fleet's uncommitted truth (the masthead's
-  // figure); the leaders below it rank the heaviest units.
+  // figure); the leaders below it rank the heaviest projects.
   const dirtySum = workspace.vitals.dirtySum;
 
   return (
@@ -361,7 +361,7 @@ export function McDirtyLeaders(_props: RegisteredWidgetProps) {
                 ariaLabel="Projects carrying the most uncommitted files, heaviest first"
               />
               <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-                uncommitted files per unit
+                uncommitted files per project
               </p>
             </div>
           )}

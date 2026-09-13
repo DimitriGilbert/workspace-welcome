@@ -82,6 +82,12 @@ export interface IdeationModelPickerProps {
    * whose fan-out matters (the first model call is a grilling turn).
    */
   step?: IdeationStep;
+  /**
+   * "label" (default): the micro-label header row ("model" + advanced).
+   * "bare": the trigger alone — for embedding as a chip inside a
+   * composer frame, where the label row would be settings-form noise.
+   */
+  chrome?: "label" | "bare";
   className?: string;
 }
 
@@ -89,6 +95,7 @@ export function IdeationModelPicker({
   value,
   onChange,
   step = "questions",
+  chrome = "label",
   className,
 }: IdeationModelPickerProps) {
   const trpc = useTRPC();
@@ -133,30 +140,31 @@ export function IdeationModelPicker({
 
   return (
     <div className={cn("flex min-w-0 flex-col gap-2", className)}>
-      <div className="flex min-h-7 items-center justify-between gap-2">
-        <span className="font-mono text-[0.65rem] lowercase text-muted-foreground">
-          model
-        </span>
-        {options.length > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            aria-expanded={advancedOpen}
-            onClick={() => setAdvancedOpen((open) => !open)}
-            className="font-mono text-[0.65rem] lowercase text-muted-foreground"
-          >
-            advanced
-            <ChevronRight
-              className={cn(
-                "size-3.5 transition-transform",
-                advancedOpen && "rotate-90",
-              )}
-            />
-          </Button>
-        ) : null}
-      </div>
-
+      {chrome === "label" ? (
+        <div className="flex min-h-7 items-center justify-between gap-2">
+          <span className="font-mono text-[0.65rem] lowercase text-muted-foreground">
+            model
+          </span>
+          {options.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((open) => !open)}
+              className="font-mono text-[0.65rem] lowercase text-muted-foreground"
+            >
+              advanced
+              <ChevronRight
+                className={cn(
+                  "size-3.5 transition-transform",
+                  advancedOpen && "rotate-90",
+                )}
+              />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {models.isPending ? <LoadingRow /> : null}
 
       {models.isError ? (
@@ -177,47 +185,82 @@ export function IdeationModelPicker({
 
       {options.length > 0 ? (
         <>
-          {stepMode ? (
-            <div className="flex flex-col gap-1.5">
-              {IDEATION_STEPS.map((stepKey) => (
-                <PickerRow key={stepKey} label={STEP_LABELS[stepKey]}>
-                  <IdeationModelMultiListbox
-                    options={options}
-                    value={value[stepKey]}
-                    ariaLabel={`${STEP_LABELS[stepKey]} step models`}
-                    onChange={(ids) =>
-                      onChange(withStepModels(value, stepKey, ids))
-                    }
-                  />
-                </PickerRow>
-              ))}
-            </div>
-          ) : multiMode ? (
-            <PickerRow label={STEP_LABELS[step]}>
-              <IdeationModelMultiListbox
-                options={options}
-                value={value[step]}
-                ariaLabel={`${STEP_LABELS[step]} step models`}
-                onChange={(ids) => onChange(withStepModels(value, step, ids))}
-              />
-            </PickerRow>
-          ) : (
-            <div className="min-w-0">
-              <IdeationModelListbox
-                options={options}
-                value={soloModelId(value)}
-                ariaLabel="ideation model"
-                onSelect={(id) =>
-                  onChange({
-                    ...value,
-                    questions: [id],
-                    prd: [id],
-                    plan: [id],
-                  })
-                }
-              />
-            </div>
-          )}
+          {/* Bare chrome seats the active control and the advanced expando
+              on ONE row (the composer's bottom band — chip and send share
+              a baseline); the mode blocks take full rows as they grow. */}
+          <div
+            className={
+              chrome === "bare"
+                ? "flex min-w-0 flex-wrap items-center gap-1.5"
+                : "contents"
+            }
+          >
+            {stepMode ? (
+              <div className="flex w-full min-w-0 flex-col gap-1.5">
+                {IDEATION_STEPS.map((stepKey) => (
+                  <PickerRow key={stepKey} label={STEP_LABELS[stepKey]}>
+                    <IdeationModelMultiListbox
+                      options={options}
+                      value={value[stepKey]}
+                      ariaLabel={`${STEP_LABELS[stepKey]} step models`}
+                      onChange={(ids) =>
+                        onChange(withStepModels(value, stepKey, ids))
+                      }
+                    />
+                  </PickerRow>
+                ))}
+              </div>
+            ) : multiMode ? (
+              <PickerRow
+                label={STEP_LABELS[step]}
+                className="min-w-0 flex-1"
+              >
+                <IdeationModelMultiListbox
+                  options={options}
+                  value={value[step]}
+                  ariaLabel={`${STEP_LABELS[step]} step models`}
+                  onChange={(ids) => onChange(withStepModels(value, step, ids))}
+                />
+              </PickerRow>
+            ) : (
+              <div
+                className={chrome === "bare" ? "w-40 min-w-0" : "min-w-0"}
+              >
+                <IdeationModelListbox
+                  options={options}
+                  value={soloModelId(value)}
+                  ariaLabel="ideation model"
+                  onSelect={(id) =>
+                    onChange({
+                      ...value,
+                      questions: [id],
+                      prd: [id],
+                      plan: [id],
+                    })
+                  }
+                />
+              </div>
+            )}
+
+            {chrome === "bare" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-expanded={advancedOpen}
+                onClick={() => setAdvancedOpen((open) => !open)}
+                className="font-mono text-[0.6rem] lowercase text-muted-foreground"
+              >
+                advanced
+                <ChevronRight
+                  className={cn(
+                    "size-3 transition-transform",
+                    advancedOpen && "rotate-90",
+                  )}
+                />
+              </Button>
+            ) : null}
+          </div>
 
           {reconcilerVisible ? (
             <PickerRow label="reconciler">
@@ -264,13 +307,15 @@ export function IdeationModelPicker({
 /** Micro-label + control row — the Note section's label voice, hairline aligned. */
 function PickerRow({
   label,
+  className,
   children,
 }: {
   label: string;
+  className?: string;
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <span className="w-[5.5rem] shrink-0 truncate font-mono text-[0.65rem] lowercase text-muted-foreground">
         {label}
       </span>

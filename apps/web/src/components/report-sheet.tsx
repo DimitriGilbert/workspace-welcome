@@ -24,6 +24,7 @@ import {
 import { Switch } from "@workspace-welcome/ui/components/switch";
 
 import { useTRPC } from "@/utils/trpc";
+import { REPORT_PERIOD_PRESETS } from "@/lib/queries/reports";
 import { useReportRun } from "@/lib/use-report";
 
 interface ReportSheetProps {
@@ -31,16 +32,13 @@ interface ReportSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-/** git-snitch --period presets; "all" = no flag = full history. */
-const PERIODS: ReadonlyArray<{ value: ReportPeriod | "all"; label: string }> = [
-  { value: "all", label: "All time" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "14d", label: "Last 2 weeks" },
-  { value: "1m", label: "Last month" },
-  { value: "3m", label: "Last 3 months" },
-  { value: "6m", label: "Last 6 months" },
-  { value: "1y", label: "Last year" },
-];
+/** git-snitch --period presets; "all" = no flag = full history — derived
+ * from the one REPORT_PERIOD_PRESETS source (long labels for the sheet). */
+const PERIODS: ReadonlyArray<{ value: ReportPeriod | "all"; label: string }> =
+  REPORT_PERIOD_PRESETS.map((p) => ({
+    value: p.value ?? "all",
+    label: p.longLabel,
+  }));
 
 function isPeriodValue(value: string): value is ReportPeriod | "all" {
   return PERIODS.some((p) => p.value === value);

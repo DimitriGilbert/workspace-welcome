@@ -46,9 +46,11 @@ import {
 import type { ReportView } from "@/lib/report-view";
 import { ageMs, formatCost, formatTokens } from "@/lib/format";
 import { useReport } from "@/lib/contexts/report-context";
+import { REPORT_PERIOD_PRESETS } from "@/lib/report-periods";
 
-/** git-snitch period presets; "all" = no period flag (full history). */
-const PERIODS = ["all", "7d", "1m", "3m", "6m", "1y"] as const;
+/** git-snitch period presets; "all" = no period flag (full history) —
+ * derived from the one REPORT_PERIOD_PRESETS source. */
+const PERIODS = REPORT_PERIOD_PRESETS.map((p) => p.value ?? "all");
 
 type ReportTab = "activity" | "health" | "code" | "ai";
 

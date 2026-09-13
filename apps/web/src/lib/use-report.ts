@@ -2,7 +2,10 @@ import { toast } from "sonner";
 
 import type { ReportPeriod } from "@workspace-welcome/api/routers/reports";
 
-import { useReportGenerateMutation } from "@/lib/queries/reports";
+import {
+  useReportGenerateMutation,
+  useReportSettleNotifier,
+} from "@/lib/queries/reports";
 
 export interface ReportRunOptions {
   kind: "repo" | "scan";
@@ -19,12 +22,18 @@ export interface ReportRunOptions {
  * window.open during a user gesture, and the job key only exists once the
  * mutation resolves. The /reports page handles the wait-and-swap itself.
  *
- * All query/mutation wiring delegates to `lib/queries/` — this hook owns
- * only the open-a-tab choreography (no job tracking, no invalidation: the
- * query module's settle path covers refreshes for whoever polls the key).
+ * The run targets the same deterministic key the page's report provider
+ * reads, so the provider's registry watch settles it for the widgets (one
+ * invalidation when the job lands). The only case the registry never sees
+ * is the cache hit — a synthetic done job, never stored server-side — so
+ * its settle (possibly a backfilled export) is reported here.
+ *
+ * All query/mutation wiring delegates to `lib/queries/`; this hook owns
+ * only the open-a-tab choreography.
  */
 export function useReportRun() {
   const generate = useReportGenerateMutation();
+  const reportSettled = useReportSettleNotifier();
 
   const run = ({
     kind,
@@ -42,6 +51,7 @@ export function useReportRun() {
       { kind, path, force, period },
       {
         onSuccess: (job) => {
+          if (job.status === "done") reportSettled(job);
           const url = `/reports/${job.key}`;
           if (win) {
             win.location.href = url;

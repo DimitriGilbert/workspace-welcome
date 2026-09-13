@@ -3,10 +3,10 @@
  * `AnimatedNumeral`, `components/designs/mission-control/command-bar.tsx`).
  *
  * Owner verdict (verbatim: "the values we had before were fine"): the band
- * is the compact SIX-figure cluster — Units, Active 7d, Attention, Pinned,
- * Dirty files, Unpushed — full words, content-sized cells, tight left-packed
- * rhythm with hairline dividers. No additional statistics, no stretching:
- * the node is sized to what the six figures need.
+ * is the compact SIX-figure cluster — Projects, Active 7d, Attention,
+ * Pinned, Dirty files, Unpushed — full words, content-sized cells, tight
+ * left-packed rhythm with hairline dividers. No additional statistics, no
+ * stretching: the node is sized to what the six figures need.
  *
  * Each numeral's spring chases the incoming value so a rescan makes the
  * masthead count itself up/down instead of snapping. DOM order stays dt
@@ -105,7 +105,7 @@ function VitalsBoard({
   aheadSum: number;
 }) {
   const cells: { label: string; value: number; tone?: "warn" | "accent" }[] = [
-    { label: "Units", value: total },
+    { label: "Projects", value: total },
     { label: "Active 7d", value: activeWeek, tone: "accent" },
     { label: "Attention", value: attention, tone: attention > 0 ? "warn" : undefined },
     { label: "Pinned", value: pinned },

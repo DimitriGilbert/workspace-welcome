@@ -41,10 +41,10 @@ const rootColumns = rootHelper.columns([
     ),
   }),
   rootHelper.accessor((r) => r.count, {
-    id: "units",
+    id: "projects",
     sortFn: "alphanumeric",
     size: 10,
-    header: "Units",
+    header: "Projects",
     cell: (ctx) => (
       <span className="block text-right font-mono text-[11px] tabular-nums text-(--mc-accent)">
         {ctx.getValue()}
@@ -102,7 +102,7 @@ export function McRoots(_props: RegisteredWidgetProps) {
         <>
           <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2 @[240px]:hidden">
             <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-              {rows.reduce((sum, r) => sum + r.count, 0)} units · {rows.length} roots
+              {rows.reduce((sum, r) => sum + r.count, 0)} projects · {rows.length} roots
             </p>
           </div>
           <div className="hidden h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-3.5 pb-3 @[240px]:flex">
@@ -110,7 +110,7 @@ export function McRoots(_props: RegisteredWidgetProps) {
               <DataTable
                 columns={rootColumns}
                 data={rows}
-                initialSort={[{ id: "units", desc: true }]}
+                initialSort={[{ id: "projects", desc: true }]}
                 minWidth={140}
                 ariaLabel="Registered scan roots: label, project count"
                 empty="no roots registered"
@@ -126,7 +126,7 @@ export function McRoots(_props: RegisteredWidgetProps) {
       ) : (
         <div className="flex h-full min-h-0 w-full items-center overflow-hidden px-3.5 pb-2">
           <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {rows.reduce((sum, r) => sum + r.count, 0)} units · {rows.length} roots
+            {rows.reduce((sum, r) => sum + r.count, 0)} projects · {rows.length} roots
           </p>
         </div>
       )}

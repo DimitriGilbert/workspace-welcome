@@ -41,6 +41,7 @@ import { CreateProjectFlow } from "@/lib/forms";
 import type { ScaffoldResult } from "@/lib/forms";
 import { useAddRoot } from "@/lib/forms";
 import { hostLabel } from "@/lib/icons";
+import { REPORT_PERIOD_PRESETS } from "@/lib/report-periods";
 import { useReportRun } from "@/lib/use-report";
 
 import { useWorkspace } from "@/lib/contexts/workspace-context";
@@ -351,15 +352,13 @@ export function CloneScriptDialog({ projects, open, onOpenChange }: CloneScriptD
 
 /* -------------------------------------------------------- report picker */
 
-const PERIODS: ReadonlyArray<{ value: ReportPeriod | "all"; label: string }> = [
-  { value: "all", label: "All time" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "14d", label: "Last 2 weeks" },
-  { value: "1m", label: "Last month" },
-  { value: "3m", label: "Last 3 months" },
-  { value: "6m", label: "Last 6 months" },
-  { value: "1y", label: "Last year" },
-];
+/** git-snitch --period presets; "all" = no flag = full history — derived
+ * from the one REPORT_PERIOD_PRESETS source (long labels for the dialog). */
+const PERIODS: ReadonlyArray<{ value: ReportPeriod | "all"; label: string }> =
+  REPORT_PERIOD_PRESETS.map((p) => ({
+    value: p.value ?? "all",
+    label: p.longLabel,
+  }));
 
 function isPeriodValue(value: string): value is ReportPeriod | "all" {
   return PERIODS.some((p) => p.value === value);

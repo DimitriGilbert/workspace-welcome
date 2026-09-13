@@ -162,10 +162,10 @@ const body = async () => {
       try {
         await page.goto(`${options.baseUrl}/`);
         await page.settle({ readyTimeoutMs: 4000 });
-        // The add-directory flow has two doors depending on the default
-        // preset's chrome: a directly-visible button (bento/meadow chrome)
-        // or the header register's Actions menu (mission-control).
-        const direct = await page.eval(() => {
+        // The add-directory flow is a directly-visible button on every
+        // preset's chrome (mission-control's header register renders the
+        // workspace verbs as direct buttons; bento/meadow chrome likewise).
+        const openedTrigger = await page.eval(() => {
           const button = [...document.querySelectorAll("button")].find(
             (candidate) => candidate.textContent?.trim().includes("Add directory") === true,
           );
@@ -173,35 +173,8 @@ const body = async () => {
           button.click();
           return true;
         });
-        let openedTrigger = direct;
-        if (!direct) {
-          const menuOpened = await page.eval(() => {
-            const trigger = [...document.querySelectorAll("button")].find(
-              (candidate) => candidate.textContent?.trim() === "Actions",
-            );
-            if (trigger === undefined) return false;
-            trigger.click();
-            return true;
-          });
-          if (menuOpened) {
-            const menuMounted = await page.waitFor(
-              () => document.querySelector('[data-slot="dropdown-menu-content"]') !== null,
-              { timeoutMs: 5000 },
-            );
-            if (menuMounted) {
-              openedTrigger = await page.eval(() => {
-                const item = [...document.querySelectorAll('[data-slot="dropdown-menu-item"]')].find(
-                  (candidate) => candidate.textContent?.trim().includes("Add directory") === true,
-                );
-                if (item === undefined) return false;
-                item.click();
-                return true;
-              });
-            }
-          }
-        }
         if (!openedTrigger) {
-          report.fail("dialog-portals-out", `could not open the add-directory dialog on / (no "Add directory" button, no Actions menu item)`);
+          report.fail("dialog-portals-out", `could not open the add-directory dialog on / (no "Add directory" button)`);
         } else {
           const opened = await page.waitFor(
             () => document.querySelector('[data-slot="sheet-content"], [role="dialog"]') !== null,

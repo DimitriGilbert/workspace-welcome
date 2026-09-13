@@ -6,9 +6,9 @@
  * workspace report, build the clone script — plus the settings link. Each
  * verb opens its token-styled form part (`components/parts/form/*`, §3.5:
  * themes compose the ONE set of flows — no theme-local dialogs, no new
- * tRPC); the command bar's Actions menu opens the same parts, so the verbs
- * have two doors in the band. Mutations ride the parts' own hooks; the band
- * only refreshes the workspace scan after a root/project change.
+ * tRPC); the command register's header buttons open the same parts, so the
+ * verbs have two doors in the band. Mutations ride the parts' own hooks; the
+ * band only refreshes the workspace scan after a root/project change.
  */
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";

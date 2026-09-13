@@ -87,11 +87,19 @@ const WELL_KNOWN_BASE_URLS: Readonly<Record<string, string>> = Object.freeze({
  * Passthrough validation typing only the consumed fields (PRD §10: shape
  * drift in fields we don't consume must not break parsing): provider slugs
  * as record keys, display names, the OpenAI-compatible base URL when
- * present, and model names keyed by model id. Everything else rides
- * through untouched.
+ * present, and model names keyed by model id. Per-model `cost` (per-1M-token
+ * USD) and `release_date` (ISO date, sometimes month-precision) are the
+ * picker's price/freshness data. Everything else rides through untouched.
  */
 const modelsDevModelSchema = z.looseObject({
   name: z.string().optional(),
+  release_date: z.string().optional(),
+  cost: z
+    .looseObject({
+      input: z.number().optional(),
+      output: z.number().optional(),
+    })
+    .optional(),
 });
 
 const modelsDevProviderSchema = z.looseObject({
@@ -263,6 +271,19 @@ function releasedAt(model: z.infer<typeof modelsDevModelSchema>): number | null 
 }
 
 /**
+ * The model's per-1M-token USD cost when the dump carries usable numbers
+ * (either side absent or non-finite ⇒ the whole cost reads as unknown).
+ */
+function modelCost(
+  model: z.infer<typeof modelsDevModelSchema>,
+): { input: number; output: number } | null {
+  const { input, output } = model.cost ?? {};
+  if (input === undefined || output === undefined) return null;
+  if (!Number.isFinite(input) || !Number.isFinite(output)) return null;
+  return { input, output };
+}
+
+/**
  * Project a validated dump onto the models.list shape: only providers in
  * the env-var table that carry an OpenAI-compatible base URL and at least
  * one model — the adapter-reachability filter — with models gated to the
@@ -289,6 +310,8 @@ function mapDump(dump: ModelsDevDump): IdeationCatalogProvider[] {
       .map(([id, model]) => ({
         id: `${slug}/${id}`,
         label: model.name ?? id,
+        releasedAt: releasedAt(model),
+        cost: modelCost(model),
       }))
       .sort((a, b) => a.id.localeCompare(b.id));
     if (models.length === 0) continue;

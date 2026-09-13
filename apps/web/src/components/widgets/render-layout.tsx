@@ -29,6 +29,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 
 import { ThemeScope } from "@workspace-welcome/ui/components/theme-scope";
 
@@ -372,10 +373,16 @@ function PageBody({
         data-slot="page-header"
         className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 pt-4"
       >
+        {/* The board title is the way home: every page's header links back
+            to the dashboard (on the dashboard itself it is a no-op). */}
         {headerLabel !== undefined && (
-          <p className="font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground">
+          <Link
+            to="/"
+            title="Back to the dashboard"
+            className="font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+          >
             {headerLabel}
-          </p>
+          </Link>
         )}
         {headerMeta}
         <ThemePicker theme={theme} activeScheme={scheme} />
