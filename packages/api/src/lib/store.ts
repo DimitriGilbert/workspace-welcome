@@ -1,23 +1,45 @@
+import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 
-import {
-  DEFAULT_RECONCILER_MODEL,
-  DEFAULT_STEP_MODELS,
-} from "./ideation/shared";
+import { eq, notInArray } from "drizzle-orm";
+import { appMeta, getDb, projectOverrides, roots, settings } from "@workspace-welcome/db";
+import type { DbHandle } from "@workspace-welcome/db";
+
+import { DEFAULT_RECONCILER_MODEL, DEFAULT_STEP_MODELS } from "./ideation/shared";
 import type { ProjectOverrides, Root, Settings, StoreShape } from "./types";
 
 /**
- * On-disk persistence for roots, per-project overrides, and settings.
+ * Persistence for roots, per-project overrides, and settings — SQLite via
+ * `@workspace-welcome/db` (WAL file under the XDG data dir).
  *
- * No database — a single JSON file under the user config directory, written
- * atomically (temp file + rename) so a crash mid-write can't corrupt state.
+ * The first read after boot runs a one-time importer: when the
+ * `app_meta.store_imported_at` marker is unset, the legacy store.json under
+ * the XDG config dir is parsed with the migrate()/migrateIdeation()
+ * normalizers (kept verbatim — they are the compatibility contract) and
+ * inserted together with the marker inside a single transaction, so a crash
+ * can never split imported data from its marker. The legacy file is read at
+ * most once and never written, renamed, or deleted — it stays as an untouched
+ * backup; all writes go to the database.
+ *
+ * An in-memory StoreShape cache keeps reads cheap; it is invalidated whenever
+ * the underlying DbHandle changes (a `closeDb()` + `getDb()` cycle), which is
+ * how tests simulate a fresh process against the same file.
  */
 
-const CONFIG_DIR = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
-const STORE_DIR = join(CONFIG_DIR, "workspace-welcome");
-const STORE_PATH = join(STORE_DIR, "store.json");
+const IMPORTED_AT_KEY = "store_imported_at";
+const IMPORT_OUTCOME_KEY = "store_import";
+
+/** Legacy config dir — resolved per call so tests can redirect XDG first. */
+function storeDir(): string {
+  const configHome = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
+  return join(configHome, "workspace-welcome");
+}
+
+/** Path to the legacy store file (exposed for tests / debugging). */
+export function storePath(): string {
+  return join(storeDir(), "store.json");
+}
 
 const DEFAULT_SETTINGS: Settings = {
   editorCommand: "code",
@@ -143,32 +165,177 @@ function isOverrides(x: unknown): x is ProjectOverrides {
   );
 }
 
-let memoryCache: StoreShape | null = null;
-
-async function ensureDir(): Promise<void> {
-  await mkdir(STORE_DIR, { recursive: true });
-}
-
-/** Read the store, creating defaults on first run. Result is cached in memory. */
-export async function readStore(): Promise<StoreShape> {
-  if (memoryCache) return memoryCache;
-
+/** Parse a JSON column defensively; a malformed value yields undefined. */
+function parseJsonValue(raw: string): unknown {
   try {
-    const raw = await readFile(STORE_PATH, "utf8");
-    memoryCache = migrate(JSON.parse(raw));
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
-    memoryCache = defaultStore();
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
   }
-  return memoryCache;
 }
 
-/** Path to the store file (exposed for tests / debugging). */
-export const storePath = STORE_PATH;
+/** JSON string[] column → string[], skipping non-string entries. */
+function parseJsonStrings(raw: string): string[] {
+  const parsed = parseJsonValue(raw);
+  return Array.isArray(parsed)
+    ? parsed.filter((x): x is string => typeof x === "string")
+    : [];
+}
+
+/** The settings singleton as a table row (id is pinned to 1 by a CHECK). */
+function settingsRowValues(value: Settings) {
+  return {
+    id: 1,
+    editorCommand: value.editorCommand,
+    terminalCommand: value.terminalCommand,
+    snitchPath: value.snitchPath,
+    excludeGlobsJson: JSON.stringify(value.excludeGlobs),
+    ideationJson: JSON.stringify(value.ideation),
+  };
+}
+
+async function readMeta(handle: DbHandle, key: string): Promise<string | null> {
+  const rows = await handle.db
+    .select()
+    .from(appMeta)
+    .where(eq(appMeta.key, key));
+  return rows[0]?.value ?? null;
+}
 
 /**
- * Atomically write the store. Updates the in-memory cache on success.
- * Concurrent writes are serialized by awaiting `inFlight`.
+ * One-time legacy import. Runs only when `store_imported_at` is unset.
+ * Legacy-file problems must never take the app down: a missing file records
+ * outcome "missing" (marker only), an unparseable/unreadable one falls back
+ * to defaults and records "fallback:<reason>" — both in `app_meta.store_import`,
+ * with "ok" for a clean import. Database failures propagate (the marker stays
+ * unset, so the next boot retries the import).
+ */
+async function importLegacyStore(handle: DbHandle): Promise<void> {
+  let shape: StoreShape;
+  let outcome: string;
+  try {
+    shape = migrate(JSON.parse(await readFile(storePath(), "utf8")));
+    outcome = "ok";
+  } catch (err) {
+    shape = defaultStore();
+    if (err instanceof SyntaxError) {
+      outcome = "fallback:parse";
+    } else {
+      const code = (err as NodeJS.ErrnoException).code;
+      outcome = code === "ENOENT" ? "missing" : `fallback:read:${code ?? "unknown"}`;
+    }
+  }
+
+  await handle.db.transaction(async (tx) => {
+    // A missing legacy file imports no data rows — the markers below record
+    // that the (empty) start state is intentional.
+    if (outcome !== "missing") {
+      for (const root of shape.roots) {
+        await tx
+          .insert(roots)
+          .values(root)
+          .onConflictDoUpdate({
+            target: roots.id,
+            set: { path: root.path, label: root.label, addedAt: root.addedAt },
+          });
+      }
+      for (const [path, value] of Object.entries(shape.projects)) {
+        await tx
+          .insert(projectOverrides)
+          .values({ path, ...value })
+          .onConflictDoUpdate({ target: projectOverrides.path, set: { ...value } });
+      }
+      const row = settingsRowValues(shape.settings);
+      await tx
+        .insert(settings)
+        .values(row)
+        .onConflictDoUpdate({ target: settings.id, set: row });
+    }
+    await tx
+      .insert(appMeta)
+      .values({ key: IMPORTED_AT_KEY, value: new Date().toISOString() })
+      .onConflictDoNothing();
+    await tx
+      .insert(appMeta)
+      .values({ key: IMPORT_OUTCOME_KEY, value: outcome })
+      .onConflictDoNothing();
+  });
+}
+
+/** Load the full StoreShape from the database (defaults for absent rows). */
+async function selectStore(handle: DbHandle): Promise<StoreShape> {
+  const rootRows = await handle.db.select().from(roots).orderBy(roots.id);
+  const overrideRows = await handle.db.select().from(projectOverrides);
+  const settingRows = await handle.db
+    .select()
+    .from(settings)
+    .where(eq(settings.id, 1));
+
+  const projects: Record<string, ProjectOverrides> = {};
+  for (const row of overrideRows) {
+    projects[row.path] = {
+      pinned: row.pinned,
+      note: row.note,
+      lastOpenedAt: row.lastOpenedAt,
+      hidden: row.hidden,
+    };
+  }
+  const row = settingRows[0];
+  return {
+    roots: rootRows.map((r) => ({
+      id: r.id,
+      path: r.path,
+      label: r.label,
+      addedAt: r.addedAt,
+    })),
+    projects,
+    settings: row
+      ? {
+          editorCommand: row.editorCommand,
+          terminalCommand: row.terminalCommand,
+          snitchPath: row.snitchPath,
+          excludeGlobs: parseJsonStrings(row.excludeGlobsJson),
+          // Re-normalized on read so a malformed column can never poison settings.
+          ideation: migrateIdeation(parseJsonValue(row.ideationJson)),
+        }
+      : { ...DEFAULT_SETTINGS },
+  };
+}
+
+let memoryCache: StoreShape | null = null;
+/** The handle memoryCache was loaded from — a reopened DB invalidates it. */
+let cachedFrom: DbHandle | null = null;
+/** Single-flight hydration: concurrent first reads import at most once. */
+let hydration: { handle: DbHandle; promise: Promise<StoreShape> } | null = null;
+
+async function hydrate(handle: DbHandle): Promise<StoreShape> {
+  if ((await readMeta(handle, IMPORTED_AT_KEY)) === null) {
+    await importLegacyStore(handle);
+  }
+  const shape = await selectStore(handle);
+  memoryCache = shape;
+  cachedFrom = handle;
+  return shape;
+}
+
+/** Read the store, importing legacy data on first access. Result is cached. */
+export async function readStore(): Promise<StoreShape> {
+  const handle = await getDb();
+  if (memoryCache && cachedFrom === handle) return memoryCache;
+  const inflight = hydration?.handle === handle ? hydration.promise : null;
+  if (inflight) return inflight;
+  const promise = hydrate(handle);
+  hydration = { handle, promise };
+  try {
+    return await promise;
+  } finally {
+    if (hydration?.promise === promise) hydration = null;
+  }
+}
+
+/**
+ * Apply a mutation to the store and persist it to the database.
+ * Concurrent mutations are serialized by awaiting `inFlight`.
  */
 let inFlight: Promise<unknown> = Promise.resolve();
 
@@ -182,29 +349,53 @@ function queueWrite<T>(next: () => Promise<T>): Promise<T> {
   return run;
 }
 
-async function persistRaw(store: StoreShape): Promise<void> {
-  await ensureDir();
-  const tmp = join(STORE_DIR, `.store.${process.pid}.${Date.now()}.tmp`);
-  await writeFile(tmp, JSON.stringify(store, null, 2), "utf8");
-  try {
-    await rename(tmp, STORE_PATH);
-  } catch (err) {
-    // rename can fail across devices in some setups; fall back to copy+unlink.
-    if ((err as NodeJS.ErrnoException).code !== "EXDEV") {
-      await unlink(tmp).catch(() => undefined);
-      throw err;
+/**
+ * Push the draft's state into the tables inside one transaction: roots are
+ * upserted by id and removed ids deleted (never delete-all+insert), overrides
+ * upserted by path with absent paths deleted, and the settings singleton
+ * updated in place.
+ */
+async function reconcile(handle: DbHandle, draft: StoreShape): Promise<void> {
+  await handle.db.transaction(async (tx) => {
+    for (const root of draft.roots) {
+      await tx
+        .insert(roots)
+        .values(root)
+        .onConflictDoUpdate({
+          target: roots.id,
+          set: { path: root.path, label: root.label, addedAt: root.addedAt },
+        });
     }
-    const contents = await readFile(tmp, "utf8");
-    await writeFile(STORE_PATH, contents, "utf8");
-    await unlink(tmp).catch(() => undefined);
-  }
+    // drizzle maps notInArray(col, []) to `true`: with no kept ids, every row
+    // was removed from the draft and goes.
+    const keepIds = draft.roots.map((root) => root.id);
+    await tx.delete(roots).where(notInArray(roots.id, keepIds));
+
+    for (const [path, value] of Object.entries(draft.projects)) {
+      await tx
+        .insert(projectOverrides)
+        .values({ path, ...value })
+        .onConflictDoUpdate({ target: projectOverrides.path, set: { ...value } });
+    }
+    const keepPaths = Object.keys(draft.projects);
+    await tx
+      .delete(projectOverrides)
+      .where(notInArray(projectOverrides.path, keepPaths));
+
+    const row = settingsRowValues(draft.settings);
+    await tx
+      .insert(settings)
+      .values(row)
+      .onConflictDoUpdate({ target: settings.id, set: row });
+  });
 }
 
-/** Apply a mutation to the store and persist atomically. */
+/** Apply a mutation to the store and persist it transactionally. */
 export async function mutateStore(
-  fn: (draft: StoreShape) => void,
+  fn: (draft: StoreShape) => void | Promise<void>,
 ): Promise<StoreShape> {
   return queueWrite(async () => {
+    const handle = await getDb();
     const current = await readStore();
     // Shallow-clone containers so the mutation doesn't taint the previous cache.
     const draft: StoreShape = {
@@ -212,9 +403,10 @@ export async function mutateStore(
       projects: { ...current.projects },
       settings: { ...current.settings },
     };
-    fn(draft);
-    await persistRaw(draft);
+    await fn(draft);
+    await reconcile(handle, draft);
     memoryCache = draft;
+    cachedFrom = handle;
     return draft;
   });
 }

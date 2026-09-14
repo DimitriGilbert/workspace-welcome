@@ -11,7 +11,8 @@
   },
   "scripts": {
     "agents-md": "tsx src/lib/agents-md/cli.ts",
-    "check-types": "tsc --noEmit -p tsconfig.check.json"
+    "check-types": "tsc --noEmit -p tsconfig.check.json",
+    "test:store": "node --import tsx --test src/lib/store.import.test.ts src/lib/project-config.import.test.ts"
   },
   "dependencies": {
     "@tanstack/ai": "catalog:",
@@ -19,9 +20,11 @@
     "@tanstack/ai-openrouter": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
+    "@workspace-welcome/db": "workspace:*",
     "@workspace-welcome/env": "workspace:*",
     "create-better-t-stack": "^3.40.3",
     "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
     "jsonc-parser": "^3.3.1",
     "zod": "catalog:"
   },

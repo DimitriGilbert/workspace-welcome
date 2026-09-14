@@ -335,6 +335,9 @@ importers:
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.18.0(typescript@6.0.3)
+      '@workspace-welcome/db':
+        specifier: workspace:*
+        version: link:../db
       '@workspace-welcome/env':
         specifier: workspace:*
         version: link:../env
@@ -344,6 +347,9 @@ importers:
       dotenv:
         specifier: 'catalog:'
         version: 17.4.2
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@libsql/client@0.18.0)
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
