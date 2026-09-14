@@ -193,6 +193,9 @@ importers:
       '@headless-tree/react':
         specifier: 1.7.0
         version: 1.7.0(@headless-tree/core@1.7.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@libsql/client':
+        specifier: 'catalog:'
+        version: 0.18.0
       '@tailwindcss/vite':
         specifier: ^4.3.2
         version: 4.3.3(vite@8.1.5(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
@@ -241,6 +244,9 @@ importers:
       dotenv:
         specifier: 'catalog:'
         version: 17.4.2
+      libsql:
+        specifier: 'catalog:'
+        version: 0.5.29
       lucide-react:
         specifier: 'catalog:'
         version: 1.25.0(react@19.2.7)
