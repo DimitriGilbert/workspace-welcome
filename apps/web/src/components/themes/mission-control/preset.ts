@@ -99,6 +99,12 @@ export const missionControlPreset: ThemePreset = {
           { id: "alerts-donut", widget: "mc-alerts-donut", size: "2x3", tablet: "4x5", at: { x: 6, y: 6 } },
           { id: "report-health", widget: "mc-report-health", size: "2x3", tablet: "4x5", at: { x: 8, y: 5 } },
           { id: "stack-mix", widget: "mc-stack-mix", size: "2x4", tablet: "4x5", at: { x: 10, y: 5 } },
+          // The signed-in account's cross-repo forge feed (open issues & PRs
+          // authored by you): anchored as its own band on the board floor,
+          // under the centre band — the free cells above it are the owner's
+          // intentional holes, never filled by a pack-in. Final placement is
+          // the owner's drag decision, not this authoring.
+          { id: "forge-feed", widget: "forge-feed", size: "4x4", tablet: "8x4", at: { x: 4, y: 12 } },
         ],
       },
     ],

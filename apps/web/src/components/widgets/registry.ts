@@ -26,6 +26,7 @@ import type { ComponentType } from "react";
 import type { WidgetNode } from "@/lib/widget/layout-types";
 import type { SizeClass } from "@/lib/widget/size-class";
 
+import { ForgeFeed } from "./forge-feed";
 import { ProjectForge } from "./forge-board";
 import { ProjectTile } from "./project-tile";
 
@@ -80,6 +81,15 @@ const core: Record<string, WidgetDef> = {
     title: "Issues & pull requests",
     component: ProjectForge,
     requires: ["project"],
+    defaultSize: "4x4",
+    min: "2x3",
+    hosts: ["chip"],
+  },
+  "forge-feed": {
+    id: "forge-feed",
+    title: "My issues & pull requests",
+    component: ForgeFeed,
+    requires: [],
     defaultSize: "4x4",
     min: "2x3",
     hosts: ["chip"],

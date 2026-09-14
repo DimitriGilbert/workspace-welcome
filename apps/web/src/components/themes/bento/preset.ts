@@ -117,6 +117,11 @@ export const bentoPreset: ThemePreset = {
           { id: "signals-mix", widget: "bento-signals", size: "2x4", tablet: "6x4", phone: "2x4" },
           { id: "vitals-health", widget: "bento-health", size: "2x3", tablet: "6x3", phone: "2x4" },
           { id: "vitals-stacks", widget: "bento-stacks", size: "2x3", tablet: "6x3", phone: "2x3" },
+          // The signed-in account's cross-repo forge feed (open issues & PRs
+          // authored by you): appended as its own band under the packed board
+          // — final placement is the owner's drag decision, not this
+          // authoring.
+          { id: "forge-feed", widget: "forge-feed", size: "6x4", tablet: "6x4", phone: "2x6" },
         ],
       },
     ],

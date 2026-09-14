@@ -99,6 +99,10 @@ export const meadowPreset: ThemePreset = {
             widget: "meadow-directories",
             size: "4x2",
           },
+          // The signed-in account's cross-repo forge feed (open issues & PRs
+          // authored by you): appended below the packed 13-row band — final
+          // placement is the owner's drag decision, not this authoring.
+          { id: "forge-feed", widget: "forge-feed", size: "4x4" },
         ],
       },
     ],

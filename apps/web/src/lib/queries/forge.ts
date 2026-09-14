@@ -88,6 +88,54 @@ export function useForgeSyncMutation() {
 }
 
 /**
+ * The authenticated user's open issues + PRs across ALL GitHub repos — the
+ * dashboard feed widget's data. Pure database read like the other forge
+ * queries, so an absent cache is the honest pre-sync state: nothing is
+ * fetched to fill it (the feed's door to a live fetch is the mutation below).
+ */
+export function useForgeFeedQuery() {
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.forge.feed.queryOptions(undefined, { staleTime: FORGE_STALE_TIME }),
+  );
+}
+
+/**
+ * The feed view, inferred from the query result — the authored source is the
+ * server's `ForgeUserFeedView` (`packages/api/src/lib/forge/feed.ts`).
+ */
+export type ForgeFeedView = NonNullable<ReturnType<typeof useForgeFeedQuery>["data"]>;
+
+/** One feed row, inferred from {@link ForgeFeedView} — same wire shape as the
+ * server's `ForgeFeedItem` (`packages/api/src/lib/forge/types.ts`). */
+export type ForgeFeedItem = ForgeFeedView["items"][number];
+
+/**
+ * The feed's explicit sync: ONE gh search per kind for the signed-in account,
+ * user-scoped (no path input). Success settles the feed query; failures ride
+ * plain Error messages ("Synced 2 min ago — use force", "gh not
+ * authenticated…") to the toast path, verbatim.
+ */
+export function useForgeFeedSyncMutation() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    trpc.forge.syncFeed.mutationOptions({
+      onSuccess: async (result) => {
+        await queryClient.invalidateQueries({
+          queryKey: trpc.forge.feed.queryKey(),
+        });
+        toast.success(
+          `Synced your feed — ${result.issuesCount} issues · ${result.pullsCount} pull requests` +
+            (result.truncated ? " (a list hit the page limit)" : ""),
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+/**
  * The overview keyed by `projectPath` — the lookup list surfaces do
  * (paths are the same canonical absolute paths the scan's `Project.path`
  * carries, so a plain `get(project.path)` resolves).
