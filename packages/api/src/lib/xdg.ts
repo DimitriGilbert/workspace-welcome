@@ -3,11 +3,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
- * XDG base-directory resolution for app-owned caches and data, mirroring how
- * store.ts resolves the config dir. Cache contents (generated reports) are
- * disposable and never user state; data contents (the code-server install)
- * cost a 100–200 MB download to recreate, hence data, not cache — either way
- * neither belongs next to store.json.
+ * XDG base-directory resolution for app-owned caches and data. Cache contents
+ * (generated reports) are disposable and never user state; data contents (the
+ * code-server install, the sqlite DB via packages/db) cost real work to
+ * recreate, hence data, not cache — either way neither belongs in the config
+ * dir next to the legacy, import-only store.json.
  */
 
 /** $XDG_CACHE_HOME/workspace-welcome (or ~/.cache/workspace-welcome). */

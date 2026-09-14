@@ -166,7 +166,7 @@ for entry in "$deploy_dir"/* "$deploy_dir"/.[!.]* "$deploy_dir"/..?*; do
   fi
 done
 
-for required in dist/client dist/server/server.js serve-prod.mjs package.json node_modules node_modules/create-better-t-stack VERSION; do
+for required in dist/client dist/server/server.js serve-prod.mjs package.json node_modules node_modules/create-better-t-stack node_modules/@libsql/client node_modules/libsql VERSION; do
   [ -e "$deploy_dir/$required" ] || abort "staging dir is missing required path: $required"
 done
 if [ -e "$deploy_dir/.env" ]; then

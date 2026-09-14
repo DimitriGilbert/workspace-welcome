@@ -42,7 +42,10 @@ export type ForgeOverviewEntry = NonNullable<
 export function useForgeProjectQuery(path: string, remoteUrl: string | undefined) {
   const trpc = useTRPC();
   return useQuery(
-    trpc.forge.project.queryOptions({ path, remoteUrl }, { staleTime: FORGE_STALE_TIME }),
+    trpc.forge.project.queryOptions(
+      { path, remoteUrl },
+      { enabled: path.length > 0, staleTime: FORGE_STALE_TIME },
+    ),
   );
 }
 

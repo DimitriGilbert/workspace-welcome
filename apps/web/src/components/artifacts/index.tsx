@@ -25,10 +25,10 @@ import { ArtifactLightbox } from "@/components/artifacts/lightbox";
 
 /**
  * Per-project artifact gallery: the configured folders' images and test
- * recordings, newest first. Folder configuration lives in a per-project JSON
- * file under the app data dir (server-side project-config.ts); media is
- * streamed by /api/artifacts/view, which refuses anything outside those
- * folders. Read-only by design — deleting artifacts happens in the Files tab.
+ * recordings, newest first. Folder configuration lives per project in the
+ * app's sqlite DB (server-side project-config.ts); media is streamed by
+ * /api/artifacts/view, which refuses anything outside those folders.
+ * Read-only by design — deleting artifacts happens in the Files tab.
  */
 export function ArtifactsPanel({
   project,

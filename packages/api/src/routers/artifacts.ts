@@ -10,7 +10,7 @@ import { publicProcedure, router } from "../index";
 
 /**
  * Artifacts router: per-project build/test media (screenshots, recordings).
- * The folder list lives in the per-project JSON file under the app data dir
+ * The folder list lives in the project_configs table of the sqlite DB
  * (project-config.ts); listing walks those folders read-only (artifacts.ts).
  */
 

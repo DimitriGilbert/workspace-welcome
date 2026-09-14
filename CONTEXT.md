@@ -6,7 +6,7 @@ code, UI copy, and docs. Keep entries current as concepts sharpen.
 ## Roots & projects
 
 - **Root** — a configured directory whose immediate subdirectories become
-  Projects. Lives in the store, editable in Settings.
+  Projects. Lives in the sqlite store (packages/db), editable in Settings.
 - **Project** — one scanned subdirectory of a Root: filesystem metadata, git
   state, stack, alerts, overrides (pin / note / hide / last-opened).
 - **Scan** — the cached pass over all Roots that produces Project state.
@@ -50,9 +50,10 @@ code, UI copy, and docs. Keep entries current as concepts sharpen.
   artifact* (a generated PRD/plan document).
 - **Artifact folders** — per-project, project-relative folder paths marking
   where build/test media lands. Configured on the project page's Artifacts
-  tab; persisted as one JSON file per project under
-  `$XDG_DATA_HOME/workspace-welcome/projects/` (project-config.ts), not in
-  store.json.
+  tab; persisted per project in the sqlite `project_configs` table
+  (project-config.ts) — imported once from the legacy per-project JSON files
+  under `$XDG_DATA_HOME/workspace-welcome/projects/`, which stay as untouched
+  backups.
 - **Artifact view route** — `/api/artifacts/view` streams one artifact
   inline with Range support (so `<video>` seeking works); it serves only
   files under a configured artifact folder — it is not a general file
@@ -74,3 +75,26 @@ code, UI copy, and docs. Keep entries current as concepts sharpen.
 - **Reconciler** — merges fan-out candidates into the one user-visible
   output and scores each candidate; active only when a step has more than
   one model.
+
+## Forge
+
+- **Forge** — a code-hosting backend (GitHub, Gitea, GitLab). A project's
+  forge identity comes from its git remote: host classification plus the
+  `owner/repo` slug.
+- **Forge adapter** — the implementation for one forge, in one of two
+  styles: `cli` (a local CLI driven via execFile — the `gh` CLI adapter for
+  GitHub today) or `api` (direct HTTP, future). The registry resolves a
+  remote to the first adapter that matches its host; unsupported hosts
+  render an honest "GitHub only for now" state (ADR-0007).
+- **Forge snapshot** — a repo's open issues and pull requests as of the
+  last sync, cached in sqlite; one successful sync replaces the previous
+  rows (no history). Reads are DB-only — rendering never fetches.
+- **Forge sync** — the explicit, user-triggered fetch (the Sync button;
+  nothing auto-syncs). Guarded to protect a rate-limited account: 60-min
+  TTL staleness hint, 5-min server-side min-interval refusal unless forced,
+  per-repo in-flight dedupe, one-fetch-at-a-time process-wide queue
+  (ADR-0007).
+- **Forge chips** — the list-surface half of the feature: per-project open
+  issue/PR count chips beside the git/host chips on project lists. Rendered
+  only when a snapshot exists ("50+" when a list hit the page limit) —
+  never fabricated zeros.

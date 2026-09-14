@@ -1,4 +1,4 @@
-`workspace-welcome` is a local dashboard for your projects folder — it scans directories for git state, stack, and health alerts, and scaffolds new better-t-stack projects. A fullstack TanStack Start app (tRPC-backed server routes inside the app); no database, no auth. Use `pnpm` for all package operations — never a different package manager or another project's lockfile. Run commands and git operations from the repo root.
+`workspace-welcome` is a local dashboard for your projects folder — it scans directories for git state, stack, and health alerts, and scaffolds new better-t-stack projects. A fullstack TanStack Start app (tRPC-backed server routes inside the app); embedded sqlite, no auth. Use `pnpm` for all package operations — never a different package manager or another project's lockfile. Run commands and git operations from the repo root.
 
 Scaffolded with Better-T-Stack — treat `bts.jsonc` as the stack source of truth.
 
@@ -11,6 +11,7 @@ pnpm workspaces monorepo.
 | `apps/web` | `web` | The dashboard app: UI, server routes, tRPC API (dev port 37420) |
 | `apps/docs` | `docs` | Marketing + light docs site (dev port 8005); static to GitHub Pages |
 | `packages/api` | `@workspace-welcome/api` | tRPC routers and all server logic — scanner, git, store, reports, scaffolding |
+| `packages/db` | `@workspace-welcome/db` | sqlite persistence — drizzle schema, embedded migrations, client |
 | `packages/ui` | `@workspace-welcome/ui` | Shared shadcn-style components on Base UI (Tailwind CSS v4) |
 | `packages/env` | `@workspace-welcome/env` | Typed environment validation |
 | `packages/config` | `@workspace-welcome/config` | Shared tsconfig.base.json |
@@ -23,6 +24,8 @@ Release: `pnpm run release <version>` (requires a clean tree; builds, boot-tests
 Install E2E: `pnpm run test:install` (installs the published release inside a systemd container and asserts service, HTTP, upgrade, uninstall, purge; `--local` tests an unreleased build)
 Docs Pages deploy: `pnpm run deploy:docs` (builds `apps/docs`, writes CNAME/`.nojekyll`, copies `scripts/install.sh` in as the site's `/install.sh`, force-pushes `dist/client` to `gh-pages` as a single fresh commit — deploy after cutting a release so the one-liner serves the new version)
 Per package: `pnpm --filter <name> <script>` — e.g. `pnpm --filter web build`; across packages: `pnpm -r <script>`
+Tests & db: `pnpm --filter @workspace-welcome/api test:store` / `test:forge` (node:test suites over temp XDG dirs); `pnpm --filter @workspace-welcome/db db:selftest`, and `db:generate` (dev-time drizzle-kit diff base for the embedded migrations)
+User state lives in the sqlite DB under the app's XDG data dir; the legacy JSON files are import-only backups, never written again (ADR-0006).
 The api package also ships the AGENTS.md generator: `pnpm --filter @workspace-welcome/api agents-md --bts-jsonc <path/to/bts.jsonc>`
 
 ## Working agreements

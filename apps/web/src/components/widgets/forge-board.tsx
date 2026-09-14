@@ -10,14 +10,16 @@
  * `project-tile`.
  *
  * Honesty rules (the Phase 6 semantics, held verbatim): a `ready` project
- * linked by a FAILED FIRST sync has `fetchedAt: null` +
- * `lastSyncStatus: "never"` — the never-synced empty state keys on exactly
- * that pair, never on "empty lists", so a failed first sync renders the
- * Sync CTA instead of a fabricated empty board. A FAILED LATER sync keeps
- * its last good snapshot (`fetchedAt` present) — that renders the data plus
- * a failure hint line carrying `lastSyncError`. Rows render only what is
- * cached; a list that hit the server's page limit says so with the shared
- * "50+" vocabulary — never a false exact count.
+ * linked by a FAILED FIRST sync has `fetchedAt: null` — its
+ * `lastSyncStatus` is `"never"` when the availability probe failed before
+ * any fetch, or `"failed"` once a fetch-stage failure was recorded — so the
+ * never-synced empty state keys on `fetchedAt === null ||
+ * lastSyncStatus === "never"`, never on "empty lists": both failed-first
+ * shapes render the Sync CTA instead of a fabricated empty board. A FAILED
+ * LATER sync keeps its last good snapshot (`fetchedAt` present) — that
+ * renders the data plus a failure hint line carrying `lastSyncError`. Rows
+ * render only what is cached; a list that hit the server's page limit says
+ * so with the shared "50+" vocabulary — never a false exact count.
  */
 import {
   CircleAlert,
@@ -222,9 +224,9 @@ export function ProjectForge(_props: RegisteredWidgetProps) {
     return <QuietEmpty>GitHub only for now — {remote.host} unsupported</QuietEmpty>;
   }
 
-  // Never synced — including the ready-with-failed-first-sync shape
-  // (`fetchedAt: null` + `lastSyncStatus: "never"`): the Sync CTA, never a
-  // fabricated empty board.
+  // Never synced — including the ready-with-failed-first-sync shapes
+  // (`fetchedAt: null` with status "never" or "failed"): the Sync CTA,
+  // never a fabricated empty board.
   if (data.fetchedAt === null || data.lastSyncStatus === "never") {
     return (
       <Empty className="h-full">
