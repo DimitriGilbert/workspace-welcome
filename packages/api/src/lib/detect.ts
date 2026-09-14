@@ -59,8 +59,19 @@ export async function detectStack(dir: string): Promise<StackInfo | null> {
   return null;
 }
 
+// Remote grammar, in try order (parseRemote matches the first that hits):
+// - HTTPS — scheme'd web remote; an explicit :port is allowed and dropped
+//   (ports never affect host classification or links).
+// - SSH_URL — explicit ssh:// remote; the optional user@ prefix and optional
+//   :port are both matched but dropped. MUST be tried before SCP_LIKE, else
+//   the scheme-less scp-like pattern captures the scheme itself ("ssh") as
+//   the host.
+// - SCP_LIKE — git's scp-like `user@host:path` form. It has NO port
+//   semantics: `git@host:22/owner/repo` is host "host", path "22/owner/repo"
+//   — faithful to git's own interpretation, deliberately not "fixed".
+const HTTPS = /^https?:\/\/([\w.-]+)(?::\d+)?\/(.+)$/;
+const SSH_URL = /^ssh:\/\/(?:[\w.-]+@)?([\w.-]+)(?::\d+)?\/(.+)$/;
 const SCP_LIKE = /^(?:[\w.-]+@)?([\w.-]+):(.+)$/;
-const HTTPS = /^https?:\/\/([\w.-]+)\/(.+)$/;
 
 /** Classify a git host from its hostname. */
 function classifyHost(hostRaw: string): GitHost {
@@ -75,8 +86,18 @@ function classifyHost(hostRaw: string): GitHost {
   return "other";
 }
 
-/** Build deep links for a host/slug pair. */
-function buildLinks(host: GitHost, slug: string): RemoteInfo["links"] {
+/**
+ * Build deep links for a host/slug pair. `rawHost` is the hostname exactly as
+ * captured from the remote URL: known hosts ignore it in favor of their
+ * canonical `hostName(host)` mapping (so `www.github.com` still normalizes to
+ * github.com links), while the generic fallback keeps it — unknown hosts have
+ * no canonical name, and dropping the host produced broken host-less links.
+ */
+function buildLinks(
+  host: GitHost,
+  slug: string,
+  rawHost: string,
+): RemoteInfo["links"] {
   switch (host) {
     case "github":
     case "gitlab":
@@ -102,8 +123,9 @@ function buildLinks(host: GitHost, slug: string): RemoteInfo["links"] {
       return { web, issues: `${web}/todo`, pulls: `${web}/patches` };
     }
     default: {
-      // Generic: no known deep links beyond web home.
-      const web = slug.includes("://") ? slug : `https://${slug}`;
+      // Generic: unknown hosts have no known deep-link structure — keep the
+      // captured host in the web link; issues/pulls alias web, as ever.
+      const web = `https://${rawHost}/${slug}`;
       return { web, issues: web, pulls: web };
     }
   }
@@ -136,8 +158,10 @@ function cleanRepoPath(repo: string): string {
 
 /**
  * Parse a raw git remote URL into a structured RemoteInfo.
- * Supports `git@host:owner/repo.git` (SSH / scp-like) and `https://host/owner/repo(.git)`.
- * Returns null when the URL can't be classified.
+ * Supports `https://host[:port]/owner/repo(.git)`,
+ * `ssh://[user@]host[:port]/owner/repo(.git)`, and `git@host:owner/repo.git`
+ * (scp-like, which carries no port semantics). Returns null when the URL
+ * can't be classified.
  */
 export function parseRemote(rawUrl: string): RemoteInfo | null {
   const url = rawUrl.trim();
@@ -146,16 +170,13 @@ export function parseRemote(rawUrl: string): RemoteInfo | null {
   let host = "";
   let repo = "";
 
-  const https = url.match(HTTPS);
-  if (https) {
-    host = https[1] ?? "";
-    repo = https[2] ?? "";
-  } else {
-    const scp = url.match(SCP_LIKE);
-    if (scp) {
-      host = scp[1] ?? "";
-      repo = scp[2] ?? "";
-    }
+  // The try order is load-bearing — see the comment on the regex
+  // declarations above. Stays sync and regex-only: parseRemote runs per
+  // project per scan and on every forge.project query.
+  const match = url.match(HTTPS) ?? url.match(SSH_URL) ?? url.match(SCP_LIKE);
+  if (match) {
+    host = match[1] ?? "";
+    repo = match[2] ?? "";
   }
 
   if (!host || !repo) return null;
@@ -172,7 +193,7 @@ export function parseRemote(rawUrl: string): RemoteInfo | null {
     url,
     host: hostType,
     slug,
-    links: buildLinks(hostType, slug),
+    links: buildLinks(hostType, slug, host),
   };
 }
 
