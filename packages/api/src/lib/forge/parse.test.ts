@@ -270,6 +270,106 @@ test("malformed pull rows are skipped silently, valid ones survive", () => {
   ]);
 });
 
+// --- https-only url guard (parse-boundary trust contract) -----------------------
+
+/**
+ * The url is the only row field that flows on past the parser — into sqlite,
+ * the board's `href`, and the user feed — so the parse boundary judges its
+ * scheme: only https passes, case-insensitively, and everything else skips
+ * the row like any other malformation. The paths in the table are never
+ * inspected (only the scheme is), so one table serves the issue, pull, and
+ * search row shapes alike.
+ */
+const URL_SCHEME_CASES: ReadonlyArray<{ url: string; survives: boolean }> = [
+  { url: "javascript:alert(1)", survives: false },
+  { url: "data:text/html,<script>alert(1)</script>", survives: false },
+  { url: "http://github.com/o/r/issues/1", survives: false },
+  { url: "https://github.com/o/r/issues/2", survives: true },
+  { url: "HTTPS://github.com/o/r/issues/3", survives: true },
+];
+
+test("issue rows with non-https urls are skipped at the parse boundary", () => {
+  for (const { url, survives } of URL_SCHEME_CASES) {
+    const label = `url: ${url}`;
+    const issues = parseIssueListJson([
+      { number: 1, title: "scheme probe", state: "OPEN", url },
+    ]);
+    assert.equal(issues.length, survives ? 1 : 0, label);
+    if (issues.length > 0) assert.equal(row(issues, 0).url, url, label);
+  }
+  // A mixed array loses exactly the bad rows; survivors keep their url
+  // verbatim — the guard skips rows, it never rewrites the value.
+  const mixed: unknown[] = URL_SCHEME_CASES.map(({ url }, index) => ({
+    number: index + 1,
+    title: "scheme probe",
+    state: "OPEN",
+    url,
+  }));
+  assert.deepEqual(parseIssueListJson(mixed), [
+    {
+      number: 4,
+      title: "scheme probe",
+      state: "open",
+      author: null,
+      labels: [],
+      commentCount: null,
+      updatedAt: null,
+      url: "https://github.com/o/r/issues/2",
+    },
+    {
+      number: 5,
+      title: "scheme probe",
+      state: "open",
+      author: null,
+      labels: [],
+      commentCount: null,
+      updatedAt: null,
+      url: "HTTPS://github.com/o/r/issues/3",
+    },
+  ]);
+});
+
+test("pull rows with non-https urls are skipped at the parse boundary", () => {
+  for (const { url, survives } of URL_SCHEME_CASES) {
+    const label = `url: ${url}`;
+    const pulls = parsePullListJson([
+      { number: 1, title: "scheme probe", state: "OPEN", url },
+    ]);
+    assert.equal(pulls.length, survives ? 1 : 0, label);
+    if (pulls.length > 0) assert.equal(row(pulls, 0).url, url, label);
+  }
+  const mixed: unknown[] = URL_SCHEME_CASES.map(({ url }, index) => ({
+    number: index + 1,
+    title: "scheme probe",
+    state: "OPEN",
+    url,
+  }));
+  assert.deepEqual(parsePullListJson(mixed), [
+    {
+      number: 4,
+      title: "scheme probe",
+      state: "open",
+      author: null,
+      isDraft: false,
+      reviewDecision: null,
+      labels: [],
+      updatedAt: null,
+      url: "https://github.com/o/r/issues/2",
+    },
+    {
+      number: 5,
+      title: "scheme probe",
+      state: "open",
+      author: null,
+      isDraft: false,
+      reviewDecision: null,
+      labels: [],
+      updatedAt: null,
+      url: "HTTPS://github.com/o/r/issues/3",
+    },
+  ]);
+});
+
 test("non-array top level yields an empty list, never a throw", () => {
   // The parsers take the already-JSON.parse'd value (gh-cli.ts parses stdout
   // first), so a raw JSON string is just a non-array like any other.
@@ -434,6 +534,57 @@ test("malformed search rows are skipped silently, valid ones survive", () => {
     },
   ]);
   assert.equal(row(draft, 0).isDraft, true);
+});
+
+test("search rows with non-https urls are skipped at the parse boundary", () => {
+  // mapSearchRow is shared by both search parsers, so one pass through the
+  // scheme table exercises the issue and pr feeds together.
+  const schemeProbe = (url: string): unknown => ({
+    number: 1,
+    title: "scheme probe",
+    state: "OPEN",
+    url,
+    repository: { nameWithOwner: "o/r" },
+  });
+  for (const { url, survives } of URL_SCHEME_CASES) {
+    const label = `url: ${url}`;
+    assert.equal(
+      parseSearchIssuesJson([schemeProbe(url)]).length,
+      survives ? 1 : 0,
+      `issues ${label}`,
+    );
+    assert.equal(
+      parseSearchPullsJson([schemeProbe(url)]).length,
+      survives ? 1 : 0,
+      `prs ${label}`,
+    );
+  }
+  // Mixed arrays in BOTH parsers lose exactly the bad rows.
+  const mixed: unknown[] = URL_SCHEME_CASES.map(({ url }, index) => ({
+    number: index + 1,
+    title: "scheme probe",
+    state: "OPEN",
+    url,
+    repository: { nameWithOwner: "o/r" },
+  }));
+  const expected: ForgeFeedItem = {
+    kind: "issue",
+    repoSlug: "o/r",
+    number: 4,
+    title: "scheme probe",
+    url: "https://github.com/o/r/issues/2",
+    updatedAt: null,
+    labels: [],
+    isDraft: false,
+  };
+  assert.deepEqual(parseSearchIssuesJson(mixed), [
+    expected,
+    { ...expected, number: 5, url: "HTTPS://github.com/o/r/issues/3" },
+  ]);
+  assert.deepEqual(parseSearchPullsJson(mixed), [
+    { ...expected, kind: "pr" },
+    { ...expected, kind: "pr", number: 5, url: "HTTPS://github.com/o/r/issues/3" },
+  ]);
 });
 
 test("non-array top level yields an empty feed, never a throw", () => {

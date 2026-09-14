@@ -10,6 +10,10 @@ import type { ForgeFeedItem, ForgeIssue, ForgePull } from "./types";
  * is gh-cli.ts's job to turn into a thrown Error; here only row-level
  * malformation is tolerated. The defensive accessor style mirrors
  * ../report-export.ts.
+ *
+ * Boundary contract: row urls are constrained to https here (see
+ * `isHttpsUrl`), so nothing downstream — sqlite, `href`, the user feed — can
+ * carry a `javascript:`/`data:` scheme.
  */
 
 // --- Defensive unknown accessors (report-export.ts style) ---------------------
@@ -41,6 +45,18 @@ function asBoolean(value: unknown): boolean | null {
  */
 function isOpenState(value: unknown): boolean {
   return typeof value === "string" && value.toLowerCase() === "open";
+}
+
+/**
+ * The url is the one row field that keeps flowing after the parse — into
+ * sqlite storage, the board's `href`, and the user feed — so this guard is
+ * the module's trust boundary: only an https web link (case-insensitive
+ * scheme prefix) is accepted, and a row carrying any other scheme
+ * (`javascript:`, `data:`, plain `http:`) is skipped like any other
+ * malformation, never rewritten.
+ */
+function isHttpsUrl(value: string): boolean {
+  return /^https:\/\//i.test(value);
 }
 
 /** `author` is `{ login }` or null; a login-less object also degrades to null. */
@@ -92,6 +108,7 @@ export function parseIssueListJson(raw: unknown): ForgeIssue[] {
     const title = asString(row.title);
     const url = asString(row.url);
     if (number === null || title === null || url === null) continue;
+    if (!isHttpsUrl(url)) continue;
     if (!isOpenState(row.state)) continue;
     issues.push({
       number,
@@ -120,6 +137,7 @@ export function parsePullListJson(raw: unknown): ForgePull[] {
     const title = asString(row.title);
     const url = asString(row.url);
     if (number === null || title === null || url === null) continue;
+    if (!isHttpsUrl(url)) continue;
     if (!isOpenState(row.state)) continue;
     // gh reports review decisions UPPERCASE ("APPROVED") — passed through
     // verbatim; its "no review yet" is the empty string, mapped to null.
@@ -183,6 +201,7 @@ function mapSearchRow(
   ) {
     return null;
   }
+  if (!isHttpsUrl(url)) return null;
   if (!isOpenState(row.state)) return null;
   return {
     kind,
