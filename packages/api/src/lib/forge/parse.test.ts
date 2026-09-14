@@ -6,8 +6,15 @@ import { test } from "node:test";
 
 import { parse } from "jsonc-parser";
 
-import { isTruncated, parseIssueListJson, parsePullListJson } from "./parse";
-import type { ForgeIssue, ForgePull } from "./types";
+import { PAGE_LIMIT } from "./constants";
+import {
+  isTruncated,
+  parseIssueListJson,
+  parsePullListJson,
+  parseSearchIssuesJson,
+  parseSearchPullsJson,
+} from "./parse";
+import type { ForgeFeedItem, ForgeIssue, ForgePull } from "./types";
 
 /**
  * Parser tests for the forge gh-JSON mappers (`pnpm --filter
@@ -283,4 +290,174 @@ test("isTruncated derives the snapshot truncation flags", () => {
   // The math is scale-free — small fixture-sized numbers behave the same.
   assert.equal(isTruncated(4, 4), true);
   assert.equal(isTruncated(3, 4), false);
+});
+
+// --- User-level feed search parsers (plan §Phase 9) ------------------------------
+
+test("search-issue fixture parses to exact rows with repo attribution", () => {
+  const items = parseSearchIssuesJson(loadFixture("search-issues.sample.json"));
+  assert.equal(items.length, 5);
+
+  const expectedFirst: ForgeFeedItem = {
+    kind: "issue",
+    repoSlug: "octo-workshops/acme-cli",
+    number: 42,
+    title: "Feed widget should group items by repository",
+    url: "https://github.com/octo-workshops/acme-cli/issues/42",
+    updatedAt: "2026-09-13T18:07:22Z",
+    labels: ["enhancement"],
+    isDraft: false,
+  };
+  assert.deepEqual(row(items, 0), expectedFirst);
+
+  // Cross-repo row: same search, a different nameWithOwner entirely.
+  const expectedSecond: ForgeFeedItem = {
+    kind: "issue",
+    repoSlug: "dimitri/dotfiles",
+    number: 7,
+    title: "Track down the flaky zsh hook on directory change",
+    url: "https://github.com/dimitri/dotfiles/issues/7",
+    // Null-ish updatedAt edge degrades to null, row survives.
+    updatedAt: null,
+    labels: [],
+    isDraft: false,
+  };
+  assert.deepEqual(row(items, 1), expectedSecond);
+
+  // Multi-label mapping is name-only; null labels yield [].
+  assert.deepEqual(row(items, 2).labels, ["bug", "dashboard"]);
+  assert.deepEqual(row(items, 4).labels, []);
+  // Every row carries the issue kind + UPPERCASE state normalization.
+  for (const item of items) {
+    assert.equal(item.kind, "issue");
+  }
+});
+
+test("search-pr fixture parses to exact rows with repo attribution + draft", () => {
+  const items = parseSearchPullsJson(loadFixture("search-prs.sample.json"));
+  assert.equal(items.length, 4);
+
+  const expectedFirst: ForgeFeedItem = {
+    kind: "pr",
+    repoSlug: "octo-workshops/acme-cli",
+    number: 214,
+    title: "fix: worktree-aware scanner walk",
+    url: "https://github.com/octo-workshops/acme-cli/pull/214",
+    updatedAt: "2026-09-13T19:40:55Z",
+    labels: [],
+    isDraft: true,
+  };
+  assert.deepEqual(row(items, 0), expectedFirst);
+
+  const expectedThird: ForgeFeedItem = {
+    kind: "pr",
+    repoSlug: "octo-workshops/acme-web",
+    number: 402,
+    title: "chore: bump the toolchain to 1.88",
+    url: "https://github.com/octo-workshops/acme-web/pull/402",
+    updatedAt: null,
+    labels: [],
+    isDraft: false,
+  };
+  assert.deepEqual(row(items, 2), expectedThird);
+
+  for (const item of items) {
+    assert.equal(item.kind, "pr");
+  }
+});
+
+test("malformed search rows are skipped silently, valid ones survive", () => {
+  // Shared by both search parsers — the repository object is the feed's only
+  // new required shape: a row without a usable nameWithOwner cannot be
+  // attributed to a repo and is skipped rather than guessed for.
+  const mixed: unknown[] = [
+    "not an object",
+    null,
+    // Missing identity fields:
+    { number: 1, title: "no state", url: "https://x/y/issues/1", repository: { nameWithOwner: "o/r" } },
+    { number: 2, title: "no url", state: "OPEN", repository: { nameWithOwner: "o/r" } },
+    { number: 3, title: "no repository", state: "OPEN", url: "https://x/y/issues/3" },
+    { number: 4, title: "bare repository string", state: "OPEN", url: "https://x/y/issues/4", repository: "o/r" },
+    { number: 5, title: "unnamed repository", state: "OPEN", url: "https://x/y/issues/5", repository: { name: "just-name" } },
+    // Not an open row:
+    { number: 6, title: "closed row", state: "CLOSED", url: "https://x/y/issues/6", repository: { nameWithOwner: "o/r" } },
+    // Valid: lowercase state, absent isDraft, junky labels.
+    {
+      number: 7,
+      title: "lowercase open still parses",
+      state: "open",
+      url: "https://x/y/issues/7",
+      repository: { nameWithOwner: "o/r" },
+      labels: [{ name: "ok" }, { color: "ff0000" }, "junk"],
+    },
+  ];
+  const expectedIssue: ForgeFeedItem = {
+    kind: "issue",
+    repoSlug: "o/r",
+    number: 7,
+    title: "lowercase open still parses",
+    url: "https://x/y/issues/7",
+    updatedAt: null,
+    labels: ["ok"],
+    // Issue rows never carry isDraft even when the field somehow appears.
+    isDraft: false,
+  };
+  assert.deepEqual(parseSearchIssuesJson(mixed), [
+    { ...expectedIssue, kind: "issue", isDraft: false },
+  ]);
+  assert.deepEqual(parseSearchPullsJson(mixed), [
+    { ...expectedIssue, kind: "pr", isDraft: false },
+  ]);
+
+  // A shape-drifted isDraft on a pr row degrades to false, not to a drop.
+  const drifted = parseSearchPullsJson([
+    {
+      number: 8,
+      title: "shape-drifted draft",
+      state: "OPEN",
+      url: "https://x/y/pull/8",
+      repository: { nameWithOwner: "o/r" },
+      isDraft: "yes",
+    },
+  ]);
+  assert.equal(row(drifted, 0).isDraft, false);
+
+  // A real draft survives with isDraft true.
+  const draft = parseSearchPullsJson([
+    {
+      number: 9,
+      title: "actual draft",
+      state: "OPEN",
+      url: "https://x/y/pull/9",
+      repository: { nameWithOwner: "o/r" },
+      isDraft: true,
+    },
+  ]);
+  assert.equal(row(draft, 0).isDraft, true);
+});
+
+test("non-array top level yields an empty feed, never a throw", () => {
+  const tops: unknown[] = [null, {}, { data: [] }, "[]", 42, true];
+  for (const raw of tops) {
+    assert.deepEqual(
+      parseSearchIssuesJson(raw),
+      [],
+      `search-issues input: ${String(raw)}`,
+    );
+    assert.deepEqual(
+      parseSearchPullsJson(raw),
+      [],
+      `search-prs input: ${String(raw)}`,
+    );
+  }
+});
+
+test("feed truncation reuses the same isTruncated math", () => {
+  // gh-cli derives ForgeUserFeed.truncated with the very helper behind the
+  // snapshot flags — the fixtures' lengths exercise the boundary reuse here.
+  const issues = parseSearchIssuesJson(loadFixture("search-issues.sample.json"));
+  const pulls = parseSearchPullsJson(loadFixture("search-prs.sample.json"));
+  assert.equal(isTruncated(issues.length, issues.length), true);
+  assert.equal(isTruncated(issues.length, issues.length + 1), false);
+  assert.equal(isTruncated(pulls.length, PAGE_LIMIT), false);
 });

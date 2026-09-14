@@ -85,6 +85,56 @@ export interface ForgeFetchOptions {
 }
 
 /**
+ * One item of the user-level forge feed: an open issue or PR authored by the
+ * authenticated user, in ANY GitHub repo (workspace or not). Produced by the
+ * cross-repo `gh search` endpoints, whose `--json` field list differs from the
+ * repo-scoped list endpoints — notably it adds `repository` (the source of
+ * repoSlug); search has no `comments` field (the count is named
+ * `commentsCount` and is deliberately not requested) and no `reviewDecision`
+ * exists in search output, so this type honestly carries neither comment
+ * counts nor review decisions.
+ */
+export interface ForgeFeedItem {
+  /** Which search produced the row — "issue" or "pr". */
+  kind: "issue" | "pr";
+  /** `owner/repo`, from the search row's `repository` object. */
+  repoSlug: string;
+  number: number;
+  title: string;
+  url: string;
+  /** RFC 3339 timestamp; null when the forge didn't report one. */
+  updatedAt: string | null;
+  labels: string[];
+  /**
+   * Draft marker — only meaningful for `kind: "pr"` (search's pr field list
+   * has `isDraft`; its issue list does not, so issue rows are always false).
+   */
+  isDraft: boolean;
+}
+
+/** The user-level feed as of one fetch (plan §Phase 9, dashboard widget). */
+export interface ForgeUserFeed {
+  /** ISO timestamp of the fetch. */
+  fetchedAt: string;
+  items: ForgeFeedItem[];
+  /**
+   * True when either search list hit the page limit — "at least this many
+   * open items", same semantics as ForgeSnapshot's truncation flags.
+   */
+  truncated: boolean;
+}
+
+/**
+ * A ForgeAdapter that can also fetch the authenticated user's cross-repo
+ * feed. Exactly one implementation exists (the gh CLI adapter — one search
+ * per kind, `@me` resolved server-side by gh); the interface exists so the
+ * sync service and its tests depend on the seam, not the CLI.
+ */
+export interface UserFeedAdapter extends ForgeAdapter {
+  fetchUserFeed(opts?: ForgeFetchOptions): Promise<ForgeUserFeed>;
+}
+
+/**
  * A source of forge data for the remotes it claims. Implementations must be
  * side-effect free until a method is called; `fetchSnapshot` throws `Error`
  * on failure (the sync service must see it to record last_sync_error).

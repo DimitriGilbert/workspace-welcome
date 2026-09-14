@@ -1,4 +1,4 @@
-import type { ForgeIssue, ForgePull } from "./types";
+import type { ForgeFeedItem, ForgeIssue, ForgePull } from "./types";
 
 /**
  * Pure mappers from `gh … --json` list output to typed forge rows.
@@ -144,12 +144,96 @@ export function parsePullListJson(raw: unknown): ForgePull[] {
   return pulls;
 }
 
+// --- Search parsers (user-level feed, plan §Phase 9) ---------------------------
+
+/**
+ * Search rows carry a `repository` OBJECT (the one field the list endpoints
+ * lack). Its documented key for the "owner/repo" identity is `nameWithOwner`;
+ * it is the only key consumed — siblings (id, name, owner, …) are never
+ * inspected. A row whose repository yields no usable slug cannot be
+ * attributed to a repo and is skipped, like any other malformed row.
+ */
+function mapRepoSlug(value: unknown): string | null {
+  const repository = asRecord(value);
+  if (repository === null) return null;
+  return asString(repository.nameWithOwner);
+}
+
+/**
+ * The row fields shared by both search kinds, mapped once: identity
+ * (number/title/url/repoSlug) + open-state + the optional fields. `isDraft`
+ * only exists in the prs search output — for issue rows the caller passes
+ * false, never a guessed value.
+ */
+function mapSearchRow(
+  entry: unknown,
+  kind: "issue" | "pr",
+): ForgeFeedItem | null {
+  const row = asRecord(entry);
+  if (row === null) return null;
+  const number = asNumber(row.number);
+  const title = asString(row.title);
+  const url = asString(row.url);
+  const repoSlug = mapRepoSlug(row.repository);
+  if (
+    number === null ||
+    title === null ||
+    url === null ||
+    repoSlug === null
+  ) {
+    return null;
+  }
+  if (!isOpenState(row.state)) return null;
+  return {
+    kind,
+    repoSlug,
+    number,
+    title,
+    url,
+    updatedAt: asString(row.updatedAt),
+    labels: mapLabels(row.labels),
+    // Same degradation rule as parsePullListJson: a shape-drifted isDraft
+    // reads as "not a draft" rather than dropping the row.
+    isDraft: kind === "pr" ? (asBoolean(row.isDraft) ?? false) : false,
+  };
+}
+
+/**
+ * Rows of `gh search issues … --json number,title,state,labels,updatedAt,url,repository`
+ * → `kind: "issue"` feed items. Malformed rows are skipped, never thrown;
+ * a non-array top level yields [].
+ */
+export function parseSearchIssuesJson(raw: unknown): ForgeFeedItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: ForgeFeedItem[] = [];
+  for (const entry of raw) {
+    const item = mapSearchRow(entry, "issue");
+    if (item !== null) items.push(item);
+  }
+  return items;
+}
+
+/**
+ * Rows of `gh search prs … --json number,title,state,isDraft,labels,updatedAt,url,repository`
+ * → `kind: "pr"` feed items. Same tolerance rules as the issue search.
+ */
+export function parseSearchPullsJson(raw: unknown): ForgeFeedItem[] {
+  if (!Array.isArray(raw)) return [];
+  const items: ForgeFeedItem[] = [];
+  for (const entry of raw) {
+    const item = mapSearchRow(entry, "pr");
+    if (item !== null) items.push(item);
+  }
+  return items;
+}
+
 /**
  * Truncation math behind ForgeSnapshot's flags: gh caps a list at --limit and
  * says nothing about what lies beyond, so a row count that reached the page
  * limit means "at least this many" — equality counts as truncated, which is
  * why counts render "50+" instead of a false exact number. Tested directly
  * (hand-writing PAGE_LIMIT rows in a fixture proves nothing the math doesn't).
+ * The user-level feed (ForgeUserFeed.truncated) derives from the same helper.
  */
 export function isTruncated(count: number, pageLimit: number): boolean {
   return count >= pageLimit;

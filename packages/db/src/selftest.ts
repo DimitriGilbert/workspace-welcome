@@ -2,18 +2,26 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { openDb } from "./client";
 import { migrations } from "./migrations";
-import { appMeta, forgeIssues, forgeProjectLinks, forgePulls, forgeRepos } from "./schema";
+import {
+  appMeta,
+  forgeFeedItems,
+  forgeIssues,
+  forgeProjectLinks,
+  forgePulls,
+  forgeRepos,
+} from "./schema";
 
 /**
  * Standalone selftest (`pnpm --filter @workspace-welcome/db db:selftest`):
  * opens a throwaway database under os.tmpdir() — never the real XDG data dir —
  * applies the embedded migrations, asserts the expected tables exist,
- * round-trips a row through the drizzle handle, and proves the forge FK
- * cascades fire. Prints PASS on success.
+ * round-trips a row through the drizzle handle, proves the forge FK cascades
+ * fire, and round-trips the user-feed table's composite PK. Prints PASS on
+ * success.
  */
 
 const EXPECTED_TABLES = [
@@ -26,6 +34,7 @@ const EXPECTED_TABLES = [
   "forge_project_links",
   "forge_issues",
   "forge_pulls",
+  "forge_feed_items",
 ] as const;
 
 async function main(): Promise<void> {
@@ -133,6 +142,91 @@ async function main(): Promise<void> {
           `FK cascade failed: ${table} rows survived their forge_repos delete`,
         );
       }
+    }
+
+    // User-feed table: composite PK (kind, repo_slug, number) round-trip. The
+    // feed has NO forge_repos FK by design — rows may name repos no workspace
+    // project maps to, so the insert below deliberately uses an unmapped slug.
+    await db.insert(forgeFeedItems).values([
+      {
+        kind: "pr",
+        repoSlug: "anyone/unmapped-repo",
+        number: 5,
+        title: "Feed PK round-trip (draft)",
+        url: "https://github.com/anyone/unmapped-repo/pull/5",
+        updatedAt: "2026-09-14T08:00:00Z",
+        labelsJson: JSON.stringify(["bug", "feed"]),
+        isDraft: true,
+      },
+      {
+        // Same repo_slug + number, different kind: both must coexist — the
+        // kind column is part of the key.
+        kind: "issue",
+        repoSlug: "anyone/unmapped-repo",
+        number: 5,
+        title: "Feed PK round-trip (issue twin)",
+        url: "https://github.com/anyone/unmapped-repo/issues/5",
+        updatedAt: null,
+        labelsJson: "[]",
+        isDraft: false,
+      },
+    ]);
+    const feedPr = await db
+      .select()
+      .from(forgeFeedItems)
+      .where(
+        and(
+          eq(forgeFeedItems.kind, "pr"),
+          eq(forgeFeedItems.repoSlug, "anyone/unmapped-repo"),
+          eq(forgeFeedItems.number, 5),
+        ),
+      );
+    const feedPrRow = feedPr[0];
+    if (
+      feedPrRow === undefined ||
+      feedPrRow.isDraft !== true ||
+      feedPrRow.title !== "Feed PK round-trip (draft)" ||
+      feedPrRow.updatedAt !== "2026-09-14T08:00:00Z"
+    ) {
+      throw new Error(
+        `forge_feed_items PK round-trip failed: ${JSON.stringify(feedPrRow)}`,
+      );
+    }
+    const issueTwin = await db
+      .select()
+      .from(forgeFeedItems)
+      .where(
+        and(
+          eq(forgeFeedItems.kind, "issue"),
+          eq(forgeFeedItems.repoSlug, "anyone/unmapped-repo"),
+          eq(forgeFeedItems.number, 5),
+        ),
+      );
+    if (issueTwin.length !== 1 || issueTwin[0]?.updatedAt !== null) {
+      throw new Error(
+        `forge_feed_items kind-component of PK failed: ${JSON.stringify(issueTwin)}`,
+      );
+    }
+    // An exact PK duplicate is rejected by the composite key.
+    let duplicateRejected = false;
+    try {
+      await db.insert(forgeFeedItems).values({
+        kind: "pr",
+        repoSlug: "anyone/unmapped-repo",
+        number: 5,
+        title: "duplicate",
+        url: "https://github.com/anyone/unmapped-repo/pull/5",
+        updatedAt: null,
+        labelsJson: "[]",
+        isDraft: false,
+      });
+    } catch {
+      duplicateRejected = true;
+    }
+    if (!duplicateRejected) {
+      throw new Error(
+        "forge_feed_items accepted a duplicate (kind, repo_slug, number) row",
+      );
     }
   } finally {
     client.close();

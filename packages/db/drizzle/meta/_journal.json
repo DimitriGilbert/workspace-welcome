@@ -15,6 +15,13 @@
       "when": 1789378645312,
       "tag": "0001_pretty_naoko",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789397823704,
+      "tag": "0002_swift_fabian_cortez",
+      "breakpoints": true
     }
   ]
 }

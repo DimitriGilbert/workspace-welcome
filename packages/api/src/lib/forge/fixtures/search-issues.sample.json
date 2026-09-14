@@ -1,0 +1,108 @@
+// Hand-authored from the `gh search issues --help` documented JSON field list (gh 2.x):
+//   assignees, author, authorAssociation, body, closedAt, commentsCount, createdAt,
+//   id, isLocked, isPullRequest, labels, number, repository, state, title, updatedAt, url
+// The repository sub-object shape (nameWithOwner carrying "owner/repo") follows gh's documented
+// search output; Phase 9c live-reconciles both against real search output (the Phase-8 smoke's
+// offline-iteration discipline — zero gh calls before then).
+// Sample of: gh search issues --author @me --state open --limit 50
+//            --json number,title,state,labels,updatedAt,url,repository
+// Shape notes (vs the repo-scoped `gh issue list`): rows span MULTIPLE repos — each carries a
+// `repository` OBJECT whose `nameWithOwner` is the only key consumed; search has no `comments`
+// (it names the count `commentsCount`) and no `reviewDecision` — the feed type carries neither.
+// `state` arrives UPPERCASE ("OPEN"); `labels` is an array of label objects (only `name`
+// consumed — gh includes id/color/description) or null; `updatedAt` is RFC 3339 or null.
+// Rows: mixed nameWithOwner values, empty labels, multi-label, null updatedAt.
+[
+  {
+    "number": 42,
+    "title": "Feed widget should group items by repository",
+    "state": "OPEN",
+    "labels": [
+      {
+        "id": 7301252101,
+        "name": "enhancement",
+        "color": "a2eeef",
+        "description": "New feature or request"
+      }
+    ],
+    "updatedAt": "2026-09-13T18:07:22Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/42",
+    "repository": {
+      "id": "R_kgDOGQAB42",
+      "name": "acme-cli",
+      "nameWithOwner": "octo-workshops/acme-cli"
+    }
+  },
+  {
+    "number": 7,
+    "title": "Track down the flaky zsh hook on directory change",
+    "state": "OPEN",
+    "labels": [],
+    "updatedAt": null,
+    "url": "https://github.com/dimitri/dotfiles/issues/7",
+    "repository": {
+      "id": "R_kgDOGQAB07",
+      "name": "dotfiles",
+      "nameWithOwner": "dimitri/dotfiles"
+    }
+  },
+  {
+    "number": 318,
+    "title": "Search-backed dashboard feed misses saved searches",
+    "state": "OPEN",
+    "labels": [
+      {
+        "id": 7301252102,
+        "name": "bug",
+        "color": "d73a4a",
+        "description": "Something isn't working"
+      },
+      {
+        "id": 7301252103,
+        "name": "dashboard",
+        "color": "1d76db",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-12T09:41:03Z",
+    "url": "https://github.com/octo-workshops/acme-web/issues/318",
+    "repository": {
+      "id": "R_kgDOGQA318",
+      "name": "acme-web",
+      "nameWithOwner": "octo-workshops/acme-web"
+    }
+  },
+  {
+    "number": 19,
+    "title": "Document the alerting thresholds",
+    "state": "OPEN",
+    "labels": [
+      {
+        "id": 7301252104,
+        "name": "documentation",
+        "color": "0075ca",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-08T14:26:48Z",
+    "url": "https://github.com/dimitri/notes-app/issues/19",
+    "repository": {
+      "id": "R_kgDOGQAB19",
+      "name": "notes-app",
+      "nameWithOwner": "dimitri/notes-app"
+    }
+  },
+  {
+    "number": 96,
+    "title": "Stale lockfile after partial upgrade",
+    "state": "OPEN",
+    "labels": null,
+    "updatedAt": "2026-09-11T07:55:10Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/96",
+    "repository": {
+      "id": "R_kgDOGQAB42",
+      "name": "acme-cli",
+      "nameWithOwner": "octo-workshops/acme-cli"
+    }
+  }
+]

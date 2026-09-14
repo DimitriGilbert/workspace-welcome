@@ -138,3 +138,30 @@ export const forgePulls = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.repoId, table.number] })],
 );
+
+/**
+ * The user-level forge feed cache: the authenticated user's open issues + PRs
+ * across ALL GitHub repos (workspace or not), replaced wholesale per feed
+ * sync. Deliberately NO foreign key to forge_repos — feed rows come from
+ * `gh search` and routinely reference repos no workspace project maps to, so
+ * requiring a forge_repos row would make the feed un-persistable for exactly
+ * the cross-repo items it exists to surface.
+ */
+export const forgeFeedItems = sqliteTable(
+  "forge_feed_items",
+  {
+    /** 'issue' | 'pr'. */
+    kind: text("kind").notNull(),
+    /** "owner/repo" straight from the search row's repository.nameWithOwner. */
+    repoSlug: text("repo_slug").notNull(),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    url: text("url").notNull(),
+    updatedAt: text("updated_at"),
+    labelsJson: text("labels_json").notNull(),
+    isDraft: integer("is_draft", { mode: "boolean" }).notNull().default(false),
+  },
+  (table) => [
+    primaryKey({ columns: [table.kind, table.repoSlug, table.number] }),
+  ],
+);

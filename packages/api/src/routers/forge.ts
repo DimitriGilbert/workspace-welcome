@@ -4,15 +4,16 @@ import { z } from "zod";
 
 import { parseRemote } from "../lib/detect";
 import { readOverview, readProjectSnapshot } from "../lib/forge/db";
-import { syncForgeRepo } from "../lib/forge/sync";
+import { readUserFeed } from "../lib/forge/feed";
+import { syncForgeRepo, syncUserFeed } from "../lib/forge/sync";
 import { requireKnownProject } from "../lib/known-project";
 import { publicProcedure, router } from "../index";
 
 /**
- * Forge router: cached GitHub issue/PR state. The two queries are pure DB
- * reads — rendering can never trigger a network call; the only door to an
- * adapter invocation is the explicit sync mutation, which carries all the
- * rate-limit discipline (min-interval, dedupe, sequential queue) inside
+ * Forge router: cached GitHub issue/PR state. The three queries are pure DB
+ * reads — rendering can never trigger a network call; the only doors to an
+ * adapter invocation are the two explicit sync mutations, which carry all
+ * the rate-limit discipline (min-interval, dedupe, sequential queue) inside
  * lib/forge/sync.ts. Errors propagate as plain Errors for the toast path.
  */
 export const forgeRouter = router({
@@ -61,5 +62,30 @@ export const forgeRouter = router({
     .mutation(async ({ input }) => {
       const path = await requireKnownProject(input.path);
       return syncForgeRepo(path, { force: input.force });
+    }),
+
+  /**
+   * The authenticated user's open issues + PRs across ALL GitHub repos
+   * (workspace or not), for the dashboard feed widget (plan §Phase 9b).
+   * Pure database read of the feed cache — never touches the adapter.
+   */
+  feed: publicProcedure.query(async () => {
+    return readUserFeed();
+  }),
+
+  /**
+   * Fetch the user-level feed now — user-scoped, so no path/known-project
+   * input: ONE `gh search` per kind inside the adapter, then sync.ts's
+   * min-interval refusal (bypassable with force). The client invalidates
+   * its feed query on success.
+   */
+  syncFeed: publicProcedure
+    .input(
+      z.object({
+        force: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return syncUserFeed({ force: input.force });
     }),
 });

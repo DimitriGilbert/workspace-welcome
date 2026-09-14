@@ -7,12 +7,19 @@ import {
   CALL_TIMEOUT_MS,
   PAGE_LIMIT,
 } from "./constants";
-import { isTruncated, parseIssueListJson, parsePullListJson } from "./parse";
+import {
+  isTruncated,
+  parseIssueListJson,
+  parsePullListJson,
+  parseSearchIssuesJson,
+  parseSearchPullsJson,
+} from "./parse";
 import type {
-  ForgeAdapter,
   ForgeFetchOptions,
   ForgeRepoRef,
   ForgeSnapshot,
+  ForgeUserFeed,
+  UserFeedAdapter,
 } from "./types";
 
 /**
@@ -118,7 +125,7 @@ async function isAvailable(): Promise<boolean> {
 
 // --- Adapter ----------------------------------------------------------------
 
-export const ghCliAdapter: ForgeAdapter = {
+export const ghCliAdapter: UserFeedAdapter = {
   kind: "github",
   style: "cli",
 
@@ -173,6 +180,56 @@ export const ghCliAdapter: ForgeAdapter = {
       pulls,
       issuesTruncated: isTruncated(issues.length, pageLimit),
       pullsTruncated: isTruncated(pulls.length, pageLimit),
+    };
+  },
+
+  /**
+   * The user-level feed: the authenticated user's open issues + PRs across
+   * ALL GitHub repos (workspace or not) — ONE `gh search` per kind, never a
+   * per-project sync. `--author @me` is resolved to the authenticated user
+   * server-side by gh; the username is deliberately never known here. The two
+   * searches run strictly sequentially, same as fetchSnapshot's lists. Search
+   * `--json` field lists differ from the list endpoints (they add
+   * `repository`; the feed consumes exactly what ForgeFeedItem carries).
+   */
+  async fetchUserFeed(
+    opts?: ForgeFetchOptions,
+  ): Promise<ForgeUserFeed> {
+    const pageLimit = opts?.pageLimit ?? PAGE_LIMIT;
+    const issues = parseSearchIssuesJson(
+      await ghJson([
+        "search",
+        "issues",
+        "--author",
+        "@me",
+        "--state",
+        "open",
+        "--limit",
+        String(pageLimit),
+        "--json",
+        "number,title,state,labels,updatedAt,url,repository",
+      ]),
+    );
+    const pulls = parseSearchPullsJson(
+      await ghJson([
+        "search",
+        "prs",
+        "--author",
+        "@me",
+        "--state",
+        "open",
+        "--limit",
+        String(pageLimit),
+        "--json",
+        "number,title,state,isDraft,labels,updatedAt,url,repository",
+      ]),
+    );
+    return {
+      fetchedAt: new Date().toISOString(),
+      items: [...issues, ...pulls],
+      truncated:
+        isTruncated(issues.length, pageLimit) ||
+        isTruncated(pulls.length, pageLimit),
     };
   },
 };

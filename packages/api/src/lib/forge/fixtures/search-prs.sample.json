@@ -1,0 +1,86 @@
+// Hand-authored from the `gh search prs --help` documented JSON field list (gh 2.x):
+//   assignees, author, authorAssociation, body, closedAt, commentsCount, createdAt,
+//   id, isDraft, isLocked, isPullRequest, labels, number, repository, state, title, updatedAt, url
+// The repository sub-object shape (nameWithOwner carrying "owner/repo") follows gh's documented
+// search output; Phase 9c live-reconciles both against real search output (the Phase-8 smoke's
+// offline-iteration discipline — zero gh calls before then).
+// Sample of: gh search prs --author @me --state open --limit 50
+//            --json number,title,state,isDraft,labels,updatedAt,url,repository
+// Shape notes (vs the repo-scoped `gh pr list`): rows span MULTIPLE repos — each carries a
+// `repository` OBJECT whose `nameWithOwner` is the only key consumed; search's pr field list
+// KEEPS `isDraft` but has no `reviewDecision` — the feed type carries no review verdicts.
+// `state` arrives UPPERCASE ("OPEN"); `labels` is an array of label objects (only `name`
+// consumed) or null; `updatedAt` is RFC 3339 or null. Rows: draft, mixed nameWithOwner values,
+// empty labels, null updatedAt, null labels.
+[
+  {
+    "number": 214,
+    "title": "fix: worktree-aware scanner walk",
+    "state": "OPEN",
+    "isDraft": true,
+    "labels": [],
+    "updatedAt": "2026-09-13T19:40:55Z",
+    "url": "https://github.com/octo-workshops/acme-cli/pull/214",
+    "repository": {
+      "id": "R_kgDOGQAB42",
+      "name": "acme-cli",
+      "nameWithOwner": "octo-workshops/acme-cli"
+    }
+  },
+  {
+    "number": 51,
+    "title": "feat: pin per-root editor overrides",
+    "state": "OPEN",
+    "isDraft": false,
+    "labels": [
+      {
+        "id": 7301252201,
+        "name": "refactor",
+        "color": "1d76db",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-12T11:02:33Z",
+    "url": "https://github.com/dimitri/dotfiles/pull/51",
+    "repository": {
+      "id": "R_kgDOGQAB07",
+      "name": "dotfiles",
+      "nameWithOwner": "dimitri/dotfiles"
+    }
+  },
+  {
+    "number": 402,
+    "title": "chore: bump the toolchain to 1.88",
+    "state": "OPEN",
+    "isDraft": false,
+    "labels": null,
+    "updatedAt": null,
+    "url": "https://github.com/octo-workshops/acme-web/pull/402",
+    "repository": {
+      "id": "R_kgDOGQA318",
+      "name": "acme-web",
+      "nameWithOwner": "octo-workshops/acme-web"
+    }
+  },
+  {
+    "number": 12,
+    "title": "docs: feed widget copy pass",
+    "state": "OPEN",
+    "isDraft": false,
+    "labels": [
+      {
+        "id": 7301252202,
+        "name": "documentation",
+        "color": "0075ca",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-08T14:26:48Z",
+    "url": "https://github.com/dimitri/notes-app/pull/12",
+    "repository": {
+      "id": "R_kgDOGQAB19",
+      "name": "notes-app",
+      "nameWithOwner": "dimitri/notes-app"
+    }
+  }
+]

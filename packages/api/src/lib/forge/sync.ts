@@ -6,27 +6,33 @@ import {
   replaceSnapshot,
   upsertRepoLink,
 } from "./db";
+import { readFeedSyncedAt, recordFeedFailure, replaceFeed } from "./feed";
+import { ghCliAdapter } from "./gh-cli";
 import { resolveAdapter } from "./registry";
 import type {
   ForgeAdapter,
   ForgeRepoRef,
   ForgeSnapshot,
+  ForgeUserFeed,
+  UserFeedAdapter,
 } from "./types";
 
 /**
- * The guarded forge sync entrypoint — the ONLY place in the codebase that
- * invokes an adapter (isAvailable / fetchSnapshot). Rate-limit discipline
- * (plan §Sync design), in the order a call meets it:
+ * The guarded forge sync entrypoints — the ONLY place in the codebase that
+ * invokes an adapter (isAvailable / fetchSnapshot / fetchUserFeed).
+ * syncForgeRepo syncs one project's repo; syncUserFeed (plan §Phase 9) syncs
+ * the authenticated user's cross-repo feed. Both share the rate-limit
+ * discipline (plan §Sync design), in the order a call meets it:
  *
- *   a. resolve the project's origin remote (gitInspect)
- *   b. upsert the project→repo link; unsupported host throws
+ *   a. resolve the project's origin remote (gitInspect, repo sync only)
+ *   b. upsert the project→repo link; unsupported host throws (repo sync only)
  *   c. MIN_SYNC_INTERVAL_MS refusal unless `force`
- *   d. in-flight dedupe — concurrent syncs of the same repo share one attempt
+ *   d. in-flight dedupe — concurrent syncs of the same target share one attempt
  *   e. a process-wide sequential queue — one adapter invocation at a time
- *      across ALL repos (the probe rides it too)
+ *      across ALL syncs, both kinds (the probe rides it too)
  *   f. availability probe short-circuit ("gh not authenticated")
- *   g. fetch (adapter sequences issues→pulls internally) + replaceSnapshot
- *   h. fetch/parse failure → recordSyncFailure + rethrow (toast path)
+ *   g. fetch (adapters sequence their gh calls internally) + replace
+ *   h. fetch/parse failure → record*Failure + rethrow (toast path)
  */
 
 /** Summary of one completed sync — what Phase 5's mutation returns. */
@@ -180,5 +186,110 @@ export async function syncForgeRepo(
     return await attempt;
   } finally {
     inFlightSyncs.delete(key);
+  }
+}
+
+// --- User-level feed sync (plan §Phase 9) ----------------------------------------
+
+/** Summary of one completed feed sync — what the syncFeed mutation returns. */
+export interface UserFeedSyncResult {
+  /** ISO timestamp of the fetch. */
+  fetchedAt: string;
+  itemCount: number;
+  issuesCount: number;
+  pullsCount: number;
+  truncated: boolean;
+}
+
+export interface SyncUserFeedOptions {
+  /** Bypass the MIN_SYNC_INTERVAL_MS refusal. */
+  force?: boolean;
+  /** Clock injection for tests; defaults to Date.now. */
+  now?: () => number;
+  /** Adapter injection for tests; defaults to the gh CLI adapter. */
+  adapter?: UserFeedAdapter;
+}
+
+/**
+ * In-flight feed syncs. One key only — the feed is user-level, not per-repo —
+ * but the Map keeps the dedupe shape identical to the repo syncs above. The
+ * key never collides with repoKey's "kind:host:slug" vocabulary.
+ */
+const inFlightFeedSyncs = new Map<string, Promise<UserFeedSyncResult>>();
+const FEED_SYNC_KEY = "user-feed";
+
+/** The probe + fetch + persist pipeline one deduped feed sync runs. */
+async function runUserFeedFetch(
+  adapter: UserFeedAdapter,
+): Promise<UserFeedSyncResult> {
+  // Availability rides the same global queue as every other adapter
+  // invocation — one gh process in flight stays true across BOTH sync kinds.
+  const available = await enqueueFetch(() => adapter.isAvailable());
+  if (!available) {
+    throw new Error("gh not authenticated — run `gh auth login`");
+  }
+
+  let feed: ForgeUserFeed;
+  try {
+    feed = await enqueueFetch(() => adapter.fetchUserFeed());
+  } catch (err) {
+    // Record best-effort (recordFeedFailure never throws, so the original
+    // fetch error — the one the user needs — is what propagates), rethrow.
+    await recordFeedFailure(err instanceof Error ? err.message : String(err));
+    throw err;
+  }
+
+  await replaceFeed(feed.items, feed.fetchedAt);
+  return {
+    fetchedAt: feed.fetchedAt,
+    itemCount: feed.items.length,
+    issuesCount: feed.items.filter((item) => item.kind === "issue").length,
+    pullsCount: feed.items.filter((item) => item.kind === "pr").length,
+    truncated: feed.truncated,
+  };
+}
+
+/**
+ * Sync the authenticated user's cross-repo feed now (ONE `gh search` per kind
+ * inside the adapter — never per-project). Guard order mirrors syncForgeRepo
+ * exactly: min-interval refusal unless forced → in-flight dedupe → the same
+ * process-wide sequential queue (shared with repo syncs) → availability
+ * probe short-circuit → fetch (the adapter sequences issues→prs internally)
+ * → replaceFeed. Refusal/availability paths use the same user-facing
+ * vocabulary as the repo sync; fetch failures are recorded then rethrown.
+ */
+export async function syncUserFeed(
+  opts: SyncUserFeedOptions = {},
+): Promise<UserFeedSyncResult> {
+  const now = opts.now ?? Date.now;
+  const adapter = opts.adapter ?? ghCliAdapter;
+
+  // a. Feed-level min-interval refusal unless forced. A future-dated
+  // fetchedAt (clock skew) also refuses — the account-safe direction.
+  if (!opts.force) {
+    const lastSyncedAt = await readFeedSyncedAt();
+    if (lastSyncedAt !== null) {
+      const fetchedAtMs = Date.parse(lastSyncedAt);
+      if (Number.isFinite(fetchedAtMs)) {
+        const elapsedMs = now() - fetchedAtMs;
+        if (elapsedMs < MIN_SYNC_INTERVAL_MS) {
+          const minutes = Math.max(1, Math.round(elapsedMs / 60_000));
+          throw new Error(`Synced ${minutes} min ago — use force`);
+        }
+      }
+    }
+  }
+
+  // b. Dedupe: an identical in-flight feed sync hands back the same promise —
+  // never a second search pair for one user.
+  const inFlight = inFlightFeedSyncs.get(FEED_SYNC_KEY);
+  if (inFlight !== undefined) return inFlight;
+
+  const attempt = runUserFeedFetch(adapter);
+  inFlightFeedSyncs.set(FEED_SYNC_KEY, attempt);
+  try {
+    return await attempt;
+  } finally {
+    inFlightFeedSyncs.delete(FEED_SYNC_KEY);
   }
 }
