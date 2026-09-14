@@ -94,7 +94,11 @@ function ForgeRow({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-xs font-medium leading-tight">{title}</span>
         <span className="flex min-w-0 items-center gap-1.5 text-[10px] leading-4 text-muted-foreground">
-          {author !== null ? <span className="shrink-0">{author}</span> : null}
+          {author !== null ? (
+            <span className="max-w-full truncate" title={author}>
+              {author}
+            </span>
+          ) : null}
           {isDraft ? <Chip tone="neutral" className="px-1.5 py-0 text-[10px]">draft</Chip> : null}
           {labels.length > 0 ? (
             <span className="truncate" title={labels.join(" · ")}>

@@ -230,7 +230,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
           <TileStatLine report={entry} project={project} />
         </div>
         <div className="flex items-end justify-between gap-2">
-          <span className="flex min-w-0 items-end gap-2">
+          {/* Meadow's cluster law: the chip group wraps instead of crowding
+              the alerts/ring cluster at 2-col spans — pills clip mid-glyph
+              when a nowrap cluster outruns the tile. */}
+          <span className="flex min-w-0 flex-wrap items-end gap-2">
             <GitGlyphs git={project.git} large />
             <ForgeChips project={project} />
           </span>
@@ -290,7 +293,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
           )}
         </div>
         <div className="flex items-end justify-between gap-2">
-          <span className="flex min-w-0 items-end gap-2">
+          {/* Meadow's cluster law: the chip group wraps instead of crowding
+              the alerts/ring cluster at 2-col spans — pills clip mid-glyph
+              when a nowrap cluster outruns the tile. */}
+          <span className="flex min-w-0 flex-wrap items-end gap-2">
             <GitGlyphs git={project.git} large />
             <ForgeChips project={project} />
           </span>
@@ -366,7 +372,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
       )}
 
       <div className="flex items-end justify-between gap-3">
-        <span className="flex min-w-0 items-end gap-2.5">
+        {/* Meadow's cluster law: the chip group wraps instead of crowding
+            the alerts/ring cluster at 2-col spans — pills clip mid-glyph
+            when a nowrap cluster outruns the tile. */}
+        <span className="flex min-w-0 flex-wrap items-end gap-2.5">
           <GitGlyphs git={project.git} large />
           <ForgeChips project={project} />
         </span>
