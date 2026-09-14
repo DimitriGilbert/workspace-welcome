@@ -8,6 +8,7 @@
 
 export { SettingsCommands } from "./commands";
 export { SettingsExcludeGlobs } from "./exclude-globs";
+export { SettingsForge } from "./forge";
 export { SettingsGeneral } from "./general";
 export { SettingsIdeation } from "./ideation";
 export { SettingsSnitch } from "./snitch";

@@ -7,6 +7,7 @@ import { SettingsProvider } from "@/lib/contexts/settings-context";
 import {
   SettingsCommands,
   SettingsExcludeGlobs,
+  SettingsForge,
   SettingsGeneral,
   SettingsIdeation,
   SettingsSnitch,
@@ -40,6 +41,7 @@ function SettingsComponent() {
         <SettingsSnitch />
         <SettingsExcludeGlobs />
         <SettingsIdeation />
+        <SettingsForge />
       </div>
     </SettingsProvider>
   );

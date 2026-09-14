@@ -6,12 +6,13 @@ import { useTRPC } from "@/utils/trpc";
 
 /**
  * Forge queries — the cached open-issue/PR state the UI renders
- * (`ForgeChips` on the lists, the project page's `ProjectForge` widget).
- * Both server procedures are pure database reads (rendering can never
- * trigger a network call), so an absent entry is the honest pre-sync
- * state: nothing is fetched to fill it. The only door to a live fetch is
- * the sync mutation below — explicit, user-initiated, and the sole
- * trigger for the invalidations that settle both queries.
+ * (`ForgeChips` on the lists, the project page's `ProjectForge` widget, the
+ * dashboard feed, and the settings Forge register). The read queries here
+ * are pure database reads (rendering can never trigger a network call), so
+ * an absent entry is the honest pre-sync state: nothing is fetched to fill
+ * it — the register lists never-synced links instead. The only door to a
+ * live fetch is an explicit sync mutation — user-initiated, and the sole
+ * trigger for the invalidations that settle the queries.
  */
 
 /** Counts change only on an explicit sync; 5 min of trust. */
@@ -129,6 +130,110 @@ export function useForgeFeedSyncMutation() {
           `Synced your feed — ${result.issuesCount} issues · ${result.pullsCount} pull requests` +
             (result.truncated ? " (a list hit the page limit)" : ""),
         );
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+/**
+ * Every mapped project↔repo link with its sync bookkeeping + open-item
+ * counts — the settings Forge register's data. Pure database read like the
+ * other forge queries, and unlike the overview it lists never-synced and
+ * failed links too (the register is the honest bookkeeping surface —
+ * `lastSyncStatus` carries the reason). 5 min of trust.
+ */
+export function useForgeReposQuery() {
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.forge.repos.queryOptions(undefined, { staleTime: FORGE_STALE_TIME }),
+  );
+}
+
+/**
+ * One register row, inferred from the query result — the authored source is
+ * the server's `ForgeRepoLinkEntry` (`packages/api/src/lib/forge/db.ts`).
+ */
+export type ForgeRepoLinkEntry = NonNullable<
+  ReturnType<typeof useForgeReposQuery>["data"]
+>["repos"][number];
+
+/**
+ * ONE fleet run (plan §Phase 10b): every workspace project then the user
+ * feed, sequentially, failures isolated per target. Success settles ALL FOUR
+ * forge queries in one Promise.all — repos (the register itself), overview
+ * (the lists' chips), project (the per-project boards), feed (the dashboard)
+ * — the point of the phase: every forge widget updates in place. The toast
+ * carries counts only; the register rows carry the per-repo errors.
+ */
+export function useSyncAllMutation() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    trpc.forge.syncAll.mutationOptions({
+      onSuccess: async (result) => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.repos.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.overview.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.project.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.feed.queryKey(),
+          }),
+        ]);
+        const synced = result.results.filter((r) => r.status === "synced").length;
+        const skipped = result.results.filter((r) => r.status === "skipped").length;
+        const failed = result.results.filter((r) => r.status === "failed").length;
+        const summary = `Synced ${synced} · skipped ${skipped} · failed ${failed} + feed ${result.feed.status}`;
+        if (failed > 0 || result.feed.status === "failed") {
+          toast.error(summary);
+        } else {
+          toast.success(summary);
+        }
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
+
+/**
+ * One fleet run's outcome, inferred from the mutation result — the authored
+ * source is the server's `ForgeSyncAllResult`
+ * (`packages/api/src/lib/forge/sync.ts`).
+ */
+export type ForgeSyncAllResult = NonNullable<
+  ReturnType<typeof useSyncAllMutation>["data"]
+>;
+
+/**
+ * The register row's per-repo sync — the same `forge.sync` mutation the
+ * project page uses, scoped to one path. Success settles the register plus
+ * the overview and project snapshot quietly (the row updates in place, no
+ * toast); failures ride plain Error messages ("Synced 2 min ago — use
+ * force", "gh not authenticated…") to the toast path, verbatim.
+ */
+export function useRepoSyncMutation() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    trpc.forge.sync.mutationOptions({
+      onSuccess: async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.repos.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.overview.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.project.queryKey(),
+          }),
+        ]);
       },
       onError: (error) => toast.error(error.message),
     }),
