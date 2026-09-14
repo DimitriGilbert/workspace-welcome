@@ -2,6 +2,7 @@ import { publicProcedure, router } from "../index";
 
 import { artifactsRouter } from "./artifacts";
 import { filesRouter } from "./files";
+import { forgeRouter } from "./forge";
 import { ideRouter } from "./ide";
 import { ideationRouter } from "./ideation";
 import { projectsRouter } from "./projects";
@@ -24,6 +25,7 @@ export const appRouter = router({
   ide: ideRouter,
   ideation: ideationRouter,
   scaffold: scaffoldRouter,
+  forge: forgeRouter,
 });
 
 export type AppRouter = typeof appRouter;
