@@ -30,7 +30,7 @@
  * outruns the placement scrolls in the band's ScrollArea (shadcn register),
  * no "+N more" footer.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GitFork, Pin } from "lucide-react";
 
 import type { Project } from "@workspace-welcome/api/lib/types";
@@ -52,7 +52,7 @@ import { stackIcon } from "@/lib/icons";
 import { ForgeChips, ProjectLed, useForgeCensus } from "@/components/parts";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
-import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
+import { WidgetShell } from "@/components/widgets/widget-shell";
 
 /**
  * Fleet helpers shared by the console kinds. `fleetMatches` is the design's
@@ -123,43 +123,68 @@ export function fleetMatches(p: Project, query: string): boolean {
 const helper = createDataTableColumnHelper<Project>();
 
 /**
- * Column widths, content first — authored in px at the desktop reference row
- * (the FINAL owner image's ~1084px ledger): state LED, stack glyph, sync/
- * dirty/alerts numerals and the update age take what their content needs;
- * the freed span goes to PROJECT and BRANCH — name and branch display
- * fully, never truncated — while SIGNAL lands at a quarter of its former
- * span as the narrow compact-bar column with UPDATED closing the row. Every
- * column also carries a PIXEL floor (`minSize`) equal to its longest real
- * content (24-char project names, 29-char branches, three-digit sync
- * pairs), so the table's honest minWidth is the sum of the floors — below
- * it the ladder swaps to the KvList register instead of clipping (no
- * mid-word cuts at any width). The SIGNAL column is the LAST content
- * column before the update age — the strip starts immediately after the
- * alert data and flexes to the right-aligned timestamps.
+ * The sizing law: every column's authored `size` EQUALS its measured content
+ * floor, and `tableMinWidth` is the sum of the same floors — one number per
+ * column, no independent ratio weights. The engine renders pure shares
+ * (table-core `column_getSize` clamps size into [minSize, maxSize]; the ui
+ * DataTable lays each `<th>` at size/totalSize × tableWidth under
+ * `table-layout: fixed`), so a column renders BELOW its floor exactly when
+ * its share exceeds its floor-share — authoring any column above its floor
+ * (the old ratio hack that gave forge 220 for a 117px pair) necessarily
+ * starves the others at the floor width. With size ≡ floor everywhere the
+ * shares ARE the floor shares and safety holds at every width by
+ * construction: rendered(T) = floor·T/Σfloor ≥ floor for all T ≥ Σfloor,
+ * with all surplus split in proportion to content need — PROJECT and BRANCH
+ * (the largest floors) take the most, which IS the density contract's
+ * "freed span goes to name/branch". Floors are measured off the live DOM,
+ * not tuned to breakpoints: state = 8px lamp + 12px first-cell padding;
+ * stack = the "ST▲" header at its widest (arrow included) beside the 14px
+ * glyph; sync = the three-digit "999 / 999" pair (62px with the mx-1 slash
+ * gaps and px-1) with headroom; forge = the chip vocabulary's widest pair
+ * (two truncated "50+" chips, 51.7px each) + the 1.5 gap + px-1 = 117.3;
+ * alerts = two icons + gap + padding; updated = "11mo ago" 52.8px + 12px
+ * last-cell padding; project/branch carry their 24/29-character bases;
+ * note/signal are the authored design minimums of their flexible columns.
+ *
+ * The same Σ rules the ladder: the table form renders only when the
+ * MEASURED stage (the widget's content box, ResizeObserver) is ≥
+ * `tableMinWidth` — the swap threshold IS the floor, the identical number
+ * handed to the DataTable as `minWidth`, so there is no width at which the
+ * table exists without room for every column and the UPDATED stamp renders
+ * whole at every viewport. A static container query can never express this:
+ * the floor moves with the census (+NOTE/+FORGE), and the old `@[800px]`
+ * condition measured the SHELL box — chrome included — against a constant
+ * below Σfloor, so on 800–973px shells the 881px table rendered inside a
+ * 795px stage and scrolled its right-edge UPDATED column out of the band.
  */
-const FLEX_SIZES = { signalWithNotes: 146, signalSolo: 178, note: 330 };
-
-/** Pixel floors — the longest real content each column must hold uncut. */
-const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, forge: 120, note: 60, alerts: 46, signal: 72, updated: 64 };
-
-/** Column px widths at the desktop reference (project/branch carry the freed span). */
-const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, forge: 220, alerts: 55, updated: 127 };
+const COL_PX = {
+  state: 20,
+  project: 214,
+  stack: 25,
+  branch: 218,
+  sync: 68,
+  dirty: 32,
+  forge: 120,
+  note: 60,
+  alerts: 46,
+  signal: 72,
+  updated: 66,
+} as const;
 
 function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project> {
-  const signal = notes ? FLEX_SIZES.signalWithNotes : FLEX_SIZES.signalSolo;
   return helper.columns([
     helper.display({
       id: "state",
-      size: SIZE_PX.state,
-      minSize: MIN_PX.state,
+      size: COL_PX.state,
+      minSize: COL_PX.state,
       header: () => <span className="sr-only">State</span>,
       cell: (ctx) => <ProjectLed project={ctx.row.original} />,
     }),
     helper.accessor((p) => p.name, {
       id: "project",
       sortFn: "alphanumeric",
-      size: SIZE_PX.project,
-      minSize: MIN_PX.project,
+      size: COL_PX.project,
+      minSize: COL_PX.project,
       header: "Project",
       cell: (ctx) => {
         const p = ctx.row.original;
@@ -179,8 +204,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     helper.accessor((p) => p.stack?.label ?? "", {
       id: "stack",
       sortFn: "alphanumeric",
-      size: SIZE_PX.stack,
-      minSize: MIN_PX.stack,
+      size: COL_PX.stack,
+      minSize: COL_PX.stack,
       header: () => (
         <abbr title="Detected stack" className="no-underline">
           ST
@@ -191,8 +216,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     helper.accessor((p) => (p.git.isRepo ? (p.git.branch ?? "detached") : ""), {
       id: "branch",
       sortFn: "alphanumeric",
-      size: SIZE_PX.branch,
-      minSize: MIN_PX.branch,
+      size: COL_PX.branch,
+      minSize: COL_PX.branch,
       header: () => (
         <abbr title="Branch" className="no-underline">
           BR
@@ -203,8 +228,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     helper.accessor((p) => (p.git.ahead ?? 0) + (p.git.behind ?? 0), {
       id: "sync",
       sortFn: "alphanumeric",
-      size: SIZE_PX.sync,
-      minSize: MIN_PX.sync,
+      size: COL_PX.sync,
+      minSize: COL_PX.sync,
       header: () => (
         <abbr title="Commits ahead / behind upstream" className="no-underline">
           U/D
@@ -219,8 +244,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     helper.accessor((p) => p.git.dirtyCount ?? 0, {
       id: "dirty",
       sortFn: "alphanumeric",
-      size: SIZE_PX.dirty,
-      minSize: MIN_PX.dirty,
+      size: COL_PX.dirty,
+      minSize: COL_PX.dirty,
       header: () => (
         <abbr title="Uncommitted files" className="no-underline">
           D
@@ -235,22 +260,17 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     // Forge counts join the git cluster census-style: the column exists
     // only while some visible project has a cached snapshot (no data, no
     // void column — the NOTE ruling above); the cells self-null per row.
-    // Sizing is measured off the rendered Chip (Geist 11px medium, icon
-    // size-3): one truncated chip "50+" is 51.7px wide, so the pair plus
-    // its 1.5 gap plus the cell's px-1 needs 117.3px — MIN_PX.forge is
-    // that floor rounded to 120. But the table engine hands every column
-    // a size/totalSize PERCENTAGE of the width it gets, so the authored
-    // size must carry the floor through the ratio: at the table's own
-    // minimum the forge share is 220/Σ·tableMinWidth — 126.5px beside a
-    // NOTE column (220/1617 × 930), 145.1px without (220/1319 × 870) —
-    // and the share only grows above it, so the pair never clips at any
-    // width (exact counts cap at 49; "50+" is the widest glyph run).
+    // The floor is the chip vocabulary's widest pair — two truncated "50+"
+    // chips (51.7px each; exact counts cap at 49, so no glyph run is
+    // wider) plus the 1.5 gap plus the cell's px-1 = 117.3px, rounded to
+    // 120 under the sizing law above; the pair therefore fits on one line
+    // at every width the table form renders, by construction.
     ...(forge
       ? [
           helper.display({
             id: "forge",
-            size: SIZE_PX.forge,
-            minSize: MIN_PX.forge,
+            size: COL_PX.forge,
+            minSize: COL_PX.forge,
             header: () => (
               <abbr title="Open forge issues / pull requests" className="no-underline">
                 I/P
@@ -265,8 +285,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
           helper.accessor((p) => noteOf(p), {
             id: "note",
             enableSorting: false,
-            size: FLEX_SIZES.note,
-            minSize: MIN_PX.note,
+            size: COL_PX.note,
+            minSize: COL_PX.note,
             header: "Note",
             cell: (ctx) => {
               const text = ctx.getValue();
@@ -282,8 +302,8 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     helper.accessor((p) => p.alerts.length, {
       id: "alerts",
       sortFn: "alphanumeric",
-      size: SIZE_PX.alerts,
-      minSize: MIN_PX.alerts,
+      size: COL_PX.alerts,
+      minSize: COL_PX.alerts,
       header: () => (
         <abbr title="Open alerts (severity order)" className="no-underline">
           A
@@ -293,16 +313,16 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     }),
     helper.display({
       id: "signal",
-      size: signal,
-      minSize: MIN_PX.signal,
+      size: COL_PX.signal,
+      minSize: COL_PX.signal,
       header: "Signal",
       cell: (ctx) => <SignalCell project={ctx.row.original} />,
     }),
     helper.accessor((p) => updatedMs(p), {
       id: "updated",
       sortFn: "alphanumeric",
-      size: SIZE_PX.updated,
-      minSize: MIN_PX.updated,
+      size: COL_PX.updated,
+      minSize: COL_PX.updated,
       header: "Updated",
       cell: (ctx) => (
         <span
@@ -395,32 +415,52 @@ function openProjectRow(path: string): void {
   window.location.href = projectHref(path);
 }
 
-/** The table's honest floor: the sum of the columns' pixel content floors —
- * below it the name or branch would cut mid-word, so the register swaps. */
+/** The table's honest floor: the sum of the always-on columns' content
+ * floors — under the sizing law this equals Σsize, so the engine's floor
+ * and its share denominator are one number. Below it the name or branch
+ * would cut mid-word, so the register swaps. */
 const TABLE_MIN_PX =
-  MIN_PX.state +
-  MIN_PX.project +
-  MIN_PX.stack +
-  MIN_PX.branch +
-  MIN_PX.sync +
-  MIN_PX.dirty +
-  MIN_PX.alerts +
-  MIN_PX.signal +
-  MIN_PX.updated;
+  COL_PX.state +
+  COL_PX.project +
+  COL_PX.stack +
+  COL_PX.branch +
+  COL_PX.sync +
+  COL_PX.dirty +
+  COL_PX.alerts +
+  COL_PX.signal +
+  COL_PX.updated;
+
+/**
+ * The stage's live content width (the CommitsList `useObservedWidth`
+ * pattern, via a callback ref — the stage mounts only once the scan
+ * resolves, so the observer must follow the element, not the mount).
+ * `contentRect` excludes the observed element's own padding, so for the
+ * ledger's `px-4` content box this IS the width the table or the register
+ * must fill — the ladder's swap input.
+ */
+function useObservedWidth(element: HTMLElement | null): number | null {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (element === null) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry !== undefined) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return width;
+}
 
 export function McFleetLedger(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
-  const { cols } = useWidgetSize();
+  const [stage, setStage] = useState<HTMLDivElement | null>(null);
+  const stageWidth = useObservedWidth(stage);
 
   const visible = useMemo(
     () => workspace.projects.filter((p) => fleetMatches(p, workspace.filter)),
     [workspace.projects, workspace.filter],
   );
-
-  // The table is the ledger's form from the content-floor rung up (the FINAL
-  // arrangement places it at exactly that footprint); below it the compact
-  // register takes over — never a clipped table.
-  const table = cols >= 4;
 
   const sorted = useMemo(
     () => [...visible].sort((a, b) => updatedMs(b) - updatedMs(a)),
@@ -430,7 +470,15 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
   const forge = useForgeCensus(visible);
   const columns = useMemo(() => buildColumns(notes, forge), [notes, forge]);
   const tableMinWidth =
-    TABLE_MIN_PX + (notes ? MIN_PX.note : 0) + (forge ? MIN_PX.forge : 0);
+    TABLE_MIN_PX + (notes ? COL_PX.note : 0) + (forge ? COL_PX.forge : 0);
+
+  // The table is the ledger's form from its content floor up: the measured
+  // stage against the SAME Σ that feeds the table's minWidth (the sizing
+  // law's ladder rule — see COL_PX). Below the floor the compact register
+  // takes over — never a clipped or scrolling table. Unmeasured stages
+  // (first render) assume the table; the scan-loading skeleton covers
+  // hydration, so the measurement lands before either form is visible.
+  const table = stageWidth === null || stageWidth >= tableMinWidth;
 
   if (workspace.scanState === "loading") {
     return (
@@ -473,7 +521,12 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
 
   return (
     <WidgetShell className="h-full w-full">
-      <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-4 pb-2">
+      {/* The stage: its content box (px-4 excluded by contentRect) is the
+          width the ladder swaps on — see useObservedWidth. */}
+      <div
+        ref={setStage}
+        className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-4 pb-2"
+      >
         <p className="shrink-0 font-mono text-[9.5px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Fleet
           <span className="ml-2 tracking-[0.14em] text-muted-foreground/80">
@@ -481,65 +534,46 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
           </span>
         </p>
         {table ? (
-          <>
-            {/* Table form on shells wide enough for its content floor; the
-                compact register takes over below it (container query) —
-                never a clipped or overlapping table. The full fleet renders;
-                the band's ScrollArea takes the overflow. */}
-            <div className="hidden min-h-0 min-w-0 flex-1 @[800px]:flex">
-              <ScrollArea className="min-h-0 min-w-0 flex-1">
-                <DataTable
-                  columns={columns}
-                  data={sorted}
-                  initialSort={[{ id: "updated", desc: true }]}
-                  minWidth={tableMinWidth}
-                  onRowClick={(p) => openProjectRow(p.path)}
-                  ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, forge counts, note, alerts, activity signal and last update"
-                  empty="No projects match the filter"
-                />
-              </ScrollArea>
-            </div>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col @[800px]:hidden">
-              <ScrollArea className="min-h-0 min-w-0 flex-1">
-                <KvList
-                  density="compact"
-                  rows={sorted.map((p) => ({
-                    label: p.name,
-                    value: (
-                      // Chips carry their own styling — the register value
-                      // wraps (never truncates) a pill pair, and the mono
-                      // register rides the stamp alone, not the chips.
-                      <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-                        <ForgeChips project={p} />
-                        <span className="font-mono tabular-nums">
-                          {compactStamp(relativeTime(p.updatedAt))}
-                        </span>
-                      </span>
-                    ),
-                    wrap: true,
-                  }))}
-                />
-              </ScrollArea>
-            </div>
-          </>
+          /* Table form on stages at least its content floor; the compact
+             register takes over below it (measured swap — COL_PX's ladder
+             rule) — never a clipped or scrolling table. The full fleet
+             renders; the band's ScrollArea takes the overflow. */
+          <div className="flex min-h-0 min-w-0 flex-1">
+            <ScrollArea className="min-h-0 min-w-0 flex-1">
+              <DataTable
+                columns={columns}
+                data={sorted}
+                initialSort={[{ id: "updated", desc: true }]}
+                minWidth={tableMinWidth}
+                onRowClick={(p) => openProjectRow(p.path)}
+                ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, forge counts, note, alerts, activity signal and last update"
+                empty="No projects match the filter"
+              />
+            </ScrollArea>
+          </div>
         ) : (
-          <ScrollArea className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <KvList
-              density="compact"
-              rows={sorted.map((p) => ({
-                label: p.name,
-                value: (
-                  <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-                    <ForgeChips project={p} />
-                    <span className="font-mono tabular-nums">
-                      {compactStamp(relativeTime(p.updatedAt))}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <ScrollArea className="min-h-0 min-w-0 flex-1">
+              <KvList
+                density="compact"
+                rows={sorted.map((p) => ({
+                  label: p.name,
+                  value: (
+                    // Chips carry their own styling — the register value
+                    // wraps (never truncates) a pill pair, and the mono
+                    // register rides the stamp alone, not the chips.
+                    <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
+                      <ForgeChips project={p} />
+                      <span className="font-mono tabular-nums">
+                        {compactStamp(relativeTime(p.updatedAt))}
+                      </span>
                     </span>
-                  </span>
-                ),
-                wrap: true,
-              }))}
-            />
-          </ScrollArea>
+                  ),
+                  wrap: true,
+                }))}
+              />
+            </ScrollArea>
+          </div>
         )}
       </div>
     </WidgetShell>
