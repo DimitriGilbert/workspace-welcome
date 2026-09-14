@@ -1,4 +1,5 @@
 import { migration0001 } from "./0001_app_tables";
+import { migration0002 } from "./0002_forge";
 
 /**
  * One embedded migration. `id` is zero-padded so plain lexicographic order
@@ -11,4 +12,7 @@ export type AppMigration = {
 };
 
 /** Every migration to date, in apply order — append only. */
-export const migrations: readonly AppMigration[] = [migration0001];
+export const migrations: readonly AppMigration[] = [
+  migration0001,
+  migration0002,
+];

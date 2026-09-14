@@ -1,0 +1,81 @@
+// Hand-authored to mirror gh 2.x `--json` output shape; verified against live output in the Phase-8 smoke.
+// Sample of: gh pr list --repo <OWNER/REPO> --state open --limit 50
+//            --json number,title,state,author,isDraft,reviewDecision,labels,updatedAt,url
+// Shape notes (Phase 8 re-verifies each): `state` arrives UPPERCASE ("OPEN"); `author` is a bare
+// `{ "login": ... }` object or null; `isDraft` is a plain boolean; `reviewDecision` is UPPERCASE
+// ("APPROVED" / "CHANGES_REQUESTED" / "REVIEW_REQUIRED") and an EMPTY STRING when no review has
+// happened yet — the parser passes decisions through verbatim and maps "" to null. PR lists carry
+// no `comments` field. Rows: draft, APPROVED, CHANGES_REQUESTED, null author.
+[
+  {
+    "number": 214,
+    "title": "fix: worktree-aware scanner walk",
+    "state": "OPEN",
+    "author": { "login": "dimitri" },
+    "isDraft": true,
+    "reviewDecision": "",
+    "labels": [],
+    "updatedAt": "2026-09-13T19:40:55Z",
+    "url": "https://github.com/octo-workshops/acme-cli/pull/214"
+  },
+  {
+    "number": 209,
+    "title": "refactor: extract remote parsing into detect.ts",
+    "state": "OPEN",
+    "author": { "login": "mira-dev" },
+    "isDraft": false,
+    "reviewDecision": "APPROVED",
+    "labels": [
+      {
+        "id": 7301251104,
+        "name": "ready-to-merge",
+        "color": "0e8a16",
+        "description": ""
+      },
+      {
+        "id": 7301251105,
+        "name": "refactor",
+        "color": "1d76db",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-12T11:02:33Z",
+    "url": "https://github.com/octo-workshops/acme-cli/pull/209"
+  },
+  {
+    "number": 205,
+    "title": "chore: bump toolchain to 1.88",
+    "state": "OPEN",
+    "author": { "login": "renovate-bot" },
+    "isDraft": false,
+    "reviewDecision": "CHANGES_REQUESTED",
+    "labels": [
+      {
+        "id": 7301251106,
+        "name": "dependencies",
+        "color": "0366d6",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-10T09:15:07Z",
+    "url": "https://github.com/octo-workshops/acme-cli/pull/205"
+  },
+  {
+    "number": 201,
+    "title": "docs: document the XDG layout",
+    "state": "OPEN",
+    "author": null,
+    "isDraft": false,
+    "reviewDecision": "",
+    "labels": [
+      {
+        "id": 7301251107,
+        "name": "documentation",
+        "color": "0075ca",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-08T14:26:48Z",
+    "url": "https://github.com/octo-workshops/acme-cli/pull/201"
+  }
+]

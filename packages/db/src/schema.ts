@@ -1,5 +1,12 @@
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  unique,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * Relational model for workspace-welcome's persisted user state, per the
@@ -9,8 +16,9 @@ import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
  * objects (settings is a single row, so arrays-as-JSON there is honest — the
  * relational demand applies to entities, not the settings singleton).
  *
- * Forge tables (forge_repos, forge_project_links, forge_issues,
- * forge_pulls) land in Phase 4b as migration 0002 — intentionally absent now.
+ * The forge tables cache open issues/PRs "as of last sync" (snapshot
+ * semantics — replace, no history); libsql enforces foreign keys by default,
+ * so the ON DELETE CASCADE rules below are live.
  */
 
 /** Key/value app metadata: schema_version + one-time import markers. */
@@ -55,3 +63,78 @@ export const projectConfigs = sqliteTable("project_configs", {
   path: text("path").primaryKey(),
   artifactDirsJson: text("artifact_dirs_json").notNull(),
 });
+
+/**
+ * A forge repository identity + its sync bookkeeping. `host` is the canonical
+ * web hostname ("github.com"), not the coarse GitHost classification;
+ * UNIQUE(kind, host, slug) is the identity forge_repos is upserted by.
+ */
+export const forgeRepos = sqliteTable(
+  "forge_repos",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kind: text("kind").notNull(),
+    host: text("host").notNull(),
+    /** "owner/repo" — the selector both the CLI and the DB key on. */
+    slug: text("slug").notNull(),
+    lastSyncedAt: text("last_synced_at"),
+    /** 'never' | 'ok' | 'failed'. */
+    lastSyncStatus: text("last_sync_status").notNull().default("never"),
+    lastSyncError: text("last_sync_error"),
+  },
+  (table) => [
+    unique("forge_repos_kind_host_slug_unique").on(
+      table.kind,
+      table.host,
+      table.slug,
+    ),
+  ],
+);
+
+/** Maps one project path to the forge repo its origin remote resolves to. */
+export const forgeProjectLinks = sqliteTable("forge_project_links", {
+  projectPath: text("project_path").primaryKey(),
+  repoId: integer("repo_id")
+    .notNull()
+    .references(() => forgeRepos.id, { onDelete: "cascade" }),
+  remoteUrl: text("remote_url").notNull(),
+});
+
+/** Open issues of one repo as of its last sync (replaced wholesale per sync). */
+export const forgeIssues = sqliteTable(
+  "forge_issues",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => forgeRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    state: text("state").notNull(),
+    author: text("author"),
+    labelsJson: text("labels_json").notNull(),
+    commentCount: integer("comment_count"),
+    updatedAt: text("updated_at"),
+    url: text("url").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.repoId, table.number] })],
+);
+
+/** Open pull requests of one repo as of its last sync (same replace rule). */
+export const forgePulls = sqliteTable(
+  "forge_pulls",
+  {
+    repoId: integer("repo_id")
+      .notNull()
+      .references(() => forgeRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    state: text("state").notNull(),
+    author: text("author"),
+    isDraft: integer("is_draft", { mode: "boolean" }).notNull(),
+    reviewDecision: text("review_decision"),
+    labelsJson: text("labels_json").notNull(),
+    updatedAt: text("updated_at"),
+    url: text("url").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.repoId, table.number] })],
+);

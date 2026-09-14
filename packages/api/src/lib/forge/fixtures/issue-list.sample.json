@@ -1,0 +1,76 @@
+// Hand-authored to mirror gh 2.x `--json` output shape; verified against live output in the Phase-8 smoke.
+// Sample of: gh issue list --repo <OWNER/REPO> --state open --limit 50
+//            --json number,title,state,author,labels,updatedAt,url,comments
+// Shape notes (Phase 8 re-verifies each): `state` arrives UPPERCASE ("OPEN"); `author` is a bare
+// `{ "login": ... }` object or null (deleted/ghost accounts); `labels` is an array of label objects —
+// gh includes id/color/description, only `name` is consumed — or null; `comments` is a plain count;
+// `updatedAt` is RFC 3339. Rows: multi-label, empty labels, null author, comments > 0.
+[
+  {
+    "number": 128,
+    "title": "Scanner misses worktrees registered via extensions.worktree",
+    "state": "OPEN",
+    "author": { "login": "dimitri" },
+    "labels": [
+      {
+        "id": 7301251101,
+        "name": "bug",
+        "color": "d73a4a",
+        "description": "Something isn't working"
+      },
+      {
+        "id": 7301251102,
+        "name": "scanner",
+        "color": "0e8a16",
+        "description": ""
+      }
+    ],
+    "updatedAt": "2026-09-12T08:21:04Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/128",
+    "comments": 6
+  },
+  {
+    "number": 131,
+    "title": "Dashboard shows stale counts right after a root rescan",
+    "state": "OPEN",
+    "author": { "login": "mira-dev" },
+    "labels": [],
+    "updatedAt": "2026-09-11T17:03:41Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/131",
+    "comments": 0
+  },
+  {
+    "number": 119,
+    "title": "Crash when config.toml ends mid-table",
+    "state": "OPEN",
+    "author": null,
+    "labels": [
+      {
+        "id": 7301251101,
+        "name": "bug",
+        "color": "d73a4a",
+        "description": "Something isn't working"
+      }
+    ],
+    "updatedAt": "2026-09-09T10:44:19Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/119",
+    "comments": 2
+  },
+  {
+    "number": 133,
+    "title": "Feature: export health alerts as CSV",
+    "state": "OPEN",
+    "author": { "login": "dimitri" },
+    "labels": [
+      {
+        "id": 7301251103,
+        "name": "enhancement",
+        "color": "a2eeef",
+        "description": "New feature or request"
+      }
+    ],
+    "updatedAt": "2026-09-13T21:12:00Z",
+    "url": "https://github.com/octo-workshops/acme-cli/issues/133",
+    "comments": 0
+  }
+]

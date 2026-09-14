@@ -12,7 +12,8 @@
   "scripts": {
     "agents-md": "tsx src/lib/agents-md/cli.ts",
     "check-types": "tsc --noEmit -p tsconfig.check.json",
-    "test:store": "node --import tsx --test src/lib/store.import.test.ts src/lib/project-config.import.test.ts"
+    "test:store": "node --import tsx --test src/lib/store.import.test.ts src/lib/project-config.import.test.ts",
+    "test:forge": "node --import tsx --test src/lib/forge/*.test.ts"
   },
   "dependencies": {
     "@tanstack/ai": "catalog:",
