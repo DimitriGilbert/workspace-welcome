@@ -14,7 +14,10 @@ import type { ForgeOverviewEntry, StalePrRow } from "@/lib/queries/forge";
  * cache rendering only: no snapshot AND no attributed feed items for the
  * path ⇒ nothing at all (never a fake zero) — the server drops never-synced
  * links (`fetchedAt` null) and slugs the feed cache doesn't hold, and the
- * guard below repeats that belt-and-braces. Entries come in two sources,
+ * guard below repeats that belt-and-braces. The zero-drop law: a kind
+ * whose count is 0 renders no chip, and both zero ⇒ the part renders
+ * nothing at all (a truncated "50+" floor is never zero, so it survives).
+ * Entries come in two sources,
  * rendered identically (same chip, same tone — counts deserve visibility):
  * `source: "repo"` is a synced snapshot's totals; `source: "feed"` is the
  * USER's own open items in that repo, attributed by remote slug from the
@@ -69,22 +72,30 @@ export function ForgeChips({ project }: ForgeChipsProps) {
   const entry = overview.get(project.path);
   if (entry === undefined || entry.fetchedAt === null) return null;
 
+  const showIssues = entry.truncated || entry.openIssues > 0;
+  const showPulls = entry.truncated || entry.openPulls > 0;
+  if (!showIssues && !showPulls) return null;
+
   return (
     <span className="inline-flex items-center gap-1.5">
-      <Chip
-        tone="info"
-        title={chipTitle(entry, entry.openIssues, "issues")}
-      >
-        <CircleDot aria-hidden className="size-3" />
-        {entry.truncated ? TRUNCATED_COUNT : entry.openIssues}
-      </Chip>
-      <Chip
-        tone="info"
-        title={chipTitle(entry, entry.openPulls, "pull requests")}
-      >
-        <GitPullRequest aria-hidden className="size-3" />
-        {entry.truncated ? TRUNCATED_COUNT : entry.openPulls}
-      </Chip>
+      {showIssues && (
+        <Chip
+          tone="info"
+          title={chipTitle(entry, entry.openIssues, "issues")}
+        >
+          <CircleDot aria-hidden className="size-3" />
+          {entry.truncated ? TRUNCATED_COUNT : entry.openIssues}
+        </Chip>
+      )}
+      {showPulls && (
+        <Chip
+          tone="info"
+          title={chipTitle(entry, entry.openPulls, "pull requests")}
+        >
+          <GitPullRequest aria-hidden className="size-3" />
+          {entry.truncated ? TRUNCATED_COUNT : entry.openPulls}
+        </Chip>
+      )}
     </span>
   );
 }
