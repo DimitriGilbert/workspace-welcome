@@ -21,6 +21,7 @@ import { FormAddRoot } from "./form/add-root";
 import { FormCloneScript } from "./form/clone-script";
 import { FormCreateProject } from "./form/create-project";
 import { FormReportRun } from "./form/report-run";
+import { ForgeChips } from "./forge-chips";
 import { BranchSwitcher } from "./git/branch-switcher";
 import { GitActionsToolbar } from "./git/actions-toolbar";
 import { ProjectLed } from "./led-project";
@@ -56,6 +57,9 @@ export const ProjectLedPart = definePart({
   min: LED_MIN_CONTENT,
   component: ProjectLed,
 });
+
+/** Cached forge counts beside the git chips (overview lookup by path). */
+export const ForgeChipsPart = definePart({ id: "forge-chips", component: ForgeChips });
 
 /** Interactive git: branch switcher + fetch/pull/push toolbar (useProject().git). */
 export const BranchSwitcherPart = definePart({

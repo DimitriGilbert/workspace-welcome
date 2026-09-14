@@ -391,6 +391,59 @@ test("a failing fetch records last_sync_status=failed + error and rethrows", asy
   );
   assert.deepEqual(snapshot.issues, []);
   assert.deepEqual(snapshot.pulls, []);
+
+  // The link row was persisted before the fetch failed, but no snapshot
+  // ever landed — the overview must not fabricate zero counts for it.
+  assert.deepEqual(await readOverview(), []);
+});
+
+test("a failed force-sync keeps the last good snapshot in the overview", async () => {
+  useScenario("stale-but-real");
+  const repoPath = await initRepo(
+    "https://github.com/fake-owner/stale-repo.git",
+  );
+  const ref: ForgeRepoRef = {
+    kind: "github",
+    host: "github.com",
+    slug: "fake-owner/stale-repo",
+  };
+  const t0 = Date.parse("2026-09-14T12:00:00.000Z");
+  const fetchedAt = new Date(t0).toISOString();
+  // The fake reads config per fetch, so flipping it to failing after the
+  // good snapshot landed simulates a later force-sync outage.
+  const config: FakeConfig = {
+    snapshots: [
+      snapshotOf(ref, {
+        fetchedAt,
+        issues: [makeIssue(1, "Kept issue"), makeIssue(2, "Also kept")],
+        pulls: [makePull(5, "Kept pull")],
+      }),
+    ],
+  };
+  const adapter = fakeAdapter(config);
+
+  await syncForgeRepo(repoPath, { adapter, now: () => t0 });
+  config.failWith = new Error("gh issue list failed: later boom");
+  await assert.rejects(
+    syncForgeRepo(repoPath, { adapter, force: true, now: () => t0 + 60_000 }),
+    /later boom/,
+  );
+
+  // recordSyncFailure marks the attempt but never clears lastSyncedAt: the
+  // overview keeps the stale-but-real counts rather than dropping to zeros.
+  const snapshot = await readProjectSnapshot(repoPath);
+  assert.equal(snapshot.lastSyncStatus, "failed");
+  assert.equal(snapshot.fetchedAt, fetchedAt);
+  assert.deepEqual(await readOverview(), [
+    {
+      projectPath: repoPath,
+      repoRef: ref,
+      openIssues: 2,
+      openPulls: 1,
+      truncated: false,
+      fetchedAt,
+    },
+  ]);
 });
 
 test("a project without an origin remote fails with a clear message", async () => {
@@ -435,6 +488,10 @@ test("an unavailable adapter short-circuits before any fetch", async () => {
   // a failed sync — the repo simply never synced.
   const snapshot = await readProjectSnapshot(repoPath);
   assert.equal(snapshot.lastSyncStatus, "never");
+
+  // The link (persisted before the probe ran) has no snapshot — the
+  // overview stays empty rather than faking zeros.
+  assert.deepEqual(await readOverview(), []);
 });
 
 test("readProjectSnapshot distinguishes unknown / unsupported-host / ready", async () => {

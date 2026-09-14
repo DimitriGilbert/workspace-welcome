@@ -24,6 +24,7 @@ import type { ReportExportProject } from "@workspace-welcome/api/lib/report-expo
 import type { Project } from "@workspace-welcome/api/lib/types";
 
 import { AlertIcons } from "@/components/git-badges";
+import { ForgeChips } from "@/components/parts";
 import { useNavigate } from "@tanstack/react-router";
 import { formatCompact, formatCost, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
@@ -204,7 +205,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
         {header("size-7", "text-[0.84rem]")}
         <TileStatLine report={entry} project={project} />
         <div className="mt-auto flex items-center justify-between gap-2">
-          <GitGlyphs git={project.git} />
+          <span className="flex min-w-0 items-center gap-2">
+            <GitGlyphs git={project.git} />
+            <ForgeChips project={project} />
+          </span>
           <span className="flex shrink-0 items-center gap-2">
             <AlertIcons alerts={project.alerts} />
             <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={30} />
@@ -223,7 +227,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
           <TileStatLine report={entry} project={project} />
         </div>
         <div className="flex items-end justify-between gap-2">
-          <GitGlyphs git={project.git} large />
+          <span className="flex min-w-0 items-end gap-2">
+            <GitGlyphs git={project.git} large />
+            <ForgeChips project={project} />
+          </span>
           <span className="flex shrink-0 items-center gap-2">
             <AlertIcons alerts={project.alerts} />
             <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={36} />
@@ -280,7 +287,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
           )}
         </div>
         <div className="flex items-end justify-between gap-2">
-          <GitGlyphs git={project.git} large />
+          <span className="flex min-w-0 items-end gap-2">
+            <GitGlyphs git={project.git} large />
+            <ForgeChips project={project} />
+          </span>
           <span className="flex shrink-0 items-center gap-2">
             <AlertIcons alerts={project.alerts} />
             <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={38} />
@@ -353,7 +363,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
       )}
 
       <div className="flex items-end justify-between gap-3">
-        <GitGlyphs git={project.git} large />
+        <span className="flex min-w-0 items-end gap-2.5">
+          <GitGlyphs git={project.git} large />
+          <ForgeChips project={project} />
+        </span>
         <span className="flex shrink-0 items-center gap-2.5">
           <AlertIcons alerts={project.alerts} />
           <RecencyRing updatedAtMs={updatedAtMs} score={score} tier={tier} now={now} px={44} />

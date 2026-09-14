@@ -31,6 +31,7 @@ import { hostLabel, stackIcon } from "@/lib/icons";
 import { freshness, tierFromFreshness } from "@/lib/recency";
 import { useReport } from "@/lib/contexts/report-context";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
+import { ForgeChips } from "@/components/parts";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 
@@ -180,6 +181,7 @@ export function MeadowProjectTile({ node, size }: RegisteredWidgetProps) {
                 {hostLabel(project.git.remote.host)}
               </Chip>
             ) : null}
+            <ForgeChips project={project} />
           </>
         )}
       </div>

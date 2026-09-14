@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import {
   forgeIssues,
   forgeProjectLinks,
@@ -152,7 +152,13 @@ export async function upsertRepoLink(
   return ref;
 }
 
-/** Open-item counts for every linked project. Pure read — never fetches. */
+/**
+ * Open-item counts for every linked project that has a snapshot. A link
+ * persisted by a failed FIRST sync carries none — excluded here so the
+ * dashboard never renders fabricated zeros. A repo that synced once and
+ * later failed keeps its old counts (recordSyncFailure never clears
+ * lastSyncedAt): stale-but-real data stays listed. Pure read — never fetches.
+ */
 export async function readOverview(): Promise<ForgeOverviewEntry[]> {
   const { db } = await getDb();
   const rows = await db
@@ -167,6 +173,7 @@ export async function readOverview(): Promise<ForgeOverviewEntry[]> {
     })
     .from(forgeProjectLinks)
     .innerJoin(forgeRepos, eq(forgeProjectLinks.repoId, forgeRepos.id))
+    .where(isNotNull(forgeRepos.lastSyncedAt))
     .orderBy(forgeProjectLinks.projectPath);
 
   const entries: ForgeOverviewEntry[] = [];

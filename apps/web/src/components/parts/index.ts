@@ -3,7 +3,10 @@
  * every other consumer): raw components + prop types from the part files,
  * plus the `definePart`-wrapped registry parts (suffixed `*Part`) whose
  * rendered roots carry `data-part` / `data-part-min-*` stamps. Themes must
- * never deep-import into this directory; the barrel is grep-enforced.
+ * never deep-import into this directory; the barrel is grep-enforced. The
+ * one data hook a theme legitimately needs (the forge census, for the
+ * ledger's conditional column) rides here too — themes never touch
+ * `@/lib/queries` directly (themes-deps invariant).
  */
 
 export { ReportGate } from "./report-gate";
@@ -16,6 +19,8 @@ export { NoteEditor } from "./note-editor";
 export type { NoteEditorProps } from "./note-editor";
 export { ProjectLed } from "./led-project";
 export type { ProjectLedProps } from "./led-project";
+export { ForgeChips, useForgeCensus } from "./forge-chips";
+export type { ForgeChipsProps } from "./forge-chips";
 
 export { BranchSwitcher } from "./git/branch-switcher";
 export { GitActionsToolbar } from "./git/actions-toolbar";

@@ -49,7 +49,7 @@ import { cn } from "@workspace-welcome/ui/lib/utils";
 import { dateTooltip, relativeTime } from "@/lib/format";
 import { pulseCells, updatedMs } from "@/lib/scan-metrics";
 import { stackIcon } from "@/lib/icons";
-import { ProjectLed } from "@/components/parts";
+import { ForgeChips, ProjectLed, useForgeCensus } from "@/components/parts";
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
 import { useWidgetSize, WidgetShell } from "@/components/widgets/widget-shell";
@@ -140,12 +140,12 @@ const helper = createDataTableColumnHelper<Project>();
 const FLEX_SIZES = { signalWithNotes: 146, signalSolo: 178, note: 330 };
 
 /** Pixel floors — the longest real content each column must hold uncut. */
-const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, note: 60, alerts: 46, signal: 72, updated: 64 };
+const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, forge: 100, note: 60, alerts: 46, signal: 72, updated: 64 };
 
 /** Column px widths at the desktop reference (project/branch carry the freed span). */
-const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, alerts: 55, updated: 127 };
+const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, forge: 108, alerts: 55, updated: 127 };
 
-function buildColumns(notes: boolean): DataTableColumns<Project> {
+function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project> {
   const signal = notes ? FLEX_SIZES.signalWithNotes : FLEX_SIZES.signalSolo;
   return helper.columns([
     helper.display({
@@ -232,6 +232,24 @@ function buildColumns(notes: boolean): DataTableColumns<Project> {
         </span>
       ),
     }),
+    // Forge counts join the git cluster census-style: the column exists
+    // only while some visible project has a cached snapshot (no data, no
+    // void column — the NOTE ruling above); the cells self-null per row.
+    ...(forge
+      ? [
+          helper.display({
+            id: "forge",
+            size: SIZE_PX.forge,
+            minSize: MIN_PX.forge,
+            header: () => (
+              <abbr title="Open forge issues / pull requests" className="no-underline">
+                I/P
+              </abbr>
+            ),
+            cell: (ctx) => <ForgeChips project={ctx.row.original} />,
+          }),
+        ]
+      : []),
     ...(notes
       ? [
           helper.accessor((p) => noteOf(p), {
@@ -399,8 +417,10 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
     [visible],
   );
   const notes = useMemo(() => visible.some((p) => noteOf(p).trim().length > 0), [visible]);
-  const columns = useMemo(() => buildColumns(notes), [notes]);
-  const tableMinWidth = TABLE_MIN_PX + (notes ? MIN_PX.note : 0);
+  const forge = useForgeCensus(visible);
+  const columns = useMemo(() => buildColumns(notes, forge), [notes, forge]);
+  const tableMinWidth =
+    TABLE_MIN_PX + (notes ? MIN_PX.note : 0) + (forge ? MIN_PX.forge : 0);
 
   if (workspace.scanState === "loading") {
     return (
@@ -464,7 +484,7 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
                   initialSort={[{ id: "updated", desc: true }]}
                   minWidth={tableMinWidth}
                   onRowClick={(p) => openProjectRow(p.path)}
-                  ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, note, alerts, activity signal and last update"
+                  ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, forge counts, note, alerts, activity signal and last update"
                   empty="No projects match the filter"
                 />
               </ScrollArea>
@@ -475,7 +495,12 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
                   density="compact"
                   rows={sorted.map((p) => ({
                     label: p.name,
-                    value: compactStamp(relativeTime(p.updatedAt)),
+                    value: (
+                      <span className="inline-flex items-center gap-2">
+                        <ForgeChips project={p} />
+                        {compactStamp(relativeTime(p.updatedAt))}
+                      </span>
+                    ),
                     mono: true,
                   }))}
                 />
@@ -488,7 +513,12 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
               density="compact"
               rows={sorted.map((p) => ({
                 label: p.name,
-                value: compactStamp(relativeTime(p.updatedAt)),
+                value: (
+                  <span className="inline-flex items-center gap-2">
+                    <ForgeChips project={p} />
+                    {compactStamp(relativeTime(p.updatedAt))}
+                  </span>
+                ),
                 mono: true,
               }))}
             />

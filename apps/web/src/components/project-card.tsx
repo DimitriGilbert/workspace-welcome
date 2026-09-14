@@ -34,6 +34,7 @@ import { dateTooltip, relativeTime } from "@/lib/format";
 import { stackIcon } from "@/lib/icons";
 import { useOpenProject } from "@/lib/open-project";
 import { AlertIcons, GitBadges } from "@/components/git-badges";
+import { ForgeChips } from "@/components/parts";
 import { freshness, tierFromFreshness } from "@/lib/recency";
 
 interface ProjectCardProps {
@@ -212,7 +213,10 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
       <CardContent className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-          <GitBadges git={project.git} />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <GitBadges git={project.git} />
+            <ForgeChips project={project} />
+          </div>
           <AlertIcons alerts={project.alerts} />
         </div>
 
