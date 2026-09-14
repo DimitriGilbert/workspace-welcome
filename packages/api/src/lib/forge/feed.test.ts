@@ -8,7 +8,7 @@ import { closeDb, dbFile, getDb } from "@workspace-welcome/db";
 
 import { parseRemote } from "../detect";
 import { PAGE_LIMIT, SYNC_TTL_MS } from "./constants";
-import { readOverview, replaceSnapshot, upsertRepoLink } from "./db";
+import { readOverview, readProjectSnapshot, replaceSnapshot, upsertRepoLink } from "./db";
 import { readUserFeed } from "./feed";
 import { syncUserFeed } from "./sync";
 import type {
@@ -679,6 +679,245 @@ test("feed counts derive per-kind truncation: a 50-cap slug and the 26+25 analog
   assert.equal(mixedEntry?.openIssues, 26);
   assert.equal(mixedEntry?.openPulls, 25);
   assert.equal(mixedEntry?.truncated, false);
+});
+
+// --- Project snapshot feed fallback (plan §Phase 12) ------------------------------
+
+/**
+ * readProjectSnapshot precedence tests: repo snapshot > feed items for the
+ * remote's slug > nothing. They ride this file's fake-feed idiom; the
+ * snapshot half is seeded via seedSnapshot (pure DB writes), and
+ * readProjectSnapshot never stats a path — synthetic project paths again.
+ * `repoPull` is repoIssue's pull twin (same row shape family).
+ */
+function repoPull(n: number): ForgePull {
+  return {
+    number: n,
+    title: `Snapshot pull ${n}`,
+    state: "open",
+    author: "someone-else",
+    isDraft: false,
+    reviewDecision: "APPROVED",
+    labels: [],
+    updatedAt: "2026-09-14T08:00:00.000Z",
+    url: `https://github.com/dimitri/dotfiles/pull/${n}`,
+  };
+}
+
+test("unlinked github project + feed rows: feed-sourced snapshot, per-kind split, feed's fetchedAt, source feed", async () => {
+  useScenario("project-feed");
+  // Real wall-clock fetchedAt: the read derives `stale` against Date.now().
+  const fetchedAt = new Date().toISOString();
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [
+        feedOf(
+          [
+            // Deliberately unordered input: the read orders each kind's list
+            // by updatedAt DESC (the readUserFeed law, preserved per kind).
+            feedItem(5, { kind: "pr", repoSlug: "dimitri/dotfiles", updatedAt: "2026-09-10T08:00:00Z" }),
+            feedItem(2, { repoSlug: "dimitri/dotfiles", updatedAt: "2026-09-13T08:00:00Z" }),
+            feedItem(7, { kind: "pr", repoSlug: "dimitri/dotfiles", updatedAt: "2026-09-14T07:00:00Z" }),
+            feedItem(1, { repoSlug: "dimitri/dotfiles", updatedAt: "2026-09-12T08:00:00Z" }),
+            // Another slug's row — must never leak into this project's board.
+            feedItem(9, { repoSlug: "octo-workshops/acme-cli" }),
+          ],
+          { fetchedAt },
+        ),
+      ],
+    }),
+  });
+
+  const remote = parseRemote("https://github.com/dimitri/dotfiles.git");
+  assert.ok(remote !== null);
+  const snapshot = await readProjectSnapshot("/home/fake/dotfiles", remote);
+  assert.equal(snapshot.status, "ready");
+  assert.equal(snapshot.source, "feed");
+  assert.deepEqual(snapshot.repoRef, {
+    kind: "github",
+    host: "github.com",
+    slug: "dimitri/dotfiles",
+  });
+  assert.deepEqual(
+    snapshot.issues.map((issue) => issue.number),
+    [2, 1],
+  );
+  assert.deepEqual(
+    snapshot.pulls.map((pull) => pull.number),
+    [7, 5],
+  );
+  assert.equal(snapshot.fetchedAt, fetchedAt);
+  assert.equal(snapshot.lastSyncStatus, "ok");
+  assert.equal(snapshot.lastSyncError, null);
+  assert.equal(snapshot.stale, false);
+  assert.equal(snapshot.truncated, false);
+});
+
+test("feed-sourced rows stay honest: author/commentCount/reviewDecision null, isDraft + labels carried", async () => {
+  useScenario("project-feed-honesty");
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [
+        feedOf([
+          feedItem(1, { repoSlug: "dimitri/dotfiles", labels: ["bug", "ui"] }),
+          feedItem(2, { kind: "pr", repoSlug: "dimitri/dotfiles", isDraft: true, labels: ["wip"] }),
+          feedItem(3, { kind: "pr", repoSlug: "dimitri/dotfiles" }),
+        ]),
+      ],
+    }),
+  });
+
+  const remote = parseRemote("https://github.com/dimitri/dotfiles.git");
+  assert.ok(remote !== null);
+  const snapshot = await readProjectSnapshot("/home/fake/dotfiles", remote);
+  assert.equal(snapshot.source, "feed");
+
+  // The feed carries no author and no comment count (gh search omits them) —
+  // null, never fabricated; labels and state ride through.
+  assert.equal(snapshot.issues.length, 1);
+  assert.equal(snapshot.issues[0]?.author, null);
+  assert.equal(snapshot.issues[0]?.commentCount, null);
+  assert.equal(snapshot.issues[0]?.state, "open");
+  assert.deepEqual(snapshot.issues[0]?.labels, ["bug", "ui"]);
+
+  // The feed carries no reviewDecision — null; isDraft survives per pull.
+  assert.equal(snapshot.pulls.length, 2);
+  const draft = snapshot.pulls.find((pull) => pull.number === 2);
+  const ready = snapshot.pulls.find((pull) => pull.number === 3);
+  assert.equal(draft?.isDraft, true);
+  assert.deepEqual(draft?.labels, ["wip"]);
+  assert.equal(ready?.isDraft, false);
+  assert.equal(draft?.reviewDecision, null);
+  assert.equal(ready?.reviewDecision, null);
+  assert.ok(snapshot.pulls.every((pull) => pull.author === null));
+});
+
+test("a linked synced project keeps its repo snapshot — source repo, feed rows for the slug never leak in", async () => {
+  useScenario("project-snapshot-wins");
+  await seedSnapshot("/home/fake/dotfiles", "dimitri/dotfiles", [repoIssue(1)], [
+    repoPull(4),
+  ]);
+  // The feed holds MORE rows for the same slug — snapshot still wins, and
+  // none of the feed rows appear (the read path's observable "no feed read").
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [
+        feedOf([
+          feedItem(9, { repoSlug: "dimitri/dotfiles" }),
+          feedItem(8, { kind: "pr", repoSlug: "dimitri/dotfiles" }),
+        ]),
+      ],
+    }),
+  });
+
+  const remote = parseRemote("https://github.com/dimitri/dotfiles.git");
+  assert.ok(remote !== null);
+  const snapshot = await readProjectSnapshot("/home/fake/dotfiles", remote);
+  assert.equal(snapshot.status, "ready");
+  assert.equal(snapshot.source, "repo");
+  assert.deepEqual(
+    snapshot.issues.map((issue) => issue.number),
+    [1],
+  );
+  assert.deepEqual(
+    snapshot.pulls.map((pull) => pull.number),
+    [4],
+  );
+  // Repo-source fields the feed honestly lacks survive the mapping.
+  assert.equal(snapshot.issues[0]?.author, "someone-else");
+  assert.equal(snapshot.issues[0]?.commentCount, 0);
+  assert.equal(snapshot.pulls[0]?.reviewDecision, "APPROVED");
+  assert.equal(snapshot.fetchedAt, "2026-09-14T09:00:00.000Z");
+  assert.equal(snapshot.truncated, false);
+});
+
+test("unlinked github project with no feed rows for its slug keeps the never-synced shape (source none)", async () => {
+  useScenario("project-feed-empty");
+  // The feed synced — but only for another slug: this one truly has nothing.
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [feedOf([feedItem(1, { repoSlug: "octo-workshops/acme-cli" })])],
+    }),
+  });
+  const remote = parseRemote("https://github.com/dimitri/dotfiles.git");
+  assert.ok(remote !== null);
+  const snapshot = await readProjectSnapshot("/home/fake/dotfiles", remote);
+  assert.equal(snapshot.status, "unknown");
+  assert.equal(snapshot.source, "none");
+  assert.equal(snapshot.repoRef, null);
+  assert.deepEqual(snapshot.issues, []);
+  assert.deepEqual(snapshot.pulls, []);
+  assert.equal(snapshot.fetchedAt, null);
+  assert.equal(snapshot.lastSyncStatus, "never");
+  assert.equal(snapshot.stale, false);
+  assert.equal(snapshot.truncated, false);
+
+  // Same shape when no feed ever synced at all.
+  useScenario("project-feed-never");
+  const never = await readProjectSnapshot("/home/fake/dotfiles", remote);
+  assert.equal(never.status, "unknown");
+  assert.equal(never.source, "none");
+  assert.equal(never.fetchedAt, null);
+});
+
+test("unsupported host and missing remote keep their shapes — source none, fallback never fires", async () => {
+  useScenario("project-feed-statuses");
+  // A synced feed with rows for the very slug being probed exists — the
+  // gate is the HOST (feed = github only), so neither shape may board it.
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [feedOf([feedItem(1, { repoSlug: "dimitri/dotfiles" })])],
+    }),
+  });
+
+  const gitlabRemote = parseRemote("https://gitlab.com/dimitri/dotfiles.git");
+  assert.ok(gitlabRemote !== null);
+  const unsupported = await readProjectSnapshot(
+    "/home/fake/dotlab",
+    gitlabRemote,
+  );
+  assert.equal(unsupported.status, "unsupported-host");
+  assert.equal(unsupported.source, "none");
+  assert.equal(unsupported.repoRef, null);
+
+  const noRemote = await readProjectSnapshot("/home/fake/dotfiles");
+  assert.equal(noRemote.status, "unknown");
+  assert.equal(noRemote.source, "none");
+  assert.equal(noRemote.repoRef, null);
+  assert.equal(noRemote.lastSyncStatus, "never");
+});
+
+test("a feed board carries the feed's GLOBAL truncation — even a small per-slug subset", async () => {
+  useScenario("project-feed-truncated");
+  // 49 other-repo issues + this slug's 1 issue + 1 pr: the global issue
+  // count sits at PAGE_LIMIT (the capped-feed world), yet this slug's board
+  // holds 2 rows — the subset cannot know what the cap dropped, so the
+  // global flag is the honest ceiling it must carry.
+  const elsewhere = Array.from({ length: PAGE_LIMIT - 1 }, (_, i) =>
+    feedItem(i + 1, { repoSlug: "octo-workshops/acme-cli" }),
+  );
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [
+        feedOf(
+          [
+            ...elsewhere,
+            feedItem(1, { repoSlug: "dimitri/busy" }),
+            feedItem(2, { kind: "pr", repoSlug: "dimitri/busy" }),
+          ],
+          { truncated: true },
+        ),
+      ],
+    }),
+  });
+
+  const remote = parseRemote("https://github.com/dimitri/busy.git");
+  assert.ok(remote !== null);
+  const snapshot = await readProjectSnapshot("/home/fake/busy", remote);
+  assert.equal(snapshot.source, "feed");
+  assert.equal(snapshot.issues.length, 1);
+  assert.equal(snapshot.pulls.length, 1);
+  assert.equal(snapshot.truncated, true);
 });
 
 after(() => {

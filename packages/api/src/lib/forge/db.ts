@@ -10,7 +10,12 @@ import type { Db } from "@workspace-welcome/db";
 
 import type { RemoteInfo } from "../types";
 import { PAGE_LIMIT, SYNC_TTL_MS } from "./constants";
-import { countFeedBySlug, readFeedSyncedAt } from "./feed";
+import {
+  countFeedBySlug,
+  readFeedItemsBySlug,
+  readFeedSyncedAt,
+} from "./feed";
+import { isTruncated } from "./parse";
 import { resolveAdapter } from "./registry";
 import type {
   ForgeIssue,
@@ -54,9 +59,27 @@ export interface ForgeOverviewEntry {
 /** How much of a forge mapping exists for a project (Phase 5/7 rendering). */
 export type ForgeProjectStatus = "unknown" | "unsupported-host" | "ready";
 
-/** Everything the project page knows about a project's forge state. */
+/**
+ * Which cache produced a project board: a synced per-repo snapshot ("repo" —
+ * the repo's FULL open totals) or the authenticated user's feed ("feed" —
+ * only the items the USER authored in that repo, Phase 12's fallback), or
+ * "none" when neither cache holds anything for the project. The client
+ * discriminates on this for header/footer vocabulary.
+ */
+export type ForgeProjectSource = ForgeOverviewSource | "none";
+
+/**
+ * Everything the project page knows about a project's forge state. Data
+ * precedence (Phase 12): a repo snapshot wins outright; without one, the
+ * user's FEED items for the remote's slug become a feed-sourced board
+ * (`source: "feed"` — YOUR open items, honestly narrower than repo totals);
+ * only when neither exists does the never-synced CTA shape return
+ * (`source: "none"`).
+ */
 export interface ForgeProjectSnapshot {
   status: ForgeProjectStatus;
+  /** Which cache produced the board — see ForgeProjectSource. */
+  source: ForgeProjectSource;
   repoRef: ForgeRepoRef | null;
   issues: ForgeIssue[];
   pulls: ForgePull[];
@@ -65,6 +88,33 @@ export interface ForgeProjectSnapshot {
   lastSyncError: string | null;
   /** fetchedAt older than SYNC_TTL_MS — the UI's "stale" hint. */
   stale: boolean;
+  /**
+   * True when the backing list may be incomplete. Repo source: a stored list
+   * reached PAGE_LIMIT ("50+" law). Feed source: the FEED itself hit its page
+   * limit — the per-slug subset of a capped feed may be missing more of YOUR
+   * items in this very repo, so the global flag is the honest ceiling we
+   * have, never a per-slug guess.
+   */
+  truncated: boolean;
+}
+
+/**
+ * The nothing-yet board: no snapshot, no attributable feed rows. `status`
+ * carries the honest reason ("unknown" vs "unsupported-host").
+ */
+function neverSyncedSnapshot(status: ForgeProjectStatus): ForgeProjectSnapshot {
+  return {
+    status,
+    source: "none",
+    repoRef: null,
+    issues: [],
+    pulls: [],
+    fetchedAt: null,
+    lastSyncStatus: "never",
+    lastSyncError: null,
+    stale: false,
+    truncated: false,
+  };
 }
 
 /**
@@ -327,9 +377,14 @@ export async function readRepoLinks(): Promise<ForgeRepoLinkEntry[]> {
 }
 
 /**
- * A project's cached snapshot + mapping status. Pure read — the caller may
- * pass the project's CURRENT RemoteInfo so "no link because the host is
- * unsupported" renders differently from "never synced".
+ * A project's cached snapshot + mapping status, under Phase 12's data
+ * precedence: repo snapshot > feed items for the remote's slug > nothing.
+ * Pure read — the caller may pass the project's CURRENT RemoteInfo so "no
+ * link because the host is unsupported" renders differently from "never
+ * synced", and so an unlinked github project can fall back to the feed cache
+ * (zero gh calls: the items are already on disk). A linked-but-never-synced
+ * project keeps today's never-synced shape — the link means a sync was
+ * attempted, and the Sync CTA is the honest next step, not a feed board.
  */
 export async function readProjectSnapshot(
   projectPath: string,
@@ -358,16 +413,19 @@ export async function readProjectSnapshot(
     const unsupported =
       remote !== undefined &&
       (resolveAdapter(remote) === null || remote.slug === null);
-    return {
-      status: unsupported ? "unsupported-host" : "unknown",
-      repoRef: null,
-      issues: [],
-      pulls: [],
-      fetchedAt: null,
-      lastSyncStatus: "never",
-      lastSyncError: null,
-      stale: false,
-    };
+    if (unsupported) return neverSyncedSnapshot("unsupported-host");
+
+    // Phase 12 fallback: no link, but the remote resolves to a github slug
+    // the feed may already hold YOUR open items for. The feed is github-only
+    // by construction (gh search), so the adapter kind gates it — a future
+    // gitea/gitlab adapter must never be attributed github feed rows.
+    const adapter = remote === undefined ? null : resolveAdapter(remote);
+    const slug = remote?.slug ?? null;
+    if (adapter?.kind === "github" && slug !== null) {
+      const feedSnapshot = await feedSourcedSnapshot(slug);
+      if (feedSnapshot !== null) return feedSnapshot;
+    }
+    return neverSyncedSnapshot("unknown");
   }
 
   const [issueRows, pullRows] = await Promise.all([
@@ -386,6 +444,7 @@ export async function readProjectSnapshot(
   const fetchedAtMs = row.lastSyncedAt === null ? null : Date.parse(row.lastSyncedAt);
   return {
     status: "ready",
+    source: "repo",
     repoRef: { kind, host: row.host, slug: row.slug },
     issues: issueRows.map((issue) => ({
       number: issue.number,
@@ -415,6 +474,89 @@ export async function readProjectSnapshot(
       fetchedAtMs !== null &&
       Number.isFinite(fetchedAtMs) &&
       Date.now() - fetchedAtMs > SYNC_TTL_MS,
+    // Same law the client derived pre-Phase 12: a stored list at the cap
+    // renders "50+", never a false exact count.
+    truncated:
+      isTruncated(issueRows.length, PAGE_LIMIT) ||
+      isTruncated(pullRows.length, PAGE_LIMIT),
+  };
+}
+
+/**
+ * The feed-sourced board for one github slug: the user's open feed items in
+ * that repo mapped onto the snapshot row shape — author/commentCount and
+ * reviewDecision stay null (the feed honestly carries none of them, see
+ * ForgeFeedItem), isDraft and labels ride through, per-kind lists keep
+ * readFeedItemsBySlug's updatedAt-DESC order. Staleness reads the FEED's
+ * fetchedAt; truncation carries the feed's GLOBAL flag — a capped feed may
+ * have dropped more of the user's items in this very slug, and the per-slug
+ * subset cannot know, so the global flag is the honest ceiling. Returns null
+ * when the feed holds nothing for the slug (or never synced) — absence, so
+ * the caller keeps its never-synced shape.
+ */
+async function feedSourcedSnapshot(
+  slug: string,
+): Promise<ForgeProjectSnapshot | null> {
+  const [items, fetchedAt, countsBySlug] = await Promise.all([
+    readFeedItemsBySlug(slug),
+    readFeedSyncedAt(),
+    countFeedBySlug(),
+  ]);
+  // No rows for this slug, or no feed fetch ever landed (the write path
+  // keeps rows and fetchedAt consistent, but the guard keeps that a law
+  // rather than an assumption) — nothing honest to show.
+  if (items.length === 0 || fetchedAt === null) return null;
+
+  const issues: ForgeIssue[] = [];
+  const pulls: ForgePull[] = [];
+  for (const item of items) {
+    if (item.kind === "pr") {
+      pulls.push({
+        number: item.number,
+        title: item.title,
+        state: "open",
+        author: null,
+        isDraft: item.isDraft,
+        reviewDecision: null,
+        labels: item.labels,
+        updatedAt: item.updatedAt,
+        url: item.url,
+      });
+    } else {
+      issues.push({
+        number: item.number,
+        title: item.title,
+        state: "open",
+        author: null,
+        labels: item.labels,
+        commentCount: null,
+        updatedAt: item.updatedAt,
+        url: item.url,
+      });
+    }
+  }
+
+  // The feed's GLOBAL per-kind totals decide truncation (readUserFeed's law).
+  let feedIssues = 0;
+  let feedPulls = 0;
+  for (const counts of countsBySlug.values()) {
+    feedIssues += counts.issues;
+    feedPulls += counts.pulls;
+  }
+  const fetchedAtMs = Date.parse(fetchedAt);
+  return {
+    status: "ready",
+    source: "feed",
+    repoRef: { kind: "github", host: canonicalWebHost("github"), slug },
+    issues,
+    pulls,
+    fetchedAt,
+    lastSyncStatus: "ok",
+    lastSyncError: null,
+    stale:
+      Number.isFinite(fetchedAtMs) && Date.now() - fetchedAtMs > SYNC_TTL_MS,
+    truncated:
+      isTruncated(feedIssues, PAGE_LIMIT) || isTruncated(feedPulls, PAGE_LIMIT),
   };
 }
 

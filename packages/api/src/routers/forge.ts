@@ -64,9 +64,13 @@ export const forgeRouter = router({
   }),
 
   /**
-   * One project's cached snapshot + mapping status. The optional remoteUrl
-   * comes from the client's scan data; parseRemote is pure, so the
-   * unsupported-host distinction never costs a git invocation.
+   * One project's cached board + mapping status, under Phase 12's data
+   * precedence: repo snapshot > the user's FEED items for the remote's slug >
+   * nothing. The optional remoteUrl comes from the client's scan data;
+   * parseRemote is pure, so the unsupported-host distinction AND the
+   * feed-sourced fallback (an unlinked github project whose open items
+   * already sit in the feed cache — `source: "feed"`, zero gh calls) never
+   * cost a git invocation. Pure database read — never fetches.
    */
   project: publicProcedure
     .input(

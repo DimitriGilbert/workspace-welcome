@@ -28,6 +28,15 @@
  * labels is active; the header's count band reports the FILTERED set with a
  * "filtered" hint, while the truncation footer keeps deriving from the
  * unfiltered counts).
+ *
+ * Phase 12 adds the feed fallback: a project with no repo snapshot but with
+ * the user's open FEED items for its remote slug renders the same board over
+ * `source: "feed"` rows — honestly narrower than repo totals (only YOUR
+ * items; no authors, comment counts, or review decisions — the feed carries
+ * none of them, so those cells simply vanish). The header says whose items
+ * they are and the feed's fetch age; Sync stays and UPGRADES the repo to
+ * full totals; a feed that hit its page limit footers the cause. Only
+ * `source: "none"` (no snapshot AND no feed rows) keeps the Sync CTA.
  */
 import {
   CircleAlert,
@@ -314,10 +323,12 @@ function ForgeBoard({
   const pullsText = data.pulls.length >= FORGE_PAGE_LIMIT
     ? TRUNCATED_COUNT
     : String(data.pulls.length);
-  // The truncation footer keeps deriving from the UNFILTERED counts — the
-  // page limit was hit by the cached list, never by a filter.
-  const truncated =
-    data.issues.length >= FORGE_PAGE_LIMIT || data.pulls.length >= FORGE_PAGE_LIMIT;
+  // The truncation footer rides the SERVER's flag: repo snapshots derive it
+  // from the stored lists (the pre-Phase-12 client law, byte-identical),
+  // feed boards carry the FEED's global cap — a capped feed may have dropped
+  // more of the user's items in this very repo, which no per-slug count can
+  // know.
+  const feedSourced = data.source === "feed";
   const failed = data.lastSyncStatus === "failed";
 
   return (
@@ -339,14 +350,28 @@ function ForgeBoard({
         </span>
       </div>
       <div className="flex min-w-0 shrink-0 items-center gap-2 px-3 pb-1.5 pt-0.5">
-        <span className="min-w-0 truncate font-mono text-[10px] text-muted-foreground">
-          synced {relativeTime(data.fetchedAt)}
+        <span
+          className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
+          title={
+            feedSourced
+              ? "Your open items from the feed cache — Sync fetches this repository's full totals"
+              : undefined
+          }
+        >
+          {feedSourced
+            ? "Your open items · from your feed · fetched "
+            : "synced "}
+          {relativeTime(data.fetchedAt)}
           {data.stale ? (
             <>
               {" · "}
               <span
                 className="uppercase tracking-[0.1em] text-(--sev-warning)"
-                title="Snapshot older than the sync TTL — Sync fetches fresh data"
+                title={
+                  feedSourced
+                    ? "Feed older than the sync TTL — Sync fetches fresh data"
+                    : "Snapshot older than the sync TTL — Sync fetches fresh data"
+                }
               >
                 Stale
               </span>
@@ -359,6 +384,11 @@ function ForgeBoard({
           variant="outline"
           disabled={syncPending}
           onClick={onSync}
+          title={
+            feedSourced
+              ? "Fetch this repository's full open issues and pull requests"
+              : undefined
+          }
         >
           <RefreshCw aria-hidden className={cn("size-3", syncPending && "animate-spin")} />
           Sync
@@ -421,9 +451,11 @@ function ForgeBoard({
           <PullRows pulls={pulls} total={data.pulls.length} filtered={filterActive} />
         </div>
       </ScrollArea>
-      {truncated ? (
+      {data.truncated ? (
         <p className="shrink-0 border-t border-border px-3 py-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-          {TRUNCATED_COUNT} shown — a list hit the page limit
+          {feedSourced
+            ? "feed hit the page limit — this list may be incomplete"
+            : `${TRUNCATED_COUNT} shown — a list hit the page limit`}
         </p>
       ) : null}
     </div>
@@ -468,9 +500,10 @@ export function ProjectForge(_props: RegisteredWidgetProps) {
     return <QuietEmpty>GitHub only for now — {remote.host} unsupported</QuietEmpty>;
   }
 
-  // Never synced — including the ready-with-failed-first-sync shapes
-  // (`fetchedAt: null` with status "never" or "failed"): the Sync CTA,
-  // never a fabricated empty board.
+  // Never synced — the `source: "none"` world (no repo snapshot AND no feed
+  // rows for the slug, including the ready-with-failed-first-sync shapes:
+  // `fetchedAt: null` with status "never" or "failed"): the Sync CTA, never
+  // a fabricated empty board.
   if (data.fetchedAt === null || data.lastSyncStatus === "never") {
     return (
       <Empty className="h-full">

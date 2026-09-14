@@ -153,6 +153,38 @@ export async function readFeedSyncedAt(): Promise<string | null> {
 }
 
 /**
+ * The feed's open items for ONE repo slug (plan §Phase 12: the project
+ * page's feed fallback) — YOUR items in that repo, not the repo's totals.
+ * Same ordering law as readUserFeed (updatedAt DESC NULLS LAST, kind as the
+ * tiebreaker); the per-slug subset preserves it when split by kind
+ * client-side. An empty array is the honest "no feed rows for this slug".
+ * Pure read — never fetches.
+ */
+export async function readFeedItemsBySlug(
+  slug: string,
+): Promise<ForgeFeedItem[]> {
+  const { db } = await getDb();
+  const rows = await db
+    .select()
+    .from(forgeFeedItems)
+    .where(eq(forgeFeedItems.repoSlug, slug))
+    .orderBy(
+      sql`${forgeFeedItems.updatedAt} DESC NULLS LAST`,
+      forgeFeedItems.kind,
+    );
+  return rows.map((row) => ({
+    kind: row.kind === "pr" ? "pr" : "issue",
+    repoSlug: row.repoSlug,
+    number: row.number,
+    title: row.title,
+    url: row.url,
+    updatedAt: row.updatedAt,
+    labels: parseLabels(row.labelsJson),
+    isDraft: row.isDraft,
+  }));
+}
+
+/**
  * Open feed items grouped by repo slug — the overview's feed-derived counts
  * (plan §Phase 11: attribute the feed's items to local projects by remote
  * slug, DB-only). One GROUP BY over the cache table; a slug with none of
