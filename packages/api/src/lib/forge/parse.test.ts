@@ -53,11 +53,26 @@ test("issue fixture parses to exact rows", () => {
     state: "open",
     author: "dimitri",
     labels: ["bug", "scanner"],
+    // Numeric form of gh's `comments` field (kept for tolerance).
     commentCount: 6,
     updatedAt: "2026-09-12T08:21:04Z",
     url: "https://github.com/octo-workshops/acme-cli/issues/128",
   };
   assert.deepEqual(row(issues, 0), expectedFirst);
+
+  // Live-verified array form: the Phase-8 smoke captured a 0-comment issue
+  // reporting `comments: []` — the count is the array length.
+  const expectedSecond: ForgeIssue = {
+    number: 131,
+    title: "Dashboard shows stale counts right after a root rescan",
+    state: "open",
+    author: "mira-dev",
+    labels: [],
+    commentCount: 0,
+    updatedAt: "2026-09-11T17:03:41Z",
+    url: "https://github.com/octo-workshops/acme-cli/issues/131",
+  };
+  assert.deepEqual(row(issues, 1), expectedSecond);
 
   const expectedThird: ForgeIssue = {
     number: 119,
@@ -65,18 +80,49 @@ test("issue fixture parses to exact rows", () => {
     state: "open",
     author: null,
     labels: ["bug"],
+    // Array form — 2 entries, so the count is 2 (entries are never inspected).
     commentCount: 2,
     updatedAt: "2026-09-09T10:44:19Z",
     url: "https://github.com/octo-workshops/acme-cli/issues/119",
   };
   assert.deepEqual(row(issues, 2), expectedThird);
 
-  // Remaining edges: empty labels normalize to [], state UPPERCASE → "open".
-  const second = row(issues, 1);
-  assert.equal(second.state, "open");
-  assert.deepEqual(second.labels, []);
-  assert.equal(second.author, "mira-dev");
-  assert.equal(second.commentCount, 0);
+  // Remaining edge: numeric-zero form still parses (state UPPERCASE → "open").
+  const fourth = row(issues, 3);
+  assert.equal(fourth.state, "open");
+  assert.equal(fourth.commentCount, 0);
+});
+
+test("issue commentCount maps array or numeric forms, anything else to null", () => {
+  // The Phase-8 smoke captured `comments` as an array; gh's older numeric
+  // form stays honored. Garbage degrades to null without dropping the row.
+  const cases: ReadonlyArray<{
+    raw: unknown;
+    expected: number | null;
+  }> = [
+    { raw: [], expected: 0 },
+    { raw: [{}, {}, {}], expected: 3 },
+    { raw: 6, expected: 6 },
+    { raw: 0, expected: 0 },
+    { raw: "6", expected: null },
+    { raw: Number.NaN, expected: null },
+    { raw: null, expected: null },
+    { raw: { count: 2 }, expected: null },
+  ];
+  for (const { raw, expected } of cases) {
+    const issues = parseIssueListJson([
+      {
+        number: 1,
+        title: "shape probe",
+        state: "OPEN",
+        url: "https://x/y/i/1",
+        comments: raw,
+      },
+    ]);
+    const label = `comments: ${JSON.stringify(raw)}`;
+    assert.equal(issues.length, 1, label);
+    assert.equal(row(issues, 0).commentCount, expected, label);
+  }
 });
 
 test("pull fixture parses to exact rows", () => {

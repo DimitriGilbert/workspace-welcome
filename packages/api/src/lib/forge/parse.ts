@@ -66,6 +66,19 @@ function mapLabels(value: unknown): string[] {
   return names;
 }
 
+/**
+ * The issue list's `comments` field is shape-drifted across gh versions: the
+ * Phase-8 live smoke captured an array of comment objects (a 0-comment issue
+ * reports []), while the older documented form was a plain count. Both are
+ * honored — an array reports its length (entries are never inspected, like how
+ * only `name` is consumed from label objects) and a finite number passes
+ * through; anything else degrades to null. Pull rows carry no comments field.
+ */
+function mapCommentCount(value: unknown): number | null {
+  if (Array.isArray(value)) return value.length;
+  return asNumber(value);
+}
+
 // --- List parsers --------------------------------------------------------------
 
 /** Rows of `gh issue list --json number,title,state,author,labels,updatedAt,url,comments`. */
@@ -86,8 +99,9 @@ export function parseIssueListJson(raw: unknown): ForgeIssue[] {
       state: "open",
       author: mapAuthor(row.author),
       labels: mapLabels(row.labels),
-      // gh names the field `comments`; the row type speaks of a count.
-      commentCount: asNumber(row.comments),
+      // gh names the field `comments`; the row type speaks of a count, and
+      // gh's live shape is an array — mapCommentCount takes either form.
+      commentCount: mapCommentCount(row.comments),
       updatedAt: asString(row.updatedAt),
       url,
     });

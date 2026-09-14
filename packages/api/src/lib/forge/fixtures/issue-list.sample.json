@@ -1,10 +1,13 @@
-// Hand-authored to mirror gh 2.x `--json` output shape; verified against live output in the Phase-8 smoke.
+// Hand-authored to mirror gh 2.x `--json` output shape; verified against live output in the Phase-8 smoke,
+// which captured `comments` arriving as an ARRAY (a 0-comment issue reports []).
 // Sample of: gh issue list --repo <OWNER/REPO> --state open --limit 50
 //            --json number,title,state,author,labels,updatedAt,url,comments
 // Shape notes (Phase 8 re-verifies each): `state` arrives UPPERCASE ("OPEN"); `author` is a bare
 // `{ "login": ... }` object or null (deleted/ghost accounts); `labels` is an array of label objects —
-// gh includes id/color/description, only `name` is consumed — or null; `comments` is a plain count;
-// `updatedAt` is RFC 3339. Rows: multi-label, empty labels, null author, comments > 0.
+// gh includes id/color/description, only `name` is consumed — or null; `comments` is an array of
+// comment objects (live-verified shape; only its length is consumed, never the entries), with the
+// plain numeric count kept alongside for forward/backward tolerance; `updatedAt` is RFC 3339.
+// Rows: multi-label, empty labels, null author, numeric comments (6 and 0), array comments ([] and 2 entries).
 [
   {
     "number": 128,
@@ -37,7 +40,7 @@
     "labels": [],
     "updatedAt": "2026-09-11T17:03:41Z",
     "url": "https://github.com/octo-workshops/acme-cli/issues/131",
-    "comments": 0
+    "comments": []
   },
   {
     "number": 119,
@@ -54,7 +57,18 @@
     ],
     "updatedAt": "2026-09-09T10:44:19Z",
     "url": "https://github.com/octo-workshops/acme-cli/issues/119",
-    "comments": 2
+    "comments": [
+      {
+        "author": { "login": "mira-dev" },
+        "body": "Repro: config.toml ending mid-table crashes the parser.",
+        "createdAt": "2026-09-09T11:02:14Z"
+      },
+      {
+        "author": { "login": "dimitri" },
+        "body": "Tracked for the TOML upstream hardening pass.",
+        "createdAt": "2026-09-10T09:30:02Z"
+      }
+    ]
   },
   {
     "number": 133,
