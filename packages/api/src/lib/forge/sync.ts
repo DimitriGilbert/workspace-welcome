@@ -1,4 +1,6 @@
 import { gitInspect } from "../git";
+import { getScan } from "../scan-cache";
+import { readStore } from "../store";
 import { MIN_SYNC_INTERVAL_MS } from "./constants";
 import {
   readLastSyncedAt,
@@ -21,8 +23,10 @@ import type {
  * The guarded forge sync entrypoints — the ONLY place in the codebase that
  * invokes an adapter (isAvailable / fetchSnapshot / fetchUserFeed).
  * syncForgeRepo syncs one project's repo; syncUserFeed (plan §Phase 9) syncs
- * the authenticated user's cross-repo feed. Both share the rate-limit
- * discipline (plan §Sync design), in the order a call meets it:
+ * the authenticated user's cross-repo feed; syncAllRepos (plan §Phase 10a)
+ * sweeps every workspace project then the feed in ONE strictly sequential
+ * run. All three share the rate-limit discipline (plan §Sync design), in the
+ * order a call meets it:
  *
  *   a. resolve the project's origin remote (gitInspect, repo sync only)
  *   b. upsert the project→repo link; unsupported host throws (repo sync only)
@@ -79,6 +83,20 @@ const inFlightSyncs = new Map<string, Promise<ForgeSyncResult>>();
 
 function repoKey(ref: ForgeRepoRef): string {
   return `${ref.kind}:${ref.host}:${ref.slug}`;
+}
+
+/**
+ * The min-interval refusal both sync targets throw. A subclass of Error so
+ * the single-target toast path is byte-for-byte unchanged (same message
+ * vocabulary, still a plain Error to tRPC); syncAllRepos discriminates on
+ * instanceof to record the refusal as a "skipped" row rather than a failure,
+ * instead of string-matching user-facing text.
+ */
+export class ForgeSyncIntervalRefusalError extends Error {
+  constructor(minutes: number) {
+    super(`Synced ${minutes} min ago — use force`);
+    this.name = "ForgeSyncIntervalRefusalError";
+  }
 }
 
 /** The probe + fetch + persist pipeline one deduped sync attempt runs. */
@@ -168,7 +186,7 @@ export async function syncForgeRepo(
         const elapsedMs = now() - fetchedAtMs;
         if (elapsedMs < MIN_SYNC_INTERVAL_MS) {
           const minutes = Math.max(1, Math.round(elapsedMs / 60_000));
-          throw new Error(`Synced ${minutes} min ago — use force`);
+          throw new ForgeSyncIntervalRefusalError(minutes);
         }
       }
     }
@@ -187,6 +205,187 @@ export async function syncForgeRepo(
   } finally {
     inFlightSyncs.delete(key);
   }
+}
+
+// --- Fleet sync: every project + the feed (plan §Phase 10a) ----------------------
+
+/** Why a project was left out of a fleet run before any attempt was made. */
+export type ForgeSyncAllSkipReason = "no-remote" | "unsupported-host";
+
+/** One project's outcome in a fleet run. */
+export interface ForgeSyncAllProjectResult {
+  projectPath: string;
+  /**
+   * The repo that was attempted/synced — from the project's CURRENT origin
+   * remote (null on pre-attempt skips, where no forge identity exists).
+   */
+  slug: string | null;
+  status: "synced" | "skipped" | "failed";
+  /** Present only on pre-attempt skips. */
+  reason?: ForgeSyncAllSkipReason;
+  openIssues?: number;
+  openPulls?: number;
+  truncated?: boolean;
+  error?: string;
+  fetchedAt?: string;
+}
+
+/** The user-feed step's outcome, riding the same run as the project loop. */
+export interface ForgeSyncAllFeedResult {
+  status: "synced" | "skipped" | "failed";
+  itemCount?: number;
+  issuesCount?: number;
+  pullsCount?: number;
+  truncated?: boolean;
+  error?: string;
+}
+
+/** Everything one "Sync all" run produced. */
+export interface ForgeSyncAllResult {
+  results: ForgeSyncAllProjectResult[];
+  feed: ForgeSyncAllFeedResult;
+  /** ISO timestamp of the moment the run started. */
+  fetchedAt: string;
+}
+
+export interface SyncAllOptions {
+  /** Bypass every per-target MIN_SYNC_INTERVAL_MS refusal. */
+  force?: boolean;
+  /** Clock injection for tests; defaults to Date.now. */
+  now?: () => number;
+  /**
+   * Adapter injection for tests, applied to every repo sync AND the feed
+   * step; must therefore cover both surfaces (UserFeedAdapter extends
+   * ForgeAdapter). Defaults resolve per repo / to the gh CLI adapter.
+   */
+  adapter?: UserFeedAdapter;
+}
+
+/**
+ * Sync EVERYTHING forge in one run (plan §Phase 10a): every visible project
+ * from the workspace scan, then the authenticated user's feed. The law
+ * (ADR-0007): the project loop is a plain awaited for-loop — NEVER
+ * Promise.all — and every fetch goes through syncForgeRepo / syncUserFeed, so
+ * the per-repo min-interval refusal, in-flight dedupe and the ONE global
+ * queue stay fully intact; one adapter invocation is in flight at a time
+ * across the whole sweep. Projects are enumerated exactly the way the
+ * projects router serves them (readStore → getScan — the cached local
+ * scan; git/stat only, never network) and each resolves its CURRENT origin
+ * remote first: no remote → skipped "no-remote", no adapter or unparsable
+ * slug → skipped "unsupported-host" — both are skips, not errors, and a
+ * never-synced GitHub project gets its link created by its first sync so
+ * every project's widget updates. Failures are isolated per target: one
+ * repo's error (or the feed's) is recorded in its row and the sweep
+ * continues; targets inside their min-interval come back "skipped" unless
+ * `force`. No projects → an empty results array (the feed step still runs),
+ * never an error.
+ */
+export async function syncAllRepos(
+  opts: SyncAllOptions = {},
+): Promise<ForgeSyncAllResult> {
+  const now = opts.now ?? Date.now;
+  const fetchedAt = new Date(now()).toISOString();
+
+  const store = await readStore();
+  const scan = await getScan({
+    roots: store.roots,
+    overrides: store.projects,
+    settings: store.settings,
+  });
+  // Path-sorted for stable, re-sortable reporting (the scan's own order is a
+  // pinned/recency display order).
+  const projects = [...scan.projects].sort((a, b) =>
+    a.path.localeCompare(b.path),
+  );
+
+  const results: ForgeSyncAllProjectResult[] = [];
+  for (const project of projects) {
+    // Fresh remote resolution (local gitInspect), not the scan snapshot's —
+    // classification must match what syncForgeRepo will do moments later.
+    const git = await gitInspect(project.path);
+    const remote = git.isRepo ? git.remote : null;
+    if (remote === null) {
+      results.push({
+        projectPath: project.path,
+        slug: null,
+        status: "skipped",
+        reason: "no-remote",
+      });
+      continue;
+    }
+    // Routing is always the registry's call (the DI adapter replaces WHICH
+    // github adapter fetches, never which hosts are supported) — mirrors
+    // upsertRepoLink inside syncForgeRepo.
+    const routed = resolveAdapter(remote);
+    if (routed === null || remote.slug === null) {
+      results.push({
+        projectPath: project.path,
+        slug: null,
+        status: "skipped",
+        reason: "unsupported-host",
+      });
+      continue;
+    }
+    try {
+      const result = await syncForgeRepo(project.path, {
+        force: opts.force,
+        now,
+        adapter: opts.adapter,
+      });
+      results.push({
+        projectPath: project.path,
+        slug: result.repoRef.slug,
+        status: "synced",
+        openIssues: result.openIssues,
+        openPulls: result.openPulls,
+        truncated: result.truncated,
+        fetchedAt: result.fetchedAt,
+      });
+    } catch (err) {
+      if (err instanceof ForgeSyncIntervalRefusalError) {
+        results.push({
+          projectPath: project.path,
+          slug: remote.slug,
+          status: "skipped",
+        });
+      } else {
+        results.push({
+          projectPath: project.path,
+          slug: remote.slug,
+          status: "failed",
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
+  // The feed rides the same sequential run, guarded identically.
+  let feed: ForgeSyncAllFeedResult;
+  try {
+    const feedResult = await syncUserFeed({
+      force: opts.force,
+      now,
+      adapter: opts.adapter,
+    });
+    feed = {
+      status: "synced",
+      itemCount: feedResult.itemCount,
+      issuesCount: feedResult.issuesCount,
+      pullsCount: feedResult.pullsCount,
+      truncated: feedResult.truncated,
+    };
+  } catch (err) {
+    if (err instanceof ForgeSyncIntervalRefusalError) {
+      feed = { status: "skipped" };
+    } else {
+      feed = {
+        status: "failed",
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  return { results, feed, fetchedAt };
 }
 
 // --- User-level feed sync (plan §Phase 9) ----------------------------------------
@@ -274,7 +473,7 @@ export async function syncUserFeed(
         const elapsedMs = now() - fetchedAtMs;
         if (elapsedMs < MIN_SYNC_INTERVAL_MS) {
           const minutes = Math.max(1, Math.round(elapsedMs / 60_000));
-          throw new Error(`Synced ${minutes} min ago — use force`);
+          throw new ForgeSyncIntervalRefusalError(minutes);
         }
       }
     }

@@ -9,19 +9,24 @@ import { after, test } from "node:test";
 import { closeDb, dbFile, getDb } from "@workspace-welcome/db";
 
 import { parseRemote } from "../detect";
+import { newId } from "../id";
+import { invalidateScanCache } from "../scan-cache";
+import { mutateStore } from "../store";
 import { PAGE_LIMIT } from "./constants";
-import { readOverview, readProjectSnapshot } from "./db";
-import { syncForgeRepo } from "./sync";
+import { readOverview, readProjectSnapshot, readRepoLinks } from "./db";
+import { syncAllRepos, syncForgeRepo, syncUserFeed } from "./sync";
 import type {
-  ForgeAdapter,
+  ForgeFeedItem,
   ForgeIssue,
   ForgePull,
   ForgeRepoRef,
   ForgeSnapshot,
+  ForgeUserFeed,
+  UserFeedAdapter,
 } from "./types";
 
 /**
- * syncForgeRepo + forge DB persistence tests
+ * syncForgeRepo + syncAllRepos + forge DB persistence tests
  * (`pnpm --filter @workspace-welcome/api test:forge`).
  *
  * Isolation: XDG_CONFIG_HOME/XDG_DATA_HOME point at mkdtemp dirs under
@@ -29,7 +34,10 @@ import type {
  * (asserted in useScenario, Phase-3 idiom). Git fixtures are throwaway
  * `git init` repos under a second temp root: LOCAL git only — the remote URL
  * is never contacted and the real gh CLI adapter is never invoked; every
- * sync goes through the in-file fake adapter below.
+ * sync goes through the in-file fake adapter below. The fleet tests register
+ * a throwaway fleet dir as the scenario's one store root, so syncAllRepos's
+ * scan enumeration (readStore → getScan) sees exactly that scenario's
+ * fixtures.
  */
 
 const execFileAsync = promisify(execFile);
@@ -37,11 +45,16 @@ const execFileAsync = promisify(execFile);
 const SANDBOX = mkdtempSync(join(tmpdir(), "ww-forge-sync-"));
 const REPOS = mkdtempSync(join(tmpdir(), "ww-forge-repos-"));
 
-/** Redirect both XDG vars at a fresh scenario and drop any open db handle. */
+/**
+ * Redirect both XDG vars at a fresh scenario, drop any open db handle, and
+ * drop the in-memory scan cache — a new scenario is a new world (fresh store,
+ * fresh projects), never a warm reuse of the previous one's enumeration.
+ */
 function useScenario(name: string): void {
   process.env.XDG_CONFIG_HOME = join(SANDBOX, name, "config");
   process.env.XDG_DATA_HOME = join(SANDBOX, name, "data");
   closeDb();
+  invalidateScanCache();
   const resolvedDb = dbFile();
   assert.ok(
     resolvedDb.startsWith(SANDBOX),
@@ -61,6 +74,44 @@ async function initRepo(remoteUrl?: string): Promise<string> {
   return dir;
 }
 
+/**
+ * A deterministically-named fixture repo directly inside a fleet root (see
+ * initFleet) — fixed child names keep path-sorted syncAllRepos results
+ * predictable while the fleet parent itself stays mkdtemp-unique.
+ */
+async function initNamedRepo(
+  fleet: string,
+  name: string,
+  remoteUrl?: string,
+): Promise<string> {
+  const dir = join(fleet, name);
+  await execFileAsync("git", ["init", dir]);
+  if (remoteUrl !== undefined) {
+    await execFileAsync("git", ["remote", "add", "origin", remoteUrl], {
+      cwd: dir,
+    });
+  }
+  return dir;
+}
+
+/**
+ * A throwaway fleet root: a temp parent dir for fixture repos, registered as
+ * the scenario's one store root so the scan enumerates exactly these
+ * projects.
+ */
+async function initFleet(name: string): Promise<string> {
+  const dir = mkdtempSync(join(REPOS, `fleet-${name}-`));
+  await mutateStore((draft) => {
+    draft.roots.push({
+      id: newId(),
+      path: dir,
+      label: name,
+      addedAt: new Date().toISOString(),
+    });
+  });
+  return dir;
+}
+
 // --- Fake adapter --------------------------------------------------------------
 
 interface FakeFetchCall {
@@ -72,6 +123,7 @@ interface FakeFetchCall {
 interface FakeRecorder {
   calls: FakeFetchCall[];
   probes: number;
+  feedCalls: number;
 }
 
 interface FakeConfig {
@@ -81,10 +133,29 @@ interface FakeConfig {
   /** Snapshots consumed in call order; later calls reuse the last one. */
   snapshots?: ForgeSnapshot[];
   failWith?: Error;
+  /** Slugs whose fetches throw failWith; absent → every fetch throws it. */
+  failSlugs?: string[];
+  /** Payload returned by fetchUserFeed; defaults to an empty feed. */
+  feed?: ForgeUserFeed;
+  /** Thrown by fetchUserFeed (the fleet run's isolated feed failure). */
+  failFeedWith?: Error;
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function makeFeedItem(kind: "issue" | "pr", n: number): ForgeFeedItem {
+  return {
+    kind,
+    repoSlug: "fake-owner/anywhere",
+    number: n,
+    title: `Feed ${kind} ${n}`,
+    url: `https://github.com/fake-owner/anywhere/${kind === "pr" ? "pull" : "issues"}/${n}`,
+    updatedAt: "2026-09-14T08:00:00.000Z",
+    labels: [],
+    isDraft: false,
+  };
 }
 
 function makeIssue(
@@ -138,15 +209,19 @@ function snapshotOf(
   };
 }
 
-function fakeAdapter(config: FakeConfig = {}): ForgeAdapter & FakeRecorder {
+function fakeAdapter(config: FakeConfig = {}): UserFeedAdapter & FakeRecorder {
   const calls: FakeFetchCall[] = [];
   let probeCount = 0;
-  const adapter: ForgeAdapter & FakeRecorder = {
+  let feedCallCount = 0;
+  const adapter: UserFeedAdapter & FakeRecorder = {
     kind: "github",
     style: "cli",
     calls,
     get probes() {
       return probeCount;
+    },
+    get feedCalls() {
+      return feedCallCount;
     },
     matches: (remote) => remote.host === "github",
     async isAvailable() {
@@ -158,11 +233,27 @@ function fakeAdapter(config: FakeConfig = {}): ForgeAdapter & FakeRecorder {
       await sleep(config.fetchDelayMs ?? 0);
       const end = Date.now();
       calls.push({ ref, start, end });
-      if (config.failWith !== undefined) throw config.failWith;
+      if (
+        config.failWith !== undefined &&
+        (config.failSlugs === undefined || config.failSlugs.includes(ref.slug))
+      ) {
+        throw config.failWith;
+      }
       const queued = config.snapshots?.[calls.length - 1];
       return (
         queued ??
         snapshotOf(ref, { issues: [makeIssue(1, "Default issue")] })
+      );
+    },
+    async fetchUserFeed() {
+      feedCallCount += 1;
+      if (config.failFeedWith !== undefined) throw config.failFeedWith;
+      return (
+        config.feed ?? {
+          fetchedAt: new Date().toISOString(),
+          items: [],
+          truncated: false,
+        }
       );
     },
   };
@@ -553,6 +644,296 @@ test("truncation flags reach the result and the overview's count math", async ()
   const overview = await readOverview();
   assert.equal(overview[0]?.openIssues, PAGE_LIMIT);
   assert.equal(overview[0]?.truncated, true);
+});
+
+test("syncAllRepos sweeps every github project (links created), skips no-remote/unsupported with reasons, feed rides along", async () => {
+  useScenario("sync-all-sweep");
+  const fleet = await initFleet("sweep");
+  const t0 = Date.parse("2026-09-14T13:00:00.000Z");
+  const t0Iso = new Date(t0).toISOString();
+  // Named fixture dirs keep the path-sorted run order deterministic:
+  // alpha-repo, beta-repo, plain-repo, zforeign-repo.
+  const alpha = await initNamedRepo(
+    fleet,
+    "alpha-repo",
+    "https://github.com/fake-owner/alpha-repo.git",
+  );
+  const beta = await initNamedRepo(
+    fleet,
+    "beta-repo",
+    "https://github.com/fake-owner/beta-repo.git",
+  );
+  const plain = await initNamedRepo(fleet, "plain-repo");
+  const foreign = await initNamedRepo(
+    fleet,
+    "zforeign-repo",
+    "https://gitlab.com/fake-owner/foreign-repo.git",
+  );
+  const alphaRef: ForgeRepoRef = {
+    kind: "github",
+    host: "github.com",
+    slug: "fake-owner/alpha-repo",
+  };
+  const betaRef: ForgeRepoRef = {
+    kind: "github",
+    host: "github.com",
+    slug: "fake-owner/beta-repo",
+  };
+  const adapter = fakeAdapter({
+    fetchDelayMs: 30,
+    snapshots: [
+      snapshotOf(alphaRef, {
+        fetchedAt: t0Iso,
+        issues: [makeIssue(1, "A one")],
+        pulls: [makePull(2, "A two")],
+      }),
+      snapshotOf(betaRef, {
+        fetchedAt: t0Iso,
+        issues: [makeIssue(3, "B one")],
+      }),
+    ],
+    feed: {
+      fetchedAt: t0Iso,
+      items: [makeFeedItem("issue", 1), makeFeedItem("pr", 2)],
+      truncated: false,
+    },
+  });
+
+  const result = await syncAllRepos({ adapter, now: () => t0 });
+
+  assert.equal(result.fetchedAt, t0Iso);
+  // All four projects reported, path-sorted — including the two non-github
+  // ones as skips with reasons, never as errors or omissions.
+  assert.deepEqual(
+    result.results.map((r) => r.projectPath),
+    [alpha, beta, plain, foreign],
+  );
+  assert.deepEqual(result.results[0], {
+    projectPath: alpha,
+    slug: "fake-owner/alpha-repo",
+    status: "synced",
+    openIssues: 1,
+    openPulls: 1,
+    truncated: false,
+    fetchedAt: t0Iso,
+  });
+  assert.deepEqual(result.results[1], {
+    projectPath: beta,
+    slug: "fake-owner/beta-repo",
+    status: "synced",
+    openIssues: 1,
+    openPulls: 0,
+    truncated: false,
+    fetchedAt: t0Iso,
+  });
+  assert.deepEqual(result.results[2], {
+    projectPath: plain,
+    slug: null,
+    status: "skipped",
+    reason: "no-remote",
+  });
+  assert.deepEqual(result.results[3], {
+    projectPath: foreign,
+    slug: null,
+    status: "skipped",
+    reason: "unsupported-host",
+  });
+
+  // The feed rode the same run.
+  assert.deepEqual(result.feed, {
+    status: "synced",
+    itemCount: 2,
+    issuesCount: 1,
+    pullsCount: 1,
+    truncated: false,
+  });
+
+  // Strictly sequential: exactly the two github fetches, windows disjoint.
+  assert.equal(adapter.calls.length, 2);
+  const [first, second] = [...adapter.calls].sort((x, y) => x.start - y.start);
+  assert.ok(first !== undefined && second !== undefined, "both fetches recorded");
+  assert.ok(
+    second.start >= first.end,
+    `fetches overlapped: [${first.start},${first.end}) vs [${second.start},${second.end})`,
+  );
+
+  // First syncs created the links: the repos listing sees both github repos
+  // (slug-ordered, counts from the item tables), the non-github ones never.
+  assert.deepEqual(await readRepoLinks(), [
+    {
+      projectPath: alpha,
+      repoRef: alphaRef,
+      remoteUrl: "https://github.com/fake-owner/alpha-repo.git",
+      lastSyncedAt: t0Iso,
+      lastSyncStatus: "ok",
+      lastSyncError: null,
+      openIssues: 1,
+      openPulls: 1,
+    },
+    {
+      projectPath: beta,
+      repoRef: betaRef,
+      remoteUrl: "https://github.com/fake-owner/beta-repo.git",
+      lastSyncedAt: t0Iso,
+      lastSyncStatus: "ok",
+      lastSyncError: null,
+      openIssues: 1,
+      openPulls: 0,
+    },
+  ]);
+  assert.equal((await readProjectSnapshot(alpha)).status, "ready");
+});
+
+test("syncAllRepos skips min-interval targets and a recently-synced feed; force sweeps both", async () => {
+  useScenario("sync-all-interval");
+  const fleet = await initFleet("interval");
+  const repo = await initNamedRepo(
+    fleet,
+    "repo",
+    "https://github.com/fake-owner/interval-repo.git",
+  );
+  const ref: ForgeRepoRef = {
+    kind: "github",
+    host: "github.com",
+    slug: "fake-owner/interval-repo",
+  };
+  const t0 = Date.parse("2026-09-14T13:30:00.000Z");
+  const t0Iso = new Date(t0).toISOString();
+  const laterIso = new Date(t0 + 10 * 60_000).toISOString();
+  const adapter = fakeAdapter({
+    snapshots: [
+      snapshotOf(ref, { fetchedAt: t0Iso, issues: [makeIssue(1, "First")] }),
+      snapshotOf(ref, { fetchedAt: laterIso, issues: [makeIssue(2, "Second")] }),
+    ],
+    feed: {
+      fetchedAt: t0Iso,
+      items: [makeFeedItem("issue", 5)],
+      truncated: false,
+    },
+  });
+
+  // Seed both surfaces at t0 (3 minutes before the fleet run).
+  await syncForgeRepo(repo, { adapter, now: () => t0 });
+  await syncUserFeed({ adapter, now: () => t0 });
+  assert.equal(adapter.calls.length, 1);
+  assert.equal(adapter.feedCalls, 1);
+
+  // Unforced at t0+3min: the repo AND the feed are inside their interval —
+  // skipped rows, zero new fetches, never errors.
+  const skipped = await syncAllRepos({ adapter, now: () => t0 + 3 * 60_000 });
+  assert.deepEqual(skipped.results, [
+    { projectPath: repo, slug: ref.slug, status: "skipped" },
+  ]);
+  assert.deepEqual(skipped.feed, { status: "skipped" });
+  assert.equal(adapter.calls.length, 1);
+  assert.equal(adapter.feedCalls, 1);
+
+  // Forced at the same moment: both sweep.
+  const forced = await syncAllRepos({
+    adapter,
+    force: true,
+    now: () => t0 + 3 * 60_000,
+  });
+  assert.deepEqual(forced.results, [
+    {
+      projectPath: repo,
+      slug: ref.slug,
+      status: "synced",
+      openIssues: 1,
+      openPulls: 0,
+      truncated: false,
+      fetchedAt: laterIso,
+    },
+  ]);
+  assert.deepEqual(forced.feed, {
+    status: "synced",
+    itemCount: 1,
+    issuesCount: 1,
+    pullsCount: 0,
+    truncated: false,
+  });
+  assert.equal(adapter.calls.length, 2);
+  assert.equal(adapter.feedCalls, 2);
+});
+
+test("a failing repo is isolated: the rest of the fleet and the feed still complete", async () => {
+  useScenario("sync-all-failure");
+  const fleet = await initFleet("failure");
+  const alpha = await initNamedRepo(
+    fleet,
+    "alpha-repo",
+    "https://github.com/fake-owner/fail-repo.git",
+  );
+  const beta = await initNamedRepo(
+    fleet,
+    "beta-repo",
+    "https://github.com/fake-owner/ok-repo.git",
+  );
+  const adapter = fakeAdapter({
+    failWith: new Error("gh issue list failed: fleet boom"),
+    failSlugs: ["fake-owner/fail-repo"],
+    failFeedWith: new Error("gh search issues failed: feed boom"),
+  });
+
+  const result = await syncAllRepos({ adapter });
+
+  // alpha (path-first) failed with the recorded error; beta still synced —
+  // one repo's outage never aborts the sweep.
+  assert.deepEqual(result.results[0], {
+    projectPath: alpha,
+    slug: "fake-owner/fail-repo",
+    status: "failed",
+    error: "gh issue list failed: fleet boom",
+  });
+  assert.equal(result.results[1]?.projectPath, beta);
+  assert.equal(result.results[1]?.status, "synced");
+  assert.equal(result.results[1]?.openIssues, 1);
+  assert.equal(adapter.calls.length, 2);
+
+  // The feed failed too, isolated in its own summary — never a thrown run.
+  assert.equal(result.feed.status, "failed");
+  assert.equal(result.feed.error, "gh search issues failed: feed boom");
+
+  // The failed FIRST sync still left a link — listed with its honest failure
+  // state, never fabricated as fresh (lastSyncedAt stays null, counts zero).
+  const links = await readRepoLinks();
+  assert.equal(links.length, 2);
+  assert.deepEqual(links[0], {
+    projectPath: alpha,
+    repoRef: {
+      kind: "github",
+      host: "github.com",
+      slug: "fake-owner/fail-repo",
+    },
+    remoteUrl: "https://github.com/fake-owner/fail-repo.git",
+    lastSyncedAt: null,
+    lastSyncStatus: "failed",
+    lastSyncError: "gh issue list failed: fleet boom",
+    openIssues: 0,
+    openPulls: 0,
+  });
+});
+
+test("syncAllRepos over an empty workspace: no project rows, zero snapshot fetches, feed still runs", async () => {
+  useScenario("sync-all-empty");
+  const t0 = Date.parse("2026-09-14T14:00:00.000Z");
+  const adapter = fakeAdapter();
+
+  const result = await syncAllRepos({ adapter, now: () => t0 });
+
+  assert.deepEqual(result.results, []);
+  assert.equal(adapter.calls.length, 0);
+  assert.equal(result.fetchedAt, new Date(t0).toISOString());
+  // The feed step rides every run — a fresh scenario's feed never synced, so
+  // it fetches (the only adapter traffic of the run).
+  assert.equal(adapter.feedCalls, 1);
+  assert.deepEqual(result.feed, {
+    status: "synced",
+    itemCount: 0,
+    issuesCount: 0,
+    pullsCount: 0,
+    truncated: false,
+  });
 });
 
 after(() => {

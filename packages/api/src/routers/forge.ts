@@ -3,17 +3,26 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 import { parseRemote } from "../lib/detect";
-import { readOverview, readProjectSnapshot } from "../lib/forge/db";
+import {
+  readOverview,
+  readProjectSnapshot,
+  readRepoLinks,
+} from "../lib/forge/db";
 import { readUserFeed } from "../lib/forge/feed";
-import { syncForgeRepo, syncUserFeed } from "../lib/forge/sync";
+import {
+  syncAllRepos,
+  syncForgeRepo,
+  syncUserFeed,
+} from "../lib/forge/sync";
 import { requireKnownProject } from "../lib/known-project";
 import { publicProcedure, router } from "../index";
 
 /**
- * Forge router: cached GitHub issue/PR state. The three queries are pure DB
- * reads — rendering can never trigger a network call; the only doors to an
- * adapter invocation are the two explicit sync mutations, which carry all
- * the rate-limit discipline (min-interval, dedupe, sequential queue) inside
+ * Forge router: cached GitHub issue/PR state. The read queries (overview,
+ * project, repos, feed) are pure DB reads — rendering can never trigger a
+ * network call; the only doors to an adapter invocation are the explicit sync
+ * mutations (sync, syncAll, syncFeed), which carry all the rate-limit
+ * discipline (min-interval, dedupe, sequential queue) inside
  * lib/forge/sync.ts. Errors propagate as plain Errors for the toast path.
  */
 export const forgeRouter = router({
@@ -23,6 +32,16 @@ export const forgeRouter = router({
    */
   overview: publicProcedure.query(async () => {
     return { entries: await readOverview() };
+  }),
+
+  /**
+   * Every mapped project↔repo link with sync bookkeeping + open-item counts,
+   * for the settings "Forge" listing (plan §Phase 10a). Includes never-synced
+   * and failed links — `lastSyncStatus` carries the honest reason. Pure
+   * database read — never touches the adapter.
+   */
+  repos: publicProcedure.query(async () => {
+    return { repos: await readRepoLinks() };
   }),
 
   /**
@@ -62,6 +81,25 @@ export const forgeRouter = router({
     .mutation(async ({ input }) => {
       const path = await requireKnownProject(input.path);
       return syncForgeRepo(path, { force: input.force });
+    }),
+
+  /**
+   * Sync everything forge now (plan §Phase 10a): every visible workspace
+   * project (never-synced GitHub projects included — the first sync creates
+   * their link) then the user feed, ONE strictly sequential run through
+   * sync.ts's queue. Projects without a forge identity come back "skipped"
+   * with a reason; targets inside their min-interval come back "skipped"
+   * (bypassable with force); failures are isolated per target. No projects →
+   * an empty results array, not an error.
+   */
+  syncAll: publicProcedure
+    .input(
+      z.object({
+        force: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return syncAllRepos({ force: input.force });
     }),
 
   /**

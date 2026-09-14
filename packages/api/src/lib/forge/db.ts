@@ -197,6 +197,71 @@ export async function readOverview(): Promise<ForgeOverviewEntry[]> {
 }
 
 /**
+ * One mapped project↔repo row for the settings "Forge" listing (plan
+ * §Phase 10a): the link identity, the repo's sync bookkeeping, and its stored
+ * open-item counts. Unlike the overview, never-synced links ARE listed —
+ * `lastSyncStatus` carries the honest reason ("never" / "failed"), so the
+ * counts' zeros render next to that status rather than as fabricated
+ * freshness. Ordered by slug then projectPath. Pure read — never fetches.
+ */
+export interface ForgeRepoLinkEntry {
+  projectPath: string;
+  repoRef: ForgeRepoRef;
+  /** The origin remote URL the link was last written from. */
+  remoteUrl: string;
+  lastSyncedAt: string | null;
+  lastSyncStatus: string;
+  lastSyncError: string | null;
+  openIssues: number;
+  openPulls: number;
+}
+
+/**
+ * Every project→repo link, with sync bookkeeping and open-item counts derived
+ * from the item tables (the stored snapshot's sets — no truncation flag is
+ * derived here; a count at PAGE_LIMIT renders "50+" client-side the same way
+ * the overview's does). Pure read — never fetches.
+ */
+export async function readRepoLinks(): Promise<ForgeRepoLinkEntry[]> {
+  const { db } = await getDb();
+  const rows = await db
+    .select({
+      projectPath: forgeProjectLinks.projectPath,
+      remoteUrl: forgeProjectLinks.remoteUrl,
+      kind: forgeRepos.kind,
+      host: forgeRepos.host,
+      slug: forgeRepos.slug,
+      lastSyncedAt: forgeRepos.lastSyncedAt,
+      lastSyncStatus: forgeRepos.lastSyncStatus,
+      lastSyncError: forgeRepos.lastSyncError,
+      openIssues: sql<number>`(SELECT COUNT(*) FROM \`forge_issues\` WHERE \`repo_id\` = \`forge_repos\`.\`id\` AND \`state\` = 'open')`,
+      openPulls: sql<number>`(SELECT COUNT(*) FROM \`forge_pulls\` WHERE \`repo_id\` = \`forge_repos\`.\`id\` AND \`state\` = 'open')`,
+    })
+    .from(forgeProjectLinks)
+    .innerJoin(forgeRepos, eq(forgeProjectLinks.repoId, forgeRepos.id))
+    .orderBy(forgeRepos.slug, forgeProjectLinks.projectPath);
+
+  const entries: ForgeRepoLinkEntry[] = [];
+  for (const row of rows) {
+    const kind = asForgeKind(row.kind);
+    // Same defensive skip as the overview: a kind this build doesn't know has
+    // no renderable identity — skip rather than guess.
+    if (kind === null) continue;
+    entries.push({
+      projectPath: row.projectPath,
+      repoRef: { kind, host: row.host, slug: row.slug },
+      remoteUrl: row.remoteUrl,
+      lastSyncedAt: row.lastSyncedAt,
+      lastSyncStatus: row.lastSyncStatus,
+      lastSyncError: row.lastSyncError,
+      openIssues: Number(row.openIssues),
+      openPulls: Number(row.openPulls),
+    });
+  }
+  return entries;
+}
+
+/**
  * A project's cached snapshot + mapping status. Pure read — the caller may
  * pass the project's CURRENT RemoteInfo so "no link because the host is
  * unsupported" renders differently from "never synced".
