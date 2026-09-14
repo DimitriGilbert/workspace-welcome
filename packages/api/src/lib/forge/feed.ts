@@ -153,6 +153,37 @@ export async function readFeedSyncedAt(): Promise<string | null> {
 }
 
 /**
+ * Open feed items grouped by repo slug — the overview's feed-derived counts
+ * (plan §Phase 11: attribute the feed's items to local projects by remote
+ * slug, DB-only). One GROUP BY over the cache table; a slug with none of
+ * YOUR items is simply absent from the map, never a zero row — absence is
+ * the honest answer there. `kind` reads back through the same defensive
+ * lens as readUserFeed: only "pr" is a pull, anything else counts as an
+ * issue. Pure read — never fetches.
+ */
+export async function countFeedBySlug(): Promise<
+  Map<string, { issues: number; pulls: number }>
+> {
+  const { db } = await getDb();
+  const rows = await db
+    .select({
+      repoSlug: forgeFeedItems.repoSlug,
+      kind: forgeFeedItems.kind,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(forgeFeedItems)
+    .groupBy(forgeFeedItems.repoSlug, forgeFeedItems.kind);
+  const bySlug = new Map<string, { issues: number; pulls: number }>();
+  for (const row of rows) {
+    const counts = bySlug.get(row.repoSlug) ?? { issues: 0, pulls: 0 };
+    if (row.kind === "pr") counts.pulls += Number(row.count);
+    else counts.issues += Number(row.count);
+    bySlug.set(row.repoSlug, counts);
+  }
+  return bySlug;
+}
+
+/**
  * Persist one fetched feed atomically: drop every previous row, insert the
  * fresh open set, mark the sync ok (fetchedAt/status/error set together, so
  * a crash can never land a new fetch time under a stale error).

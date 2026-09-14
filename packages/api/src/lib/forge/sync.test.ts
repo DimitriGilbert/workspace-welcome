@@ -298,6 +298,7 @@ test("sync persists a snapshot; overview + project reads agree; rows survive reo
     openPulls: 1,
     truncated: false,
     fetchedAt,
+    source: "repo",
   });
 
   const snapshot = await readProjectSnapshot(repoPath);
@@ -533,6 +534,7 @@ test("a failed force-sync keeps the last good snapshot in the overview", async (
       openPulls: 1,
       truncated: false,
       fetchedAt,
+      source: "repo",
     },
   ]);
 });

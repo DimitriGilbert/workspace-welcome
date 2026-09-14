@@ -27,12 +27,31 @@ import { publicProcedure, router } from "../index";
  */
 export const forgeRouter = router({
   /**
-   * Open issue/PR counts for every project linked to a forge repo. Pure
-   * database read — never fetches, so the dashboard list stays cheap.
+   * Open issue/PR counts for every project attributable to a forge repo.
+   * Pure database read — never fetches, so the dashboard list stays cheap.
+   *
+   * Attribution contract (plan §Phase 11): the client optionally sends
+   * `slugs`, a projectPath → "owner/repo" map built from its scan data
+   * (github-hosted remotes only — no server-side git needed). Snapshot
+   * entries (`source: "repo"`) come from the per-repo sync tables as always
+   * and ALWAYS win; for every mapped path without one, the server counts the
+   * authenticated user's cached FEED items for that slug into a
+   * `source: "feed"` entry — YOUR open items in that repo, not the repo's
+   * totals — stamped with the feed's fetchedAt so the chip's age reads the
+   * feed's, honestly. Still DB-only: no git, no gh, no adapter — the counts
+   * exist because the feed cache already holds the items.
    */
-  overview: publicProcedure.query(async () => {
-    return { entries: await readOverview() };
-  }),
+  overview: publicProcedure
+    .input(
+      z
+        .object({
+          slugs: z.record(z.string(), z.string()).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      return { entries: await readOverview(input?.slugs) };
+    }),
 
   /**
    * Every mapped project↔repo link with sync bookkeeping + open-item counts,

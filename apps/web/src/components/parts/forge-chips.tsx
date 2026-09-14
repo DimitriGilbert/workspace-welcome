@@ -6,16 +6,21 @@ import { Chip } from "@workspace-welcome/ui/components/chip";
 
 import { relativeTime } from "@/lib/format";
 import { staleFeedPrs, useForgeFeedQuery, useForgeOverviewMap } from "@/lib/queries/forge";
-import type { StalePrRow } from "@/lib/queries/forge";
+import type { ForgeOverviewEntry, StalePrRow } from "@/lib/queries/forge";
 
 /**
  * ForgeChips — one project's cached open-issue / open-PR counts from the
  * forge overview. The overview is a pure database read, so the chips are a
- * cache rendering only: no snapshot for the path ⇒ nothing at all (never a
- * fake zero) — the server drops never-synced links (`fetchedAt` null), and
- * the guard below repeats that belt-and-braces. A truncated snapshot shows
- * the page-limit floor ("50+") instead of a false exact count. Tooltips
- * carry the count and the sync age.
+ * cache rendering only: no snapshot AND no attributed feed items for the
+ * path ⇒ nothing at all (never a fake zero) — the server drops never-synced
+ * links (`fetchedAt` null) and slugs the feed cache doesn't hold, and the
+ * guard below repeats that belt-and-braces. Entries come in two sources,
+ * rendered identically (same chip, same tone — counts deserve visibility):
+ * `source: "repo"` is a synced snapshot's totals; `source: "feed"` is the
+ * USER's own open items in that repo, attributed by remote slug from the
+ * feed cache (plan §Phase 11) — only the tooltip says which. A truncated
+ * count shows the page-limit floor ("50+") instead of a false exact number.
+ * Tooltips carry the count, the source, and the age.
  */
 
 /**
@@ -33,6 +38,28 @@ export const FORGE_PAGE_LIMIT = 50;
  */
 export const TRUNCATED_COUNT = `${FORGE_PAGE_LIMIT}+`;
 
+/**
+ * One chip's tooltip. Repo entries: `<N> open <noun> · synced X ago`. Feed
+ * entries must be honest about what they count — the user's own items, not
+ * the repo's totals: `<N> of YOUR open <noun> · from your feed · fetched X
+ * ago`. Truncation copy is source-independent (the cap law doesn't move):
+ * ` — a list hit the page limit` slots in before the source/age tail.
+ */
+function chipTitle(
+  entry: ForgeOverviewEntry,
+  count: number,
+  noun: "issues" | "pull requests",
+): string {
+  const feed = entry.source === "feed";
+  const head = entry.truncated
+    ? `${TRUNCATED_COUNT}${feed ? " of YOUR open" : " open"} ${noun} — a list hit the page limit`
+    : `${count}${feed ? " of YOUR open" : " open"} ${noun}`;
+  const tail = feed
+    ? ` · from your feed · fetched ${relativeTime(entry.fetchedAt)}`
+    : ` · synced ${relativeTime(entry.fetchedAt)}`;
+  return `${head}${tail}`;
+}
+
 export interface ForgeChipsProps {
   project: Project;
 }
@@ -42,29 +69,18 @@ export function ForgeChips({ project }: ForgeChipsProps) {
   const entry = overview.get(project.path);
   if (entry === undefined || entry.fetchedAt === null) return null;
 
-  const synced =
-    entry.fetchedAt === null ? "" : ` · synced ${relativeTime(entry.fetchedAt)}`;
-
   return (
     <span className="inline-flex items-center gap-1.5">
       <Chip
         tone="info"
-        title={
-          entry.truncated
-            ? `${TRUNCATED_COUNT} open issues — a list hit the page limit${synced}`
-            : `${entry.openIssues} open issues${synced}`
-        }
+        title={chipTitle(entry, entry.openIssues, "issues")}
       >
         <CircleDot aria-hidden className="size-3" />
         {entry.truncated ? TRUNCATED_COUNT : entry.openIssues}
       </Chip>
       <Chip
         tone="info"
-        title={
-          entry.truncated
-            ? `${TRUNCATED_COUNT} open pull requests — a list hit the page limit${synced}`
-            : `${entry.openPulls} open pull requests${synced}`
-        }
+        title={chipTitle(entry, entry.openPulls, "pull requests")}
       >
         <GitPullRequest aria-hidden className="size-3" />
         {entry.truncated ? TRUNCATED_COUNT : entry.openPulls}

@@ -10,6 +10,7 @@ import type { Db } from "@workspace-welcome/db";
 
 import type { RemoteInfo } from "../types";
 import { PAGE_LIMIT, SYNC_TTL_MS } from "./constants";
+import { countFeedBySlug, readFeedSyncedAt } from "./feed";
 import { resolveAdapter } from "./registry";
 import type {
   ForgeIssue,
@@ -29,6 +30,14 @@ import type {
 /** The drizzle transaction handle used inside the write helpers below. */
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
+/**
+ * Where an overview entry's counts come from: a synced per-repo snapshot
+ * ("repo" — the repo's full open totals) or the authenticated user's feed
+ * ("feed" — only the items the USER authored in that repo; plan §Phase 11's
+ * attribution). The client discriminates on this for tooltip vocabulary.
+ */
+export type ForgeOverviewSource = "repo" | "feed";
+
 /** One linked project's open-item counts, for the dashboard overview. */
 export interface ForgeOverviewEntry {
   projectPath: string;
@@ -38,6 +47,8 @@ export interface ForgeOverviewEntry {
   /** True when either list hit the page limit — counts render "50+". */
   truncated: boolean;
   fetchedAt: string | null;
+  /** Which cache produced the counts — see ForgeOverviewSource. */
+  source: ForgeOverviewSource;
 }
 
 /** How much of a forge mapping exists for a project (Phase 5/7 rendering). */
@@ -158,8 +169,20 @@ export async function upsertRepoLink(
  * dashboard never renders fabricated zeros. A repo that synced once and
  * later failed keeps its old counts (recordSyncFailure never clears
  * lastSyncedAt): stale-but-real data stays listed. Pure read — never fetches.
+ *
+ * Phase 11 attribution: the caller may pass `slugs`, a projectPath →
+ * "owner/repo" map the client built from its scan data (github-hosted
+ * remotes only). For every mapped path WITHOUT a snapshot entry above, the
+ * user's FEED items for that slug become a `source: "feed"` entry — counts
+ * of YOUR open items in the repo, not the repo's totals, stamped with the
+ * feed's fetchedAt. Snapshots always win (repo totals are strictly more
+ * data); a slug absent from the feed cache yields no entry (absence, never
+ * a fabricated zero). Still pure database access — ./feed.ts's read helpers
+ * never touch the adapter.
  */
-export async function readOverview(): Promise<ForgeOverviewEntry[]> {
+export async function readOverview(
+  slugs?: Record<string, string>,
+): Promise<ForgeOverviewEntry[]> {
   const { db } = await getDb();
   const rows = await db
     .select({
@@ -191,7 +214,49 @@ export async function readOverview(): Promise<ForgeOverviewEntry[]> {
       openPulls,
       truncated: openIssues >= PAGE_LIMIT || openPulls >= PAGE_LIMIT,
       fetchedAt: row.lastSyncedAt,
+      source: "repo",
     });
+  }
+
+  // Only paths the snapshot half did NOT cover can earn a feed entry — and
+  // only when the client supplied at least one such slug.
+  const snapshotPaths = new Set(entries.map((entry) => entry.projectPath));
+  const wanted = Object.entries(slugs ?? {}).filter(
+    ([projectPath]) => !snapshotPaths.has(projectPath),
+  );
+  if (wanted.length > 0) {
+    const [feedCounts, feedFetchedAt] = await Promise.all([
+      countFeedBySlug(),
+      readFeedSyncedAt(),
+    ]);
+    const before = entries.length;
+    for (const [projectPath, slug] of wanted) {
+      const counts = feedCounts.get(slug);
+      // No feed rows for the slug, or no feed fetch ever landed (fetchedAt
+      // null) → nothing honest to attribute: absence, never zeros.
+      if (counts === undefined || feedFetchedAt === null) continue;
+      entries.push({
+        projectPath,
+        repoRef: { kind: "github", host: "github.com", slug },
+        openIssues: counts.issues,
+        openPulls: counts.pulls,
+        truncated:
+          counts.issues >= PAGE_LIMIT || counts.pulls >= PAGE_LIMIT,
+        fetchedAt: feedFetchedAt,
+        source: "feed",
+      });
+    }
+    if (entries.length > before) {
+      // Feed entries were appended out of order — restore the path-sorted
+      // whole the snapshot-only read guarantees (that half was SQL-ordered).
+      entries.sort((a, b) =>
+        a.projectPath < b.projectPath
+          ? -1
+          : a.projectPath > b.projectPath
+            ? 1
+            : 0,
+      );
+    }
   }
   return entries;
 }

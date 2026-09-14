@@ -6,11 +6,15 @@ import { after, test } from "node:test";
 
 import { closeDb, dbFile, getDb } from "@workspace-welcome/db";
 
+import { parseRemote } from "../detect";
 import { PAGE_LIMIT, SYNC_TTL_MS } from "./constants";
+import { readOverview, replaceSnapshot, upsertRepoLink } from "./db";
 import { readUserFeed } from "./feed";
 import { syncUserFeed } from "./sync";
 import type {
   ForgeFeedItem,
+  ForgeIssue,
+  ForgePull,
   ForgeRepoRef,
   ForgeSnapshot,
   ForgeUserFeed,
@@ -440,6 +444,241 @@ test("readUserFeed marks a feed older than SYNC_TTL_MS as stale", async () => {
   const view = await readUserFeed();
   assert.equal(view.stale, true);
   assert.equal(view.status, "ok");
+});
+
+// --- Overview feed attribution (plan §Phase 11) ----------------------------------
+
+/**
+ * readOverview(slugs) tests: the feed cache is the data source, so they ride
+ * this file's fake-feed idiom. The snapshot half of the merge is seeded
+ * DIRECTLY (upsertRepoLink + replaceSnapshot — both pure DB writes, zero
+ * adapter traffic), and the slugs map uses synthetic project paths:
+ * readOverview never stats a path, it only keys on it. `repoIssue` is the
+ * snapshot-table twin of feedItem above (different row shape, same per-file
+ * fixture style).
+ */
+function repoIssue(n: number): ForgeIssue {
+  return {
+    number: n,
+    title: `Snapshot issue ${n}`,
+    state: "open",
+    author: "someone-else",
+    labels: [],
+    commentCount: 0,
+    updatedAt: "2026-09-14T08:00:00.000Z",
+    url: `https://github.com/dimitri/dotfiles/issues/${n}`,
+  };
+}
+
+/** Seed one project↔repo link + a synced snapshot for it (pure DB writes). */
+async function seedSnapshot(
+  projectPath: string,
+  slug: string,
+  issues: ForgeIssue[],
+  pulls: ForgePull[] = [],
+): Promise<void> {
+  const remote = parseRemote(`https://github.com/${slug}.git`);
+  assert.ok(remote !== null, `fixture remote must parse: ${slug}`);
+  await upsertRepoLink(projectPath, remote);
+  const ref: ForgeRepoRef = { kind: "github", host: "github.com", slug };
+  const snapshot: ForgeSnapshot = {
+    ref,
+    fetchedAt: "2026-09-14T09:00:00.000Z",
+    issues,
+    pulls,
+    issuesTruncated: false,
+    pullsTruncated: false,
+  };
+  await replaceSnapshot(ref, snapshot);
+}
+
+test("slug map with no snapshot: feed-derived entries carry per-kind counts, the feed's fetchedAt, source feed", async () => {
+  useScenario("overview-feed");
+  const fetchedAt = new Date().toISOString();
+  const adapter = fakeFeedAdapter({
+    feeds: [
+      feedOf(
+        [
+          feedItem(1, { repoSlug: "dimitri/dotfiles" }),
+          feedItem(2, { repoSlug: "dimitri/dotfiles" }),
+          feedItem(3, { kind: "pr", repoSlug: "dimitri/dotfiles" }),
+          feedItem(4, { repoSlug: "octo-workshops/acme-cli" }),
+        ],
+        { fetchedAt },
+      ),
+    ],
+  });
+  await syncUserFeed({ adapter });
+
+  const entries = await readOverview({
+    "/home/fake/dotfiles": "dimitri/dotfiles",
+    "/home/fake/acme-cli": "octo-workshops/acme-cli",
+  });
+  // Path-sorted like the snapshot-only read; one entry per mapped path.
+  assert.deepEqual(entries, [
+    {
+      projectPath: "/home/fake/acme-cli",
+      repoRef: {
+        kind: "github",
+        host: "github.com",
+        slug: "octo-workshops/acme-cli",
+      },
+      openIssues: 1,
+      openPulls: 0,
+      truncated: false,
+      fetchedAt,
+      source: "feed",
+    },
+    {
+      projectPath: "/home/fake/dotfiles",
+      repoRef: {
+        kind: "github",
+        host: "github.com",
+        slug: "dimitri/dotfiles",
+      },
+      openIssues: 2,
+      openPulls: 1,
+      truncated: false,
+      fetchedAt,
+      source: "feed",
+    },
+  ]);
+});
+
+test("a project with a snapshot wins: repo counts, no feed entry beside it", async () => {
+  useScenario("overview-snapshot-wins");
+  // Snapshot says 1 issue / 0 pulls; the feed for the SAME slug says 2
+  // issues / 1 pr — the entry must render the snapshot's, and exactly once.
+  await seedSnapshot("/home/fake/dotfiles", "dimitri/dotfiles", [repoIssue(1)]);
+  const adapter = fakeFeedAdapter({
+    feeds: [
+      feedOf([
+        feedItem(1, { repoSlug: "dimitri/dotfiles" }),
+        feedItem(2, { repoSlug: "dimitri/dotfiles" }),
+        feedItem(3, { kind: "pr", repoSlug: "dimitri/dotfiles" }),
+        feedItem(1, { repoSlug: "octo-workshops/acme-cli" }),
+      ]),
+    ],
+  });
+  await syncUserFeed({ adapter });
+
+  const entries = await readOverview({
+    "/home/fake/dotfiles": "dimitri/dotfiles",
+    "/home/fake/acme-cli": "octo-workshops/acme-cli",
+  });
+  assert.equal(entries.length, 2);
+  const snapshotted = entries.find(
+    (entry) => entry.projectPath === "/home/fake/dotfiles",
+  );
+  assert.deepEqual(snapshotted, {
+    projectPath: "/home/fake/dotfiles",
+    repoRef: {
+      kind: "github",
+      host: "github.com",
+      slug: "dimitri/dotfiles",
+    },
+    openIssues: 1,
+    openPulls: 0,
+    truncated: false,
+    fetchedAt: "2026-09-14T09:00:00.000Z",
+    source: "repo",
+  });
+  // The unsnapshotted path still earns its feed entry alongside — path-sorted
+  // first ("/home/fake/acme-cli" < "/home/fake/dotfiles").
+  assert.equal(entries[0]?.projectPath, "/home/fake/acme-cli");
+  assert.equal(entries[0]?.source, "feed");
+  assert.equal(entries[0]?.openIssues, 1);
+});
+
+test("slugs absent from the feed cache get no entry — absence, never zeros", async () => {
+  useScenario("overview-no-feed-match");
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [feedOf([feedItem(1, { repoSlug: "dimitri/dotfiles" })])],
+    }),
+  });
+
+  assert.deepEqual(
+    await readOverview({ "/home/fake/ghost": "ghost/unmapped" }),
+    [],
+  );
+});
+
+test("no feed ever synced: slugs alone never fabricate entries", async () => {
+  useScenario("overview-no-feed");
+  assert.deepEqual(
+    await readOverview({ "/home/fake/ghost": "ghost/never-fetched" }),
+    [],
+  );
+});
+
+test("missing vs empty slugs input: byte-identical snapshot-only reads", async () => {
+  useScenario("overview-identical");
+  await seedSnapshot("/home/fake/dotfiles", "dimitri/dotfiles", [
+    repoIssue(1),
+    repoIssue(2),
+  ]);
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({
+      feeds: [feedOf([feedItem(9, { repoSlug: "dimitri/dotfiles" })])],
+    }),
+  });
+
+  const withoutSlugs = await readOverview();
+  const emptySlugs = await readOverview({});
+  assert.deepEqual(emptySlugs, withoutSlugs);
+  assert.deepEqual(withoutSlugs, [
+    {
+      projectPath: "/home/fake/dotfiles",
+      repoRef: {
+        kind: "github",
+        host: "github.com",
+        slug: "dimitri/dotfiles",
+      },
+      openIssues: 2,
+      openPulls: 0,
+      truncated: false,
+      fetchedAt: "2026-09-14T09:00:00.000Z",
+      source: "repo",
+    },
+  ]);
+});
+
+test("feed counts derive per-kind truncation: a 50-cap slug and the 26+25 analog", async () => {
+  useScenario("overview-feed-truncated");
+  // busy: PAGE_LIMIT issues (at the cap) + 3 prs → truncated. mixed: 26
+  // issues + 25 prs — 51 rows combined, yet neither kind hit its own cap →
+  // not truncated. Same per-kind law as the repo-snapshot derivation.
+  const busy = Array.from({ length: PAGE_LIMIT }, (_, i) =>
+    feedItem(i + 1, { repoSlug: "dimitri/busy" }),
+  ).concat(
+    Array.from({ length: 3 }, (_, i) =>
+      feedItem(i + 1, { kind: "pr", repoSlug: "dimitri/busy" }),
+    ),
+  );
+  const mixed = Array.from({ length: 26 }, (_, i) =>
+    feedItem(i + 1, { repoSlug: "dimitri/mixed" }),
+  ).concat(
+    Array.from({ length: 25 }, (_, i) =>
+      feedItem(i + 1, { kind: "pr", repoSlug: "dimitri/mixed" }),
+    ),
+  );
+  await syncUserFeed({
+    adapter: fakeFeedAdapter({ feeds: [feedOf([...busy, ...mixed])] }),
+  });
+
+  const entries = await readOverview({
+    "/home/fake/busy": "dimitri/busy",
+    "/home/fake/mixed": "dimitri/mixed",
+  });
+  const busyEntry = entries.find((entry) => entry.projectPath === "/home/fake/busy");
+  const mixedEntry = entries.find((entry) => entry.projectPath === "/home/fake/mixed");
+  assert.equal(busyEntry?.openIssues, PAGE_LIMIT);
+  assert.equal(busyEntry?.openPulls, 3);
+  assert.equal(busyEntry?.truncated, true);
+  assert.equal(mixedEntry?.openIssues, 26);
+  assert.equal(mixedEntry?.openPulls, 25);
+  assert.equal(mixedEntry?.truncated, false);
 });
 
 after(() => {

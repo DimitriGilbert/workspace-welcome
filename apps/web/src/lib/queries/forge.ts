@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import type { Project } from "@workspace-welcome/api/lib/types";
+
+import { useScanQuery } from "@/lib/queries/scan";
 import { useTRPC } from "@/utils/trpc";
 
 /**
@@ -18,11 +21,40 @@ import { useTRPC } from "@/utils/trpc";
 /** Counts change only on an explicit sync; 5 min of trust. */
 const FORGE_STALE_TIME = 5 * 60_000;
 
-/** Every linked project's cached counts — one shared fetch for all lists. */
+/**
+ * The attribution map the overview accepts (plan §Phase 11): projectPath →
+ * "owner/repo", built from the scan the app already holds — github-hosted
+ * remotes with a parsed slug only, so non-github and remote-less projects
+ * never claim feed items. Memoized on the scan data: one stable map, hence
+ * one stable overview query key.
+ */
+function scanSlugs(projects: Project[] | undefined): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const project of projects ?? []) {
+    const remote = project.git.remote;
+    if (remote === null || remote.host !== "github") continue;
+    if (remote.slug === null) continue;
+    map[project.path] = remote.slug;
+  }
+  return map;
+}
+
+/**
+ * Every attributable project's cached counts — one shared fetch for all
+ * lists. Sends the scan-derived slug map so the server can light up
+ * feed-derived entries (`source: "feed"` — YOUR open items, from the feed
+ * cache, zero network) for projects without a synced snapshot; an empty map
+ * omits the input entirely, keeping the snapshot-only query shape.
+ */
 export function useForgeOverviewQuery() {
   const trpc = useTRPC();
+  const scan = useScanQuery();
+  const input = useMemo(() => {
+    const slugs = scanSlugs(scan.data?.projects);
+    return Object.keys(slugs).length > 0 ? { slugs } : undefined;
+  }, [scan.data]);
   return useQuery(
-    trpc.forge.overview.queryOptions(undefined, { staleTime: FORGE_STALE_TIME }),
+    trpc.forge.overview.queryOptions(input, { staleTime: FORGE_STALE_TIME }),
   );
 }
 
@@ -162,9 +194,11 @@ export function staleFeedPrs(
 
 /**
  * The feed's explicit sync: ONE gh search per kind for the signed-in account,
- * user-scoped (no path input). Success settles the feed query; failures ride
- * plain Error messages ("Synced 2 min ago — use force", "gh not
- * authenticated…") to the toast path, verbatim.
+ * user-scoped (no path input). Success settles the feed query AND the
+ * overview — its feed-derived entries (`source: "feed"`, plan §Phase 11)
+ * count the feed cache, so a fresh feed means fresh chips without any repo
+ * sync. Failures ride plain Error messages ("Synced 2 min ago — use force",
+ * "gh not authenticated…") to the toast path, verbatim.
  */
 export function useForgeFeedSyncMutation() {
   const trpc = useTRPC();
@@ -172,9 +206,14 @@ export function useForgeFeedSyncMutation() {
   return useMutation(
     trpc.forge.syncFeed.mutationOptions({
       onSuccess: async (result) => {
-        await queryClient.invalidateQueries({
-          queryKey: trpc.forge.feed.queryKey(),
-        });
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.feed.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.overview.queryKey(),
+          }),
+        ]);
         toast.success(
           `Synced your feed — ${result.issuesCount} issues · ${result.pullsCount} pull requests` +
             (result.truncated ? " (a list hit the page limit)" : ""),
