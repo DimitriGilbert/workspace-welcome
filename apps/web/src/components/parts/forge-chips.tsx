@@ -5,7 +5,8 @@ import type { Project } from "@workspace-welcome/api/lib/types";
 import { Chip } from "@workspace-welcome/ui/components/chip";
 
 import { relativeTime } from "@/lib/format";
-import { useForgeOverviewMap } from "@/lib/queries/forge";
+import { staleFeedPrs, useForgeFeedQuery, useForgeOverviewMap } from "@/lib/queries/forge";
+import type { StalePrRow } from "@/lib/queries/forge";
 
 /**
  * ForgeChips — one project's cached open-issue / open-PR counts from the
@@ -85,4 +86,19 @@ export function useForgeCensus(projects: Project[]): boolean {
     () => projects.some((project) => overview.has(project.path)),
     [overview, projects],
   );
+}
+
+/**
+ * The triage band's stale-PR rows (plan §Phase 10d): the feed's open PRs
+ * past the 30-day law, via `staleFeedPrs` (`lib/queries/forge.ts` — the
+ * law and its derivation live there). Rides the parts barrel beside
+ * {@link useForgeCensus} because themes never touch `@/lib/queries`
+ * (themes-deps invariant); mission-control's `McTriage` is the consumer.
+ * Honest absence all the way down: no cached feed, a failed feed query, or
+ * no stale PRs ⇒ `[]` — a feed error must never surface in triage, and the
+ * band's own alert population renders regardless.
+ */
+export function useStaleFeedPrs(): StalePrRow[] {
+  const feed = useForgeFeedQuery();
+  return useMemo(() => staleFeedPrs(feed.data?.items ?? []), [feed.data]);
 }

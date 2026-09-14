@@ -112,6 +112,55 @@ export type ForgeFeedView = NonNullable<ReturnType<typeof useForgeFeedQuery>["da
 export type ForgeFeedItem = ForgeFeedView["items"][number];
 
 /**
+ * A PR goes STALE when its last update is older than this many days (the
+ * triage law, plan §Phase 10d): an open PR authored by the user that has
+ * seen no activity for 30 days — the age at which the triage band surfaces
+ * it as a warn-severity row.
+ */
+export const STALE_PR_DAYS = 30;
+
+/** One stale-PR triage row — the feed item trimmed to what the band renders;
+ * `updatedAt` is non-null by construction (see {@link staleFeedPrs}). */
+export interface StalePrRow {
+  repoSlug: string;
+  number: number;
+  title: string;
+  url: string;
+  updatedAt: string;
+}
+
+/**
+ * The feed's stale-PR rows, most-stale first — the pure derivation the
+ * triage band appends after its alert population. Law: {@link STALE_PR_DAYS}
+ * days without an update. A null `updatedAt` is NEVER stale — no timestamp
+ * means no age, so claiming staleness would be a fabrication (issues are
+ * likewise out: the law is about pull requests). `now` is defaulted so the
+ * plain `staleFeedPrs(items)` call is memo/SSR-friendly; feed items in,
+ * rows out, no I/O.
+ */
+export function staleFeedPrs(
+  items: ForgeFeedItem[],
+  now: number = Date.now(),
+): StalePrRow[] {
+  const cutoff = now - STALE_PR_DAYS * 24 * 60 * 60 * 1000;
+  const rows: StalePrRow[] = [];
+  for (const item of items) {
+    if (item.kind !== "pr" || item.updatedAt === null) continue;
+    if (new Date(item.updatedAt).getTime() >= cutoff) continue;
+    rows.push({
+      repoSlug: item.repoSlug,
+      number: item.number,
+      title: item.title,
+      url: item.url,
+      updatedAt: item.updatedAt,
+    });
+  }
+  return rows.sort(
+    (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+  );
+}
+
+/**
  * The feed's explicit sync: ONE gh search per kind for the signed-in account,
  * user-scoped (no path input). Success settles the feed query; failures ride
  * plain Error messages ("Synced 2 min ago — use force", "gh not

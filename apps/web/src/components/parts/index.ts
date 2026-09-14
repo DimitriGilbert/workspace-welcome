@@ -4,9 +4,9 @@
  * plus the `definePart`-wrapped registry parts (suffixed `*Part`) whose
  * rendered roots carry `data-part` / `data-part-min-*` stamps. Themes must
  * never deep-import into this directory; the barrel is grep-enforced. The
- * one data hook a theme legitimately needs (the forge census, for the
- * ledger's conditional column) rides here too — themes never touch
- * `@/lib/queries` directly (themes-deps invariant).
+ * data hooks a theme legitimately needs (the forge census for the ledger's
+ * conditional column, the stale-PR rows for the triage band) ride here too
+ * — themes never touch `@/lib/queries` directly (themes-deps invariant).
  */
 
 export { ReportGate } from "./report-gate";
@@ -19,7 +19,7 @@ export { NoteEditor } from "./note-editor";
 export type { NoteEditorProps } from "./note-editor";
 export { ProjectLed } from "./led-project";
 export type { ProjectLedProps } from "./led-project";
-export { ForgeChips, useForgeCensus, FORGE_PAGE_LIMIT, TRUNCATED_COUNT } from "./forge-chips";
+export { ForgeChips, useForgeCensus, useStaleFeedPrs, FORGE_PAGE_LIMIT, TRUNCATED_COUNT } from "./forge-chips";
 export type { ForgeChipsProps } from "./forge-chips";
 
 export { BranchSwitcher } from "./git/branch-switcher";

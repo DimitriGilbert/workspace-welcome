@@ -14,11 +14,23 @@
  * so the header carries the err/wrn register only — no dead control.
  * Nominal fleet renders nothing (the design's contract); the freshness
  * census stands in for the preset's static empty state.
+ *
+ * Stale PRs (plan §Phase 10d) append after the alert population as
+ * warn-severity rows: the forge feed's open PRs untouched for 30 days
+ * (`STALE_PR_DAYS`, via the `useStaleFeedPrs` part hook — the barrel is
+ * the themes' only door to forge data), most-stale first, the FULL
+ * population like the alerts. The PR title links out to the forge
+ * (`_blank`); a null `updatedAt` never goes stale — no timestamp, no
+ * age. They count into the header's warn register exactly once (the
+ * severity grouping law: err = critical, warn = the rest); no feed, a
+ * failed feed query, or no stale PRs leaves the band exactly the
+ * alerts-only surface.
  */
 import { Pin } from "lucide-react";
 
 import type { AlertSeverity, Project } from "@workspace-welcome/api/lib/types";
 import { AlertIcons } from "@/components/git-badges";
+import { useStaleFeedPrs } from "@/components/parts";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 
@@ -116,6 +128,7 @@ function dirtyN(value: number | null): string {
 
 export function McTriage(_props: RegisteredWidgetProps) {
   const workspace = useWorkspace();
+  const stalePrs = useStaleFeedPrs();
   const triaged = triagedProjects(workspace.projects).filter(
     (p) => p.alerts.some((a) => a.severity === "critical") || p.alerts.some((a) => a.severity === "warning"),
   );
@@ -133,11 +146,13 @@ export function McTriage(_props: RegisteredWidgetProps) {
   }
 
   const errors = triaged.filter((p) => worstSeverity(p) === "critical").length;
-  const warns = triaged.length - errors;
+  // Stale PRs are warn-severity rows, so they land in the warn register with
+  // the warning carriers (the severity grouping law) — counted exactly once.
+  const warns = triaged.length - errors + stalePrs.length;
 
   return (
     <WidgetShell className="h-full w-full">
-      {triaged.length === 0 ? (
+      {triaged.length === 0 && stalePrs.length === 0 ? (
         <NominalCensus />
       ) : (
         <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden border border-(--mc-line) bg-(--mc-panel)">
@@ -217,6 +232,45 @@ export function McTriage(_props: RegisteredWidgetProps) {
                   </li>
                 );
               })}
+              {stalePrs.map((pr) => (
+                <li
+                  key={`${pr.repoSlug}#${pr.number}`}
+                  className="group flex items-center gap-3 border-b border-(--mc-line) px-4 py-[7px] transition-colors last:border-b-0 hover:bg-[color-mix(in_oklch,var(--foreground)_3.5%,transparent)]"
+                >
+                  {/* The warn register verbatim — stale PRs are warn rows. */}
+                  <span
+                    aria-hidden
+                    className="w-7 shrink-0 font-mono text-[9px] tracking-[0.1em] text-(--sev-warning)"
+                  >
+                    {SEV_LABEL.warning}
+                  </span>
+                  {/* Title links out to the forge; the message carries the
+                      staleness claim + cross-repo attribution, the age rides
+                      the row's trailing register below. No stack/branch/
+                      dirty columns — a feed PR has no workspace fleet data,
+                      and empty cells would fabricate it. */}
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                    <a
+                      href={pr.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={pr.title}
+                      className="flex min-w-0 max-w-[16rem] shrink-0 items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      {pr.title}
+                    </a>
+                    <span className="min-w-0 truncate text-xs text-muted-foreground">
+                      PR stale · {pr.repoSlug}#{pr.number}
+                    </span>
+                  </span>
+                  <span
+                    className="hidden shrink-0 whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground md:block"
+                    title={dateTooltip(pr.updatedAt)}
+                  >
+                    {relativeTime(pr.updatedAt)}
+                  </span>
+                </li>
+              ))}
             </ul>
           </ScrollArea>
         </div>
