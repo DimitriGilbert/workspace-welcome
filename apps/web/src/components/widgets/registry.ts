@@ -26,6 +26,7 @@ import type { ComponentType } from "react";
 import type { WidgetNode } from "@/lib/widget/layout-types";
 import type { SizeClass } from "@/lib/widget/size-class";
 
+import { ProjectForge } from "./forge-board";
 import { ProjectTile } from "./project-tile";
 
 /** A context provider key a widget can require (§3.3 `WidgetDef.requires`). */
@@ -73,6 +74,15 @@ const core: Record<string, WidgetDef> = {
     defaultSize: "2x2",
     min: "1x1",
     hosts: ["led", "score-chip", "pulse-strip", "git-glyphs", "chip"],
+  },
+  "project-forge": {
+    id: "project-forge",
+    title: "Issues & pull requests",
+    component: ProjectForge,
+    requires: ["project"],
+    defaultSize: "4x4",
+    min: "2x3",
+    hosts: ["chip"],
   },
 };
 

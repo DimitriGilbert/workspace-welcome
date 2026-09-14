@@ -19,7 +19,7 @@ export { NoteEditor } from "./note-editor";
 export type { NoteEditorProps } from "./note-editor";
 export { ProjectLed } from "./led-project";
 export type { ProjectLedProps } from "./led-project";
-export { ForgeChips, useForgeCensus } from "./forge-chips";
+export { ForgeChips, useForgeCensus, FORGE_PAGE_LIMIT, TRUNCATED_COUNT } from "./forge-chips";
 export type { ForgeChipsProps } from "./forge-chips";
 
 export { BranchSwitcher } from "./git/branch-switcher";

@@ -128,6 +128,10 @@ export const meadowPreset: ThemePreset = {
           { id: "meadow-project-header", widget: "meadow-project-header", size: "4x4" },
           { id: "meadow-project-stats", widget: "meadow-project-stats", size: "4x4" },
           { id: "meadow-project-report", widget: "meadow-report", size: "4x4" },
+          // The forge board (open issues & pull requests): appended to the
+          // rail below the packed 12-row band — final placement is the
+          // owner's drag decision, not this authoring.
+          { id: "project-forge", widget: "project-forge", size: "4x4" },
         ],
       },
     ],

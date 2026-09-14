@@ -149,6 +149,10 @@ export const bentoPreset: ThemePreset = {
           // Summary LAST in reading order: the left rail packs first; the
           // summary then first-fits the free right-rail slot under commits.
           { id: "project-summary", widget: "bento-project-summary", size: "2x4", tablet: "6x3", phone: "2x3" },
+          // The forge board (open issues & pull requests): appended as a
+          // full-width band under the packed canvas — final placement is the
+          // owner's drag decision, not this authoring.
+          { id: "project-forge", widget: "project-forge", size: "12x4", tablet: "6x4", phone: "2x6" },
         ],
       },
     ],

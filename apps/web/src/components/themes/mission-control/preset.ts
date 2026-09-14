@@ -127,6 +127,10 @@ export const missionControlPreset: ThemePreset = {
           { id: "report-ai", widget: "mc-report-ai", size: "3x4", tablet: "8x2", phone: "4x4" },
           { id: "working-surface", widget: "mc-project-console", size: "9x6", tablet: "8x3", phone: "4x6" },
           { id: "note", widget: "mc-project-note", size: "3x3", tablet: "8x2", phone: "4x3" },
+          // The forge board (open issues & pull requests): appended at the
+          // canvas tail — final placement is the owner's drag decision, not
+          // this authoring.
+          { id: "project-forge", widget: "project-forge", size: "4x4", tablet: "8x3", phone: "4x4" },
         ],
       },
     ],

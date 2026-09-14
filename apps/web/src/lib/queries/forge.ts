@@ -1,15 +1,17 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { useTRPC } from "@/utils/trpc";
 
 /**
- * Forge queries — the cached open-issue/PR counts the project lists render
- * (`ForgeChips`). The server procedure is a pure database read (rendering
- * can never trigger a network call), so an absent entry is the honest
- * pre-sync state: nothing is fetched to fill it. The per-path snapshot
- * query and the sync mutation (the project page's widget) join this module
- * in the next phase.
+ * Forge queries — the cached open-issue/PR state the UI renders
+ * (`ForgeChips` on the lists, the project page's `ProjectForge` widget).
+ * Both server procedures are pure database reads (rendering can never
+ * trigger a network call), so an absent entry is the honest pre-sync
+ * state: nothing is fetched to fill it. The only door to a live fetch is
+ * the sync mutation below — explicit, user-initiated, and the sole
+ * trigger for the invalidations that settle both queries.
  */
 
 /** Counts change only on an explicit sync; 5 min of trust. */
@@ -31,6 +33,56 @@ export function useForgeOverviewQuery() {
 export type ForgeOverviewEntry = NonNullable<
   ReturnType<typeof useForgeOverviewQuery>["data"]
 >["entries"][number];
+
+/**
+ * One project's cached snapshot + mapping status. `remoteUrl` is the scan's
+ * current remote (pure client data) so the server can separate
+ * "unsupported host" from "never synced" without touching git.
+ */
+export function useForgeProjectQuery(path: string, remoteUrl: string | undefined) {
+  const trpc = useTRPC();
+  return useQuery(
+    trpc.forge.project.queryOptions({ path, remoteUrl }, { staleTime: FORGE_STALE_TIME }),
+  );
+}
+
+/**
+ * The project snapshot, inferred from the query result — the authored source
+ * is the server's `ForgeProjectSnapshot` (`packages/api/src/lib/forge/db.ts`).
+ */
+export type ForgeProjectSnapshot = NonNullable<
+  ReturnType<typeof useForgeProjectQuery>["data"]
+>;
+
+/**
+ * The explicit sync: fetches fresh open issues/PRs now. Success settles BOTH
+ * forge queries (the per-path snapshot and the overview the lists read);
+ * failures ride plain Error messages ("Synced 2 min ago — use force",
+ * "gh not authenticated…") to the toast path, verbatim.
+ */
+export function useForgeSyncMutation() {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  return useMutation(
+    trpc.forge.sync.mutationOptions({
+      onSuccess: async (result) => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.overview.queryKey(),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: trpc.forge.project.queryKey(),
+          }),
+        ]);
+        toast.success(
+          `Synced ${result.repoRef.slug} — ${result.openIssues} issues · ${result.openPulls} pull requests` +
+            (result.truncated ? " (a list hit the page limit)" : ""),
+        );
+      },
+      onError: (error) => toast.error(error.message),
+    }),
+  );
+}
 
 /**
  * The overview keyed by `projectPath` — the lookup list surfaces do

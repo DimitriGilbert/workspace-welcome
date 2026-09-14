@@ -18,11 +18,19 @@ import { useForgeOverviewMap } from "@/lib/queries/forge";
  */
 
 /**
- * The count shown when the snapshot hit the server's page limit — mirrors
- * `PAGE_LIMIT` in `packages/api/src/lib/forge/constants.ts`; only the
- * boolean flag crosses the wire, so the floor numeral rides the client.
+ * The page-limit floor the client mirrors — the numeric source for the
+ * "50+" vocabulary below and the project board's truncation check; only
+ * the boolean flag crosses the wire, so the floor rides the client.
  */
-const TRUNCATED_COUNT = "50+";
+export const FORGE_PAGE_LIMIT = 50;
+
+/**
+ * The count shown when a snapshot hit the server's page limit — derived from
+ * {@link FORGE_PAGE_LIMIT}, which mirrors `PAGE_LIMIT` in
+ * `packages/api/src/lib/forge/constants.ts`; consumed by `ForgeChips` and the
+ * project page's forge board (one source for the truncation vocabulary).
+ */
+export const TRUNCATED_COUNT = `${FORGE_PAGE_LIMIT}+`;
 
 export interface ForgeChipsProps {
   project: Project;
