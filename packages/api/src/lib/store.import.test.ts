@@ -312,6 +312,110 @@ test("unparseable legacy file: defaults + fallback outcome, never throws", async
   );
 });
 
+// Scenario "dup": two roots share a path (dup-a older, dup-b newer), plus an
+// ordering pair whose lexicographic id order deliberately differs from its
+// addedAt order — pins the dedup and the addedAt-based read ordering, which
+// scenario "a" cannot (its ids happen to sort like its dates).
+const DUP_FIXTURE = JSON.stringify({
+  roots: [
+    {
+      id: "zz-old",
+      path: "/projects/first",
+      label: "first",
+      addedAt: "2026-01-05T09:00:00.000Z",
+    },
+    {
+      id: "dup-a",
+      path: "/projects/dup",
+      label: "dup stale",
+      addedAt: "2026-02-01T08:00:00.000Z",
+    },
+    {
+      id: "aa-new",
+      path: "/projects/second",
+      label: "second",
+      addedAt: "2026-02-20T10:00:00.000Z",
+    },
+    {
+      id: "dup-b",
+      path: "/projects/dup",
+      label: "dup latest",
+      addedAt: "2026-03-15T11:00:00.000Z",
+    },
+  ],
+  projects: {
+    "/projects/dup/thing": {
+      pinned: false,
+      note: "pin me",
+      lastOpenedAt: null,
+      hidden: false,
+    },
+  },
+  settings: {},
+});
+
+// Expected in addedAt order: zz-old, aa-new, then the dup path surviving with
+// dup-b — the LAST legacy entry's id/label/addedAt. (Id order would read
+// aa-new, dup-b, zz-old, so this also pins that reads follow addedAt.)
+const DUP_EXPECTED_ROOTS = [
+  {
+    id: "zz-old",
+    path: "/projects/first",
+    label: "first",
+    addedAt: "2026-01-05T09:00:00.000Z",
+  },
+  {
+    id: "aa-new",
+    path: "/projects/second",
+    label: "second",
+    addedAt: "2026-02-20T10:00:00.000Z",
+  },
+  {
+    id: "dup-b",
+    path: "/projects/dup",
+    label: "dup latest",
+    addedAt: "2026-03-15T11:00:00.000Z",
+  },
+];
+
+test("duplicate-path legacy roots import last-wins instead of bricking the store", async () => {
+  useScenario("dup");
+  assertIsolation();
+  writeLegacy(DUP_FIXTURE);
+
+  // Pre-fix, this first read threw the raw drizzle SQLITE_CONSTRAINT insert
+  // error and left both markers unset — the import retried (and failed)
+  // forever, taking mutateStore/readSettings down with it.
+  const store = await readStore();
+  assert.deepEqual(store.roots, DUP_EXPECTED_ROOTS);
+
+  assert.equal(await metaValue("store_import"), "ok");
+  const importedAt = await metaValue("store_imported_at");
+  assert.ok(importedAt !== null);
+  assert.ok(
+    !Number.isNaN(Date.parse(importedAt)),
+    "marker is an ISO timestamp",
+  );
+});
+
+test("dup-imported store mutates and reopens with the same state", async () => {
+  assertIsolation();
+
+  const toggled = await mutateStore((draft) => {
+    const entry = draft.projects["/projects/dup/thing"];
+    assert.ok(entry, "override imported");
+    entry.pinned = true;
+  });
+  assert.equal(toggled.projects["/projects/dup/thing"]?.pinned, true);
+
+  // Fresh "process": the reopened store keeps the deduped roots exactly.
+  closeDb();
+  await getDb();
+  const reopened = await readStore();
+  assert.deepEqual(reopened.roots, DUP_EXPECTED_ROOTS);
+  assert.equal(reopened.projects["/projects/dup/thing"]?.pinned, true);
+});
+
 after(() => {
   closeDb();
   rmSync(TMP, { recursive: true, force: true });

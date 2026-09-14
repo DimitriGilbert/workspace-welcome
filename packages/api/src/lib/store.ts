@@ -20,7 +20,10 @@ import type { ProjectOverrides, Root, Settings, StoreShape } from "./types";
  * inserted together with the marker inside a single transaction, so a crash
  * can never split imported data from its marker. The legacy file is read at
  * most once and never written, renamed, or deleted — it stays as an untouched
- * backup; all writes go to the database.
+ * backup; all writes go to the database. Legacy roots are deduplicated by
+ * path at this boundary, last-wins by legacy array order (the most recent
+ * entry) — the same deterministic policy project-config documents for
+ * duplicate-path legacy config files.
  *
  * An in-memory StoreShape cache keeps reads cheap; it is invalidated whenever
  * the underlying DbHandle changes (a `closeDb()` + `getDb()` cycle), which is
@@ -207,8 +210,11 @@ async function readMeta(handle: DbHandle, key: string): Promise<string | null> {
  * Legacy-file problems must never take the app down: a missing file records
  * outcome "missing" (marker only), an unparseable/unreadable one falls back
  * to defaults and records "fallback:<reason>" — both in `app_meta.store_import`,
- * with "ok" for a clean import. Database failures propagate (the marker stays
- * unset, so the next boot retries the import).
+ * with "ok" for a clean import. Roots are collapsed to one row per path before
+ * insert, last-wins by legacy array order — the same deterministic policy
+ * project-config documents for duplicate-path legacy configs. Database
+ * failures propagate (the marker stays unset, so the next boot retries the
+ * import).
  */
 async function importLegacyStore(handle: DbHandle): Promise<void> {
   let shape: StoreShape;
@@ -230,7 +236,20 @@ async function importLegacyStore(handle: DbHandle): Promise<void> {
     // A missing legacy file imports no data rows — the markers below record
     // that the (empty) start state is intentional.
     if (outcome !== "missing") {
+      // roots.path is UNIQUE, but a legacy store.json can carry the same path
+      // twice with different ids (hand-edited, restored from a partial backup,
+      // or merged across machines); the id-targeted upsert below cannot cover
+      // a path conflict, and the failed insert would roll the whole import —
+      // markers included — back, bricking every read on the retry loop.
+      // Collapse to one row per path before any insert, last-wins: the legacy
+      // array is in increasing addedAt order for every file the app wrote, so
+      // last-wins keeps the most recent entry — the same deterministic policy
+      // project-config documents for duplicate-path legacy configs.
+      const rootsByPath = new Map<string, Root>();
       for (const root of shape.roots) {
+        rootsByPath.set(root.path, root);
+      }
+      for (const root of rootsByPath.values()) {
         await tx
           .insert(roots)
           .values(root)
@@ -264,7 +283,12 @@ async function importLegacyStore(handle: DbHandle): Promise<void> {
 
 /** Load the full StoreShape from the database (defaults for absent rows). */
 async function selectStore(handle: DbHandle): Promise<StoreShape> {
-  const rootRows = await handle.db.select().from(roots).orderBy(roots.id);
+  // addedAt restores insertion order (ISO-8601 strings sort lexicographically
+  // in sqlite); id is the deterministic tie-break for equal timestamps.
+  const rootRows = await handle.db
+    .select()
+    .from(roots)
+    .orderBy(roots.addedAt, roots.id);
   const overrideRows = await handle.db.select().from(projectOverrides);
   const settingRows = await handle.db
     .select()
