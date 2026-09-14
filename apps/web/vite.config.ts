@@ -12,15 +12,17 @@ export default defineConfig({
   },
   // The scaffolder ships native formatter bindings (oxfmt) that cannot be
   // bundled; keep it as a runtime import resolved from node_modules.
+  // The libsql SQLite driver (packages/db) follows that same native-binding
+  // precedent — external here and excluded from the dep-optimizer below.
   ssr: {
-    external: ["create-better-t-stack"],
+    external: ["create-better-t-stack", "@libsql/client", "libsql"],
   },
   // Same package as the ssr.external above: only the server API routes import
   // it, but the client dep-optimizer still walks that chain and dies trying
   // to bundle its node-only dependency graph (unicorn-magic resolves through
   // its browser condition, which lacks the exports npm-run-path imports).
   optimizeDeps: {
-    exclude: ["create-better-t-stack"],
+    exclude: ["create-better-t-stack", "@libsql/client", "libsql"],
   },
   plugins: [tailwindcss(), tanstackStart(), viteReact()],
 });

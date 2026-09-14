@@ -30,3 +30,11 @@ catalog:
   "@trpc/client": ^11.18.0
   "@types/react": ^19.2.17
   "@types/react-dom": ^19.2.3
+  tsx: ^4.19.2
+  # SQLite persistence (packages/db) — exact-pinned to the Phase-1 harvest
+  # reference (docs/research/2026-09-14-sqlite-harvest.md); the native libsql
+  # core and the ORM/migration tool must not drift independently.
+  drizzle-orm: 0.45.2
+  drizzle-kit: 0.31.10
+  "@libsql/client": 0.18.0
+  libsql: 0.5.29

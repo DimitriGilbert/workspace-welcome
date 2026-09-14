@@ -1,0 +1,7 @@
+{
+  "extends": "@workspace-welcome/config/tsconfig.base.json",
+  "include": ["src/**/*.ts", "drizzle.config.ts"],
+  "compilerOptions": {
+    "noEmit": true
+  }
+}
