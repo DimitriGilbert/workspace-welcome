@@ -205,7 +205,10 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
         {header("size-7", "text-[0.84rem]")}
         <TileStatLine report={entry} project={project} />
         <div className="mt-auto flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2">
+          {/* Meadow's cluster law: the chip group wraps instead of crowding
+              the alerts/ring cluster at 2-col spans — pills clip mid-glyph
+              when a nowrap cluster outruns the tile. */}
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
             <GitGlyphs git={project.git} />
             <ForgeChips project={project} />
           </span>

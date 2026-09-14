@@ -140,10 +140,10 @@ const helper = createDataTableColumnHelper<Project>();
 const FLEX_SIZES = { signalWithNotes: 146, signalSolo: 178, note: 330 };
 
 /** Pixel floors — the longest real content each column must hold uncut. */
-const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, forge: 100, note: 60, alerts: 46, signal: 72, updated: 64 };
+const MIN_PX = { state: 14, project: 214, stack: 22, branch: 218, sync: 68, dirty: 32, forge: 120, note: 60, alerts: 46, signal: 72, updated: 64 };
 
 /** Column px widths at the desktop reference (project/branch carry the freed span). */
-const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, forge: 108, alerts: 55, updated: 127 };
+const SIZE_PX = { state: 27, project: 274, stack: 41, branch: 274, sync: 55, dirty: 55, forge: 220, alerts: 55, updated: 127 };
 
 function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project> {
   const signal = notes ? FLEX_SIZES.signalWithNotes : FLEX_SIZES.signalSolo;
@@ -235,6 +235,16 @@ function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project>
     // Forge counts join the git cluster census-style: the column exists
     // only while some visible project has a cached snapshot (no data, no
     // void column — the NOTE ruling above); the cells self-null per row.
+    // Sizing is measured off the rendered Chip (Geist 11px medium, icon
+    // size-3): one truncated chip "50+" is 51.7px wide, so the pair plus
+    // its 1.5 gap plus the cell's px-1 needs 117.3px — MIN_PX.forge is
+    // that floor rounded to 120. But the table engine hands every column
+    // a size/totalSize PERCENTAGE of the width it gets, so the authored
+    // size must carry the floor through the ratio: at the table's own
+    // minimum the forge share is 220/Σ·tableMinWidth — 126.5px beside a
+    // NOTE column (220/1617 × 930), 145.1px without (220/1319 × 870) —
+    // and the share only grows above it, so the pair never clips at any
+    // width (exact counts cap at 49; "50+" is the widest glyph run).
     ...(forge
       ? [
           helper.display({
@@ -496,12 +506,17 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
                   rows={sorted.map((p) => ({
                     label: p.name,
                     value: (
-                      <span className="inline-flex items-center gap-2">
+                      // Chips carry their own styling — the register value
+                      // wraps (never truncates) a pill pair, and the mono
+                      // register rides the stamp alone, not the chips.
+                      <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
                         <ForgeChips project={p} />
-                        {compactStamp(relativeTime(p.updatedAt))}
+                        <span className="font-mono tabular-nums">
+                          {compactStamp(relativeTime(p.updatedAt))}
+                        </span>
                       </span>
                     ),
-                    mono: true,
+                    wrap: true,
                   }))}
                 />
               </ScrollArea>
@@ -514,12 +529,14 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
               rows={sorted.map((p) => ({
                 label: p.name,
                 value: (
-                  <span className="inline-flex items-center gap-2">
+                  <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
                     <ForgeChips project={p} />
-                    {compactStamp(relativeTime(p.updatedAt))}
+                    <span className="font-mono tabular-nums">
+                      {compactStamp(relativeTime(p.updatedAt))}
+                    </span>
                   </span>
                 ),
-                mono: true,
+                wrap: true,
               }))}
             />
           </ScrollArea>

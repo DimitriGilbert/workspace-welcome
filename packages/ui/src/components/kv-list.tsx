@@ -15,6 +15,10 @@ export interface KvRow {
   tone?: Tone;
   /** Mono + tabular numerals (commit hashes, sizes, ages). */
   mono?: boolean;
+  /** Wrap the value instead of truncating it — for graphic values (pills,
+   *  chips) that clip mid-glyph under truncation; text rows keep the
+   *  single-line ellipsis. */
+  wrap?: boolean;
 }
 
 export interface KvListProps {
@@ -41,7 +45,8 @@ export function KvList({ rows, density = "comfortable", className }: KvListProps
           </dt>
           <dd
             className={cn(
-              "min-w-0 truncate text-right text-xs text-foreground",
+              "min-w-0 text-right text-xs text-foreground",
+              !row.wrap && "truncate",
               row.mono && "font-mono tabular-nums",
             )}
             style={row.tone ? { color: TONE_TOKEN[row.tone] } : undefined}
