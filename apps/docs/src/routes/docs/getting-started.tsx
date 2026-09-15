@@ -21,15 +21,24 @@ export const Route = createFileRoute("/docs/getting-started")({
 
 function CommandBlock({ command }: { command: string }) {
   return (
-    <pre className="mt-4 overflow-x-auto border border-border bg-card/40 p-4 font-mono text-sm leading-relaxed text-foreground">
-      {command}
-    </pre>
+    <figure className="mt-4 overflow-hidden rounded-none ring-1 ring-foreground/10">
+      <div className="flex items-center justify-between border-b border-foreground/10 bg-card px-3 py-1.5">
+        <span className="font-mono text-[0.65rem] uppercase tracking-[0.08em] text-eyebrow">sh</span>
+        <span aria-hidden="true" className="font-mono text-[0.65rem] text-muted-foreground/50">
+          $
+        </span>
+      </div>
+      <pre className="overflow-x-auto bg-card/40 p-4 font-mono text-[0.8rem] leading-relaxed text-foreground">
+        {command}
+      </pre>
+    </figure>
   );
 }
 
 function GettingStartedPage() {
   return (
     <PageShell
+      kicker="docs / install"
       title="Get it running"
       lead="One command if Node 22+ is already on the machine. The installer does the rest — add a root, watch the scan."
     >
@@ -205,8 +214,18 @@ systemctl --user restart workspace-welcome`} />
               <code className="text-foreground">~/.local/share/workspace-welcome/app</code>
             </li>
             <li>
-              Config / roots / pins / notes:{" "}
-              <code className="text-foreground">$XDG_CONFIG_HOME/workspace-welcome/store.json</code>
+              Everything persisted — roots, pins, notes, hide, open commands, forge snapshots and
+              your issues/PR feed:{" "}
+              <code className="text-foreground">
+                $XDG_DATA_HOME/workspace-welcome/workspace-welcome.db
+              </code>{" "}
+              (embedded sqlite, WAL)
+            </li>
+            <li>
+              Legacy config (imported once on first boot, then never written again):{" "}
+              <code className="text-foreground">$XDG_CONFIG_HOME/workspace-welcome/store.json</code>{" "}
+              and the per-project JSON under{" "}
+              <code className="text-foreground">$XDG_DATA_HOME/workspace-welcome/projects/</code>
             </li>
             <li>
               Report HTML: <code className="text-foreground">$XDG_CACHE_HOME/workspace-welcome/reports/</code>
@@ -280,8 +299,11 @@ pnpm dev`}
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
             pnpm monorepo. <code className="text-foreground">apps/web</code> is TanStack Start (UI + server
             routes). <code className="text-foreground">packages/api</code> holds tRPC plus the scanner, git,
-            scaffold, and IDE bits. <code className="text-foreground">packages/ui</code> is the shared kiln kit
-            this site reuses. Scaffolded with Better-T-Stack. No auth, no ORM, no database.
+            forge, scaffold, and IDE bits. <code className="text-foreground">packages/db</code> is the
+            embedded sqlite store (drizzle schema, embedded migrations, libsql client).{" "}
+            <code className="text-foreground">packages/ui</code> is the shared kiln kit this site reuses.
+            Scaffolded with Better-T-Stack. No auth; one local database, transactional writes, never
+            leaves the machine.
           </p>
         </section>
       </div>

@@ -42,7 +42,9 @@
  * from this module — the one per-theme module the preset glob always
  * evaluates); the design's stylesheet rides the optional `./custom.css`.
  */
-import "./tokens.css";
+// Token manifest lives in the shared ui package (one source of truth for
+// the app and the docs site — no per-app forks).
+import "@workspace-welcome/ui/themes/bento.css";
 
 import type { ThemeScheme, ThemePreset } from "@/components/themes";
 

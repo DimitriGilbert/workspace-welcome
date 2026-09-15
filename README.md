@@ -2,133 +2,83 @@
 
 A local dashboard for people who have too many projects and keep forgetting where they left off.
 
-Point it at the folders where your projects live. It scans them, figures out the git state, guesses the language, and gives you one screen to answer the question every Monday morning: *what was I doing, and what's falling apart?*
+Point it at the folders where your projects live. It scans them, figures out the git state, guesses the stack, pulls in your open issues and pull requests, and gives you one screen for the Monday-morning question: *what was I doing, and what's falling apart?*
 
-No accounts, no database, no cloud. It runs on your machine and reads your filesystem.
+No accounts, no cloud. It runs on your machine, reads your filesystem, and keeps its state in an embedded sqlite database that never leaves the box.
 
-## Why
+<!-- SCREENSHOT-TODO(dashboard): recapture — a themed dashboard board (mission-control, dark scheme) with forge chips and the "My issues & pull requests" feed widget visible, 1440px landscape. The old card-grid dashboard is retired. -->
+<!-- SCREENSHOT-TODO(project): recapture — a project page with the note field, the files / artifacts / ideation tab surface, and the Issues & PRs forge board. -->
 
-My projects folder was a mess. Twenty-odd repos, half with uncommitted changes rotting for weeks, three with no remote, one I hadn't touched in a year. The folder view told me none of this. I wanted a screen that surfaced it — the stale WIP, the diverged branches, the thing I pinned last week because I meant to come back to it — without `cd`-ing into each one and running `git status`.
+## Quick start
 
-## What it does
-
-**Scans** every immediate subdirectory of the roots you add and builds a project from each.
-
-For every project it collects:
-
-- **Creation and last-updated dates.** "Updated" is the later of the newest source-file mtime and the last commit, so neither a stray rebuild nor a commit with no code change falsely bumps it. Build output and deps (`node_modules`, `target`, `dist`, `.git`, ...) are skipped.
-- **Git state.** Branch, ahead/behind upstream, uncommitted file count, last commit (message, author, date), and the remote.
-- **Stack.** Detected from the manifest file — Rust (`Cargo.toml`), Go, Node, Python, Ruby, Elixir, PHP, Java (Maven/Gradle), Deno, Nix, Docker. Not exhaustive, but it covers the common ones.
-- **Remote links.** Parses the remote URL into deep links for GitHub, GitLab, Bitbucket, Codeberg, and sourcehut — repo home, issues, and pull/merge requests. SSH and HTTPS both work.
-
-Then it computes **health alerts** from that state:
-
-| Alert | When | Severity |
-|---|---|---|
-| No remote | it's a repo with no remote | warn |
-| Diverged | ahead *and* behind upstream | error |
-| Behind | behind upstream | warn |
-| Unpushed | commits not pushed | info |
-| Dirty | uncommitted files | info |
-| Stale WIP | dirty and last commit is 3+ weeks old | warn |
-| Dormant | no activity in 90+ days | info |
-
-The **Needs attention** panel rolls up everything at warn/error, sorted by last update, and folds away when you're done with it.
-
-### Around the projects themselves
-
-- **Pinned projects** live in their own section at the top — not just a pin icon on the same card.
-- **Recency heat.** Recent projects get a vivid border that fades to neutral as they age (over ~90 days). You can tell at a glance what you've touched this week.
-- **Per-project notes.** Each project has a "where I left off" note. This is the feature I actually use — the whole point is answering *"what was I doing here?"*
-- **Hide.** Exclude something from the list without deleting it. Restorable from Settings.
-- **Quick-open.** One click to open in your editor, open a terminal at the project, or reveal it in the file manager. The editor command is configurable (`code`, `cursor`, `zed`, whatever).
-- **Reports.** A button on each project page runs git-snitch on that repo; Settings has one per tracked directory that scans everything under it. The HTML is cached and served by the app, opening in a new tab that swaps in the report once it's ready. The CLI path is configurable in Settings — local `~/workspace/gitsnitch` build by default, `npx` as fallback.
-- **File browser.** A lazy file tree on each project page — drag-drop upload (10 MB a file, overwrites ask first), rename, new folder, download, and delete to trash when `gio` is around, permanent otherwise. Every path is resolved server-side and rejected if it escapes the project root.
-- **Browser IDE.** "Open IDE" on a project page starts code-server — VS Code in a browser tab — deep-linked to that project's folder. One shared instance serves every project; it installs itself on first use, stops from Settings, and opens on whatever host you're browsing the dashboard from.
-
-## Run it
-
-Needs Node 22+, `curl` (or `wget`), and `tar`. Keep `git` on PATH — the scaffolder and reports use it. `gio` is optional — the file browser falls back to permanent delete without it. The first "Open IDE" downloads code-server (~100–200 MB, once).
+Needs Node 22+, `curl` (or `wget`), and `tar`. Keep `git` on PATH.
 
 ```bash
 curl -fsSL https://welcome-workspace.dbuild.dev/install.sh | sh
 ```
 
-That installs the latest release to `~/.local/share/workspace-welcome/app`, starts it as a systemd user service on port **37420**, and prints the management commands. Open `http://localhost:37420`, add a directory from the gear icon (top-right) — projects appear as the scan runs.
+Installs the latest release to `~/.local/share/workspace-welcome/app`, starts a systemd user service on port **37420**, prints the management commands. Open `http://localhost:37420` and add a directory from the gear icon — projects appear as the scan runs. Re-running the installer upgrades in place. macOS or no-systemd: add `--no-service` and run `node serve-prod.mjs`. Details: [getting started](https://welcome-workspace.dbuild.dev/docs/getting-started).
 
-Re-running the installer upgrades in place; your config (`~/.config/workspace-welcome/`) is never touched, and the previous version stays one `rm -rf` away as `app.bak`. `--uninstall` removes the app, `--purge --yes` also wipes config and cache. On macOS or a machine without systemd, add `--no-service` and run `node serve-prod.mjs` from the install dir. Service management, manual install, and troubleshooting: [docs/getting-started](https://welcome-workspace.dbuild.dev/docs/getting-started).
+From source: clone, `pnpm install`, `pnpm dev` — same port **37420**, your working tree.
 
-### From source
+## What it does
 
-Clone, then:
+**Scans.** Every immediate subdirectory of the roots you add becomes a project: dates ("updated" is the later of newest source mtime and last commit), git state (branch, ahead/behind, uncommitted count, last commit, remote), stack detection from the manifest (Rust, Go, Node, Python, Ruby, Elixir, PHP, Java, Deno, Nix, Docker, …), and remote deep links for GitHub / GitLab / Bitbucket / Codeberg / sourcehut. A fingerprint cache keeps warm reloads at ~0.7s on a 187-project workspace instead of ~6.5s cold.
 
-```bash
-pnpm install
-pnpm dev
-```
+**Alerts.** Health is computed from that state — no remote, diverged, behind, unpushed, dirty, stale WIP (dirty + 3 quiet weeks), dormant (90+ days) — and rolls up into each board's attention surface.
 
-Same port **37420** (set in `apps/web/vite.config.ts`), but from your working tree instead of a release.
+**Boards, not a page.** The dashboard is a widget board in one of three themes — **bento** (mosaic + workspace pulse), **meadow** (mosaic + workspace digests), **mission-control** (fleet ledger table, triage board, vitals, report panels) — each with a light and a dark scheme. Pick a theme in the header; the choice persists. Mission-control's triage board also flags your feed's PRs that have sat untouched for 30+ days.
 
-### Docs / marketing site
+**Forge.** Your open issues and pull requests, from the git remotes, without a rate-limit incident:
 
-Static TanStack Start app in `apps/docs` (same UI kit). Dev: `pnpm dev:docs` → `http://localhost:8005`. Deploy to GitHub Pages (`gh-pages` branch, domain `welcome-workspace.dbuild.dev`):
+- A cross-repo **"My issues & pull requests"** feed on every dashboard theme — the signed-in account's open items across every GitHub repo, workspace or not.
+- **Forge chips** on project surfaces — open issue/PR counts beside the git chips, from the repo's cached snapshot or (honestly labeled) from your feed.
+- A per-project **Issues & PRs board** with review-decision badges and label filters.
+- **Nothing auto-syncs.** Data appears when you press Sync; the server enforces a min-interval, dedupes in-flight work, and runs one fetch at a time. Reads come from sqlite only. GitHub via your own `gh` CLI today; the adapter contract leaves room for Gitea/GitLab. Settings → Forge lists every mapped repo with per-repo Sync and Sync all.
 
-```bash
-pnpm run deploy:docs
-```
+**Project pages.** A note field for "where I left off" (the feature I actually use), git actions (fetch / pull ff-only / push, branch switcher with a safety probe, read-only commit history), quick-open in editor / terminal / folder, and the tabbed surface: **files** (confined lazy file browser — upload, rename, download, delete to trash via `gio`), **artifacts** (build/test screenshots and videos from configured folders, streamed with Range support), and **ideation** (an AI interview that grills an idea one question at a time, then writes a PRD and plan into the project's `docs/`).
 
-That builds the docs app, writes `CNAME` + `.nojekyll` into `apps/docs/dist/client`, copies `scripts/install.sh` in as the site's `/install.sh`, and force-pushes the output as a single fresh commit with `gh-pages --dotfiles --no-history` (the branch is always exactly `dist/client` — stale files, including dotfiles, never survive a deploy).
+**Reports.** git-snitch per repo (project page) or comparatively across a root (Settings). HTML is cached under XDG and served at `/reports/<key>`; the boards also embed its digests (activity, health, code mix, AI usage). The CLI resolves Settings path → local build → `npx`.
 
-### Releases and the installer
+**Browser IDE.** "Open IDE" starts a shared code-server instance deep-linked to the project folder. Installs itself on first use (~100–200 MB, once), stops from Settings, `--auth none` on a trusted LAN.
 
-Releases are GitHub Releases carrying a self-contained tarball plus a `SHA256SUMS.txt` — the app ships with its production `node_modules` included, so the target machine needs Node but no clone and no pnpm:
+**Create & clone.** Scaffold a new better-t-stack project into a tracked root (with AGENTS.md generation), or export a portable clone script from selected remotes — the app doesn't clone for you.
+
+## How it works
+
+pnpm workspaces monorepo, TanStack Start (frontend + server routes), tRPC, Tailwind v4, Base UI components:
+
+| Path | Package | Purpose |
+|------|---------|---------|
+| `apps/web` | `web` | The dashboard app: UI, server routes, tRPC API (dev port 37420) |
+| `apps/docs` | `docs` | This site (dev port 8005), static to GitHub Pages |
+| `packages/api` | `@workspace-welcome/api` | tRPC routers and all server logic — scanner, git, forge, store, reports, scaffolding |
+| `packages/db` | `@workspace-welcome/db` | sqlite persistence — drizzle schema, embedded migrations, libsql client |
+| `packages/ui` | `@workspace-welcome/ui` | Shared shadcn-style components on Base UI |
+| `packages/env` | `@workspace-welcome/env` | Typed environment validation |
+| `packages/config` | `@workspace-welcome/config` | Shared tsconfig.base.json |
+
+**State.** Everything persisted — roots, overrides (pin / note / hide / last-opened), open commands, artifact-folder configs, forge snapshots, the feed — lives in one embedded sqlite database at `$XDG_DATA_HOME/workspace-welcome/workspace-welcome.db` (drizzle + libsql, WAL, embedded migrations, ADR-0006). First boot imports the legacy `store.json` / per-project JSON files once, losslessly; they stay on disk as untouched backups and are never written again. Reports stay disposable cache files under `$XDG_CACHE_HOME/workspace-welcome/reports/`; the code-server install sits under `$XDG_DATA_HOME/workspace-welcome/ide/`. No auth — it's a single-user local tool.
+
+**Scan cache.** Each project has a cheap fingerprint (directory mtime, `.git/HEAD`, `.git/index`, a `git status --porcelain` hash); only projects whose fingerprint moved get re-scanned. Overrides re-merge onto cached projects without a rescan. Refresh re-probes everything; `{ force: true }` forces a full rescan.
+
+## Releases and the docs site
 
 ```bash
 pnpm run release 0.2.0     # clean tree required; --dry-run packages without uploading
 pnpm run deploy:docs       # publish docs + the updated /install.sh
+pnpm run test:install      # systemd-container E2E over the published release (--local for unreleased)
 ```
 
-`scripts/release.sh` builds all workspaces, boot-tests the packaged tree before packing, and publishes `workspace-welcome-<version>-linux-<arch>.tar.gz` with `gh` (per-platform naming, since the scaffolder ships native bindings). `scripts/install.sh` is the installer behind the docs one-liner — it picks the right asset, verifies the checksum, installs under `~/.local/share/workspace-welcome/app`, and sets up a systemd user service. `pnpm run test:install` keeps the pair honest: it boots a systemd container, installs the published release from GitHub for real, and asserts service, HTTP, upgrade, uninstall, and purge (`--local` tests an unreleased build instead). Design rationale and the survey behind these choices: `docs/research/install-distribution-patterns.md`.
+Releases are GitHub Releases with a self-contained per-platform tarball (`workspace-welcome-<version>-<os>[-musl]-<arch>.tar.gz`, production `node_modules` included — the native sqlite binding ships too) plus `SHA256SUMS.txt`. `scripts/release.sh` builds all workspaces and boot-tests the packaged tree before packing. `scripts/install.sh` is the installer behind the one-liner. `pnpm run deploy:docs` builds `apps/docs`, writes `CNAME` + `.nojekyll`, copies the installer in as the site's `/install.sh`, and force-pushes `dist/client` to `gh-pages` as a single fresh commit.
 
-### Terminal quick-open
+## Docs
 
-If you don't configure a terminal command, it auto-detects the first one it finds from: konsole, gnome-terminal, xfce4-terminal, mate-terminal, kitty, alacritty, wezterm, foot, tilix, xterm. Each gets the right working-directory flag for its CLI (`konsole --workdir`, `gnome-terminal --working-directory=`, etc. — they all disagree, which is why this exists). Set one explicitly in Settings if you care.
-
-## How it works
-
-Three packages, a pnpm workspace:
-
-```
-apps/web        TanStack Start app — the UI (also the server, via server route handlers)
-apps/docs       Marketing + light docs (static GitHub Pages → welcome-workspace.dbuild.dev)
-packages/api    tRPC routers + the scanner (filesystem, git, stack detection, cache)
-packages/ui     shadcn/ui components (base-ui primitives) + the design tokens
-```
-
-No database. No auth. The only persisted state is your roots, per-project overrides (pin, note, hide, last-opened), and the open commands — all in a single JSON file at `$XDG_CONFIG_HOME/workspace-welcome/store.json` (so `~/.config/workspace-welcome/store.json` on most Linux). Written atomically. Never leaves your machine.
-
-Reports and the IDE add two more disk locations: generated report HTML under `$XDG_CACHE_HOME/workspace-welcome/reports/`, served by a server route at `/reports/<key>`, and the code-server install under `$XDG_DATA_HOME/workspace-welcome/ide/`. The file router resolves every path server-side and rejects anything outside the project root. The IDE runs as a managed child process — `--auth none`, bound to all interfaces so other machines on the LAN can reach it, killed with the app.
-
-### The scan, and why it isn't slow
-
-Scanning 180-ish projects (most of them git repos) naively means ~700 `git` subprocess calls on every page load. The first version did exactly that and took ~6 seconds.
-
-`packages/api/src/lib/scan-cache.ts` fixes it. The scan result is cached in memory; on each subsequent call, each project is checked against a cheap fingerprint (the project directory's mtime, plus `.git/HEAD` and `.git/index` mtimes, plus one `git status --porcelain` hash for repos to catch deep edits that don't bump any directory mtime). Only projects whose fingerprint changed get re-scanned; the rest reuse their cached entry. Pin, note, hide, and last-opened changes never invalidate the cache — those are overrides, re-merged onto the cached projects.
-
-On a workspace of 187 projects / 138 git repos:
-
-- First load (cold): ~6.5s — the actual filesystem + git work.
-- Subsequent loads (warm): ~0.7s.
-- After a pin/note change: ~0.7s (no rescan).
-- The Refresh button re-probes every fingerprint and re-scans anything that moved; `{ force: true }` on the `scan` procedure forces a full rescan.
-
-### Stack and remote detection
-
-`detect.ts` matches the first present manifest in a fixed priority order (Deno before Node, since a Deno project may also ship a `package.json`). `parseRemote` handles both `git@host:owner/repo.git` and `https://host/owner/repo(.git)`, classifies the host, and builds the right deep links per host's URL conventions (`/pulls` on GitHub, `/merge_requests` on GitLab, `/pull-requests` on Bitbucket, `/patches` + `/todo` on sourcehut).
-
-## Tech
-
-Scaffolded with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack) — TanStack Start (frontend + server), tRPC, Tailwind v4, shadcn/ui. No auth, no ORM, no database.
+- Site: [welcome-workspace.dbuild.dev](https://welcome-workspace.dbuild.dev) — install guide, features, glossary, settings/data
+- Vocabulary: [`CONTEXT.md`](CONTEXT.md) — Root, Project, Scan, Report, Forge, Ideation, Artifacts
+- Architecture map: [`docs/research/workspace-welcome-architecture.md`](docs/research/workspace-welcome-architecture.md)
+- Decisions: [`docs/adr/`](docs/adr/) — snitch invocation, confined file browser, web IDE, sqlite persistence (0006), forge integration (0007)
+- Install/release design: [`docs/research/install-distribution-patterns.md`](docs/research/install-distribution-patterns.md)
 
 ## Status
 

@@ -179,7 +179,8 @@ export function resolveThemeScheme(
 /**
  * Vite URL of a scheme's stylesheet — non-null only for dedicated
  * `scheme-*.css` files. The tokens.css default needs no link: the preset's
- * `import "./tokens.css"` keeps it permanently in the bundle.
+ * `import "@workspace-welcome/ui/themes/<slug>.css"` (the shared manifest
+ * this site and the docs site both consume) keeps it permanently bundled.
  */
 export function themeSchemeCssHref(
   presetId: string,

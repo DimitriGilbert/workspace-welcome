@@ -11,7 +11,7 @@ export const Route = createFileRoute("/docs/settings")({
   head: seoHead({
     title: "Settings — welcome-workspace",
     description:
-      "Settings knobs and on-disk paths for welcome-workspace. Nothing leaves the machine that runs the app.",
+      "Settings knobs and on-disk paths for welcome-workspace. Your state stays on the machine that runs the app.",
     path: "/docs/settings",
   }),
 });
@@ -19,13 +19,14 @@ export const Route = createFileRoute("/docs/settings")({
 function SettingsDocsPage() {
   return (
     <PageShell
+      kicker="docs / settings"
       title="Settings & data"
-      lead="Knobs in the UI, paths on disk. Nothing here leaves the machine that runs the app."
+      lead="Knobs in the UI, paths on disk. Your state stays on the machine that runs the app."
     >
       <div className="max-w-3xl space-y-12">
         <section>
           <SectionHeader title="In Settings" />
-          <ul className="mt-4 list-disc space-y-2 pl-5 text-base leading-relaxed text-muted-foreground">
+          <ul className="mt-4 grid list-disc gap-x-8 gap-y-2 pl-5 text-base leading-relaxed text-muted-foreground sm:grid-cols-2">
             <li>Add / remove roots. Removing a root drops overrides under it.</li>
             <li>Restore hidden projects.</li>
             <li>Editor command (code, cursor, zed, …).</li>
@@ -34,6 +35,12 @@ function SettingsDocsPage() {
               (konsole, gnome-terminal, kitty, alacritty, and friends).
             </li>
             <li>git-snitch command path (local build preferred, npx fallback).</li>
+            <li>Exclude globs — directory names the scan skips when computing a project's updated date.</li>
+            <li>Ideation models for the per-project AI interview.</li>
+            <li>
+              Forge register — every mapped project↔repo link with cached open counts, per-repo Sync, and
+              Sync all. Syncs are explicit and rate-limit-guarded.
+            </li>
             <li>Per-root comparative report button.</li>
             <li>IDE status + stop for the shared code-server instance.</li>
           </ul>
@@ -41,17 +48,32 @@ function SettingsDocsPage() {
 
         <section>
           <SectionHeader title="On disk" />
-          <div className="mt-4 overflow-x-auto ring-1 ring-foreground/10">
+          <div className="mt-4 overflow-x-auto rounded-none ring-1 ring-foreground/10">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-foreground/10 bg-card/40 text-foreground">
                 <tr>
-                  <th className="px-4 py-3 font-medium">What</th>
-                  <th className="px-4 py-3 font-medium">Where</th>
+                  <th className="px-4 py-3 font-mono text-[0.7rem] font-medium uppercase tracking-[0.08em]">
+                    What
+                  </th>
+                  <th className="px-4 py-3 font-mono text-[0.7rem] font-medium uppercase tracking-[0.08em]">
+                    Where
+                  </th>
                 </tr>
               </thead>
               <tbody className="text-muted-foreground">
                 <tr className="border-b border-foreground/10">
-                  <td className="px-4 py-3">Roots, pins, notes, hide, open commands</td>
+                  <td className="px-4 py-3">
+                    Roots, pins, notes, hide, open commands, artifact folders, forge snapshots and
+                    your issues/PR feed
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-foreground sm:text-sm">
+                    $XDG_DATA_HOME/workspace-welcome/workspace-welcome.db
+                  </td>
+                </tr>
+                <tr className="border-b border-foreground/10">
+                  <td className="px-4 py-3">
+                    Legacy JSON config — imported once on first boot, never written again
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs text-foreground sm:text-sm">
                     $XDG_CONFIG_HOME/workspace-welcome/store.json
                   </td>
@@ -72,19 +94,24 @@ function SettingsDocsPage() {
             </table>
           </div>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            On most Linux boxes that is under <code className="text-foreground">~/.config</code>,{" "}
-            <code className="text-foreground">~/.cache</code>, and{" "}
-            <code className="text-foreground">~/.local/share</code>. Store writes are atomic.
+            On most Linux boxes that is under{" "}
+            <code className="text-foreground">~/.local/share</code> and{" "}
+            <code className="text-foreground">~/.cache</code>. The store is an embedded sqlite
+            database — transactional writes, WAL journal, no server to run.
           </p>
         </section>
 
         <section>
           <SectionHeader title="Trust boundary" />
-          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
-            The app is fine on localhost or a trusted LAN. The IDE runs with{" "}
-            <code className="text-foreground">--auth none</code>. File routes reject path escapes. Still: do not
-            hang this on the public internet and walk away. It is a tool for your network, not a fortress.
-          </p>
+          <div className="mt-4 border-l-2 border-(--pinned-accent) pl-4">
+            <p className="text-base leading-relaxed text-muted-foreground">
+              The app is fine on localhost or a trusted LAN. The IDE runs with{" "}
+              <code className="text-foreground">--auth none</code>. File routes reject path escapes. Forge
+              sync is the one feature that talks off-box: an explicit, read-only fetch through your own{" "}
+              <code className="text-foreground">gh</code> CLI, and only when you press Sync. Still: do not
+              hang this on the public internet and walk away. It is a tool for your network, not a fortress.
+            </p>
+          </div>
         </section>
       </div>
 

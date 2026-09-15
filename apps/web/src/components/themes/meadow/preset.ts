@@ -31,7 +31,9 @@
  * 92–104 px observed; the phone 84px sits below the ladder floor by
  * design, the runtime's cell unit is the desktop row).
  */
-import "./tokens.css";
+// Token manifest lives in the shared ui package (one source of truth for
+// the app and the docs site — no per-app forks).
+import "@workspace-welcome/ui/themes/meadow.css";
 
 import type { ThemeScheme, ThemePreset } from "@/components/themes";
 

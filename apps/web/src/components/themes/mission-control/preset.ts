@@ -32,7 +32,9 @@
  * module — the one per-theme module the preset glob always evaluates); the
  * chrome skin rides `./custom.css` (dropped by `?bare=1`).
  */
-import "./tokens.css";
+// The token manifest lives in the shared ui package — one source of truth
+// consumed by the app AND the docs site's theme switcher (no per-app forks).
+import "@workspace-welcome/ui/themes/mission-control.css";
 
 import type { ThemeScheme, ThemePreset } from "@/components/themes";
 

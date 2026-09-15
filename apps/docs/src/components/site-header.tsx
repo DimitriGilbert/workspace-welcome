@@ -1,9 +1,18 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Button } from "@workspace-welcome/ui/components/button";
 import { MastheadRow, PageRail } from "@workspace-welcome/ui/components/page-rail";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace-welcome/ui/components/select";
 import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
 import { Settings } from "lucide-react";
 import type { SVGProps } from "react";
+
+import { DOCS_THEMES, isDocsThemeId, useDocsTheme } from "../theme";
 
 const nav = [
   { to: "/features", label: "features" },
@@ -11,6 +20,42 @@ const nav = [
   { to: "/docs/concepts", label: "docs" },
   { to: "/docs/settings", label: "settings" },
 ] as const;
+
+/**
+ * The site theme switcher — the app's own picker vocabulary (one Select,
+ * preset labels verbatim, the same trigger size), driving the shared
+ * `data-ww-theme` scope the whole site is themed by.
+ */
+function ThemeSelect() {
+  const { theme, setTheme } = useDocsTheme();
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className="hidden font-mono text-[0.7rem] uppercase tracking-[0.08em] text-muted-foreground md:inline"
+      >
+        board
+      </span>
+      <Select
+        value={theme}
+        onValueChange={(value) => {
+          if (isDocsThemeId(value)) setTheme(value);
+        }}
+      >
+        <SelectTrigger aria-label="Theme preset" className="h-7 w-36 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {DOCS_THEMES.map((candidate) => (
+            <SelectItem key={candidate.id} value={candidate.id}>
+              {candidate.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 function GitHubMark(props: SVGProps<SVGSVGElement>) {
   return (
@@ -50,6 +95,7 @@ export function SiteHeader() {
                   </Link>
                 ))}
               </nav>
+              <ThemeSelect />
               <Button
                 variant="ghost"
                 size="icon-sm"

@@ -1,1 +1,12 @@
 @import "@workspace-welcome/ui/globals.css";
+/*
+ * Theme identities — the SAME token manifests apps/web scopes its boards
+ * with (`packages/ui/src/styles/themes/`, shared verbatim, no per-site
+ * forks). The active identity is stamped `data-ww-theme` on <html> by the
+ * inline script in `__root.tsx` before first paint; the switcher lives in
+ * the site header. Declared AFTER globals so a theme scope wins the
+ * equal-specificity cascade tie against `:root`/`.dark`.
+ */
+@import "@workspace-welcome/ui/themes/mission-control.css";
+@import "@workspace-welcome/ui/themes/bento.css";
+@import "@workspace-welcome/ui/themes/meadow.css";
