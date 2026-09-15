@@ -6,15 +6,16 @@ import { Card } from "@workspace-welcome/ui/components/card";
 import { Chip } from "@workspace-welcome/ui/components/chip";
 import { Stat } from "@workspace-welcome/ui/components/stat";
 import { WidgetTabs } from "@workspace-welcome/ui/components/widget-tabs";
+import { TONE_TOKEN, type Tone } from "@workspace-welcome/ui/lib/tokens";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
 /**
- * Product previews — sample boards rendered from the SAME ui parts the app
+ * Product previews: sample boards rendered from the SAME ui parts the app
  * renders, so the docs site is a live preview of the dashboard's surfaces.
  * Everything inside a preview is illustrative sample data (the screens'
  * real captures live beside them); the `inert` root keeps sample buttons
  * out of the tab order and screen-reader flow, and the visible caption
- * says the data is a sample. No new design vocabulary — Card, Chip, Stat,
+ * says the data is a sample. No new design vocabulary: Card, Chip, Stat,
  * WidgetTabs, token colors only.
  */
 
@@ -38,7 +39,7 @@ function PreviewFrame({
 			<figcaption className="mt-2 flex flex-wrap items-center gap-x-2 text-[0.7rem] text-muted-foreground">
 				<span className="font-mono uppercase tracking-[0.08em] text-eyebrow">{label}</span>
 				<span aria-hidden="true" className="text-muted-foreground/50">
-					—
+					·
 				</span>
 				<span>{caption}</span>
 			</figcaption>
@@ -123,7 +124,7 @@ export function FeedPreview({ className }: { className?: string }) {
 	return (
 		<PreviewFrame
 			label="forge feed"
-			caption="sample rows — the real board lists your open items across every repo"
+			caption="sample rows, the real feed lists your open items, workspace repo or not"
 			className={className}
 		>
 			<Card size="sm" className="gap-0 py-0">
@@ -172,7 +173,7 @@ export function FeedPreview({ className }: { className?: string }) {
 				</ul>
 				<div className="border-t border-foreground/10 px-3 py-1.5">
 					<p className="font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-						50+ shown — a list hit the page limit
+						50+ shown, a list hit the page limit
 					</p>
 				</div>
 			</Card>
@@ -191,13 +192,13 @@ const LEDGER_ROWS = [
 
 /**
  * The fleet ledger's reading grid: project rows with forge count chips
- * beside the recency LED — the columns mission-control never sheds.
+ * beside the recency LED: the columns mission-control never sheds.
  */
 export function LedgerPreview({ className }: { className?: string }) {
 	return (
 		<PreviewFrame
 			label="fleet ledger"
-			caption="sample rows — the real table sheds columns, never the table form"
+			caption="sample rows, the real table sheds columns, never the table form"
 			className={className}
 		>
 			<Card size="sm" className="gap-0 py-0">
@@ -257,7 +258,7 @@ export function LedgerPreview({ className }: { className?: string }) {
 	);
 }
 
-/** Forge chips beside git chips — the app's project-list idiom. */
+/** Forge chips beside git chips: the app's project-list idiom. */
 export function ForgeChipsRow() {
 	return (
 		<div className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-xs">
@@ -278,7 +279,7 @@ export function ForgeChipsRow() {
 				1
 			</Chip>
 			<span className="text-[0.7rem] text-muted-foreground">
-				issue / PR counts from the cached snapshot — never a fabricated zero
+				issue / PR counts from the cached snapshot, never a fabricated zero
 			</span>
 		</div>
 	);
@@ -334,7 +335,7 @@ const PULSE_PANELS: Record<string, { items: PulseItem[] }> = {
 
 /**
  * The report digests band (workspace pulse): real WidgetTabs over real
- * Stats, sample numbers. Tabs genuinely switch — the same interaction the
+ * Stats, sample numbers. Tabs genuinely switch: the same interaction the
  * dashboard renders.
  */
 export function PulsePreview({ className }: { className?: string }) {
@@ -343,7 +344,7 @@ export function PulsePreview({ className }: { className?: string }) {
 	return (
 		<PreviewFrame
 			label="workspace pulse"
-			caption="sample digest — the boards embed the report's activity, health, code, and AI usage"
+			caption="sample digest, the boards embed the report's activity, health, code, and AI usage"
 			className={className}
 		>
 			<Card size="sm" className="gap-0 py-0">
@@ -388,11 +389,114 @@ export function ProjectTabsPreview() {
 			<WidgetTabs tabs={TABS} active={active} onChange={setActive} ariaLabel="Project surface" />
 			<p className="min-w-0 truncate text-xs text-muted-foreground">
 				{active === "files"
-					? "Confined file browser — the server rejects path escapes"
+					? "Confined file browser, the server rejects path escapes"
 					: active === "artifacts"
 						? "Build/test screenshots & videos from configured folders"
 						: "AI interview that writes a PRD + plan into the project's docs/"}
 			</p>
 		</div>
+	);
+}
+
+interface TriageRow {
+	tone: Tone;
+	tag: string;
+	name: string;
+	message: string;
+	branch: string;
+	gitGlyphs: string;
+	when: string;
+}
+
+/**
+ * Sample triage rows over the scan's REAL alert vocabulary (the seven
+ * codes the scanner emits; see docs/concepts). Names are invented, the
+ * alert texts are the scanner's verbatim messages.
+ */
+const TRIAGE_ROWS: TriageRow[] = [
+	{
+		tone: "critical",
+		tag: "ERR",
+		name: "keystone",
+		message: "Diverged: 4 ahead, 2 behind",
+		branch: "main",
+		gitGlyphs: "4 dirty",
+		when: "2 days ago",
+	},
+	{
+		tone: "warning",
+		tag: "WRN",
+		name: "slopcad",
+		message: "No remote configured",
+		branch: "main",
+		gitGlyphs: "4 dirty",
+		when: "22 hours ago",
+	},
+	{
+		tone: "warning",
+		tag: "WRN",
+		name: "stationio",
+		message: "Uncommitted changes sitting for 3+ weeks",
+		branch: "main",
+		gitGlyphs: "1 dirty",
+		when: "10 days ago",
+	},
+	{
+		tone: "info",
+		tag: "INF",
+		name: "docs-dgaf",
+		message: "No activity in 90+ days",
+		branch: "main",
+		gitGlyphs: "",
+		when: "4 months ago",
+	},
+];
+
+/**
+ * The triage register: mission-control's needs-attention list. Same shape
+ * the app renders: severity tag, project, the scanner's own alert text,
+ * branch, git glyphs, last touch. Inert sample data, honestly captioned.
+ */
+export function TriagePreview({ className }: { className?: string }) {
+	return (
+		<PreviewFrame
+			label="triage"
+			caption="sample rows, the alert texts are the scanner's verbatim messages"
+			className={className}
+		>
+			<Card size="sm" className="gap-0 py-0">
+				<BoardHeader title="Needs attention · 4 of 33 projects" />
+				<ul className="divide-y divide-foreground/[0.06]">
+					{TRIAGE_ROWS.map((row) => (
+						<li key={row.name} className="flex min-w-0 items-center gap-2.5 px-3 py-2">
+							<span
+								className="w-7 shrink-0 font-mono text-[10px] font-medium tracking-[0.08em]"
+								style={{ color: TONE_TOKEN[row.tone] }}
+							>
+								{row.tag}
+							</span>
+							<span className="min-w-0 flex-1">
+								<span className="block truncate text-xs font-medium leading-tight">{row.name}</span>
+								<span className="block truncate text-[10px] leading-4 text-muted-foreground">
+									{row.message}
+								</span>
+							</span>
+							<span className="hidden shrink-0 items-center gap-2 font-mono text-[10px] text-muted-foreground sm:inline-flex">
+								<GitBranch aria-hidden="true" className="size-3" />
+								{row.branch}
+							</span>
+							{row.gitGlyphs ? (
+								<Chip tone="warning" className="shrink-0 px-1.5 py-0 text-[10px]">
+									{row.gitGlyphs}
+								</Chip>
+							) : null}
+							<span className="w-20 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+								{row.when}
+							</span>
+						</li>
+					))}
+				</ul>
+			</Card>
+		</PreviewFrame>
 	);
 }

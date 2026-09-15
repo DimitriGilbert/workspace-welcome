@@ -38,7 +38,7 @@ export const Route = createRootRoute({
 	component: RootDocument,
 });
 
-/** Browser-chrome tint per identity — tracks the scope's `--background`. */
+/** Browser-chrome tint per identity: tracks the scope's `--background`. */
 const THEME_COLOR: Record<string, string> = {
 	"mission-control": "#1d2126",
 	bento: "#1e2129",
@@ -57,7 +57,7 @@ function RootDocument() {
 		>
 			<head>
 				{/*
-				 * Owner's self-hosted analytics — verbatim tag, docs site only.
+				 * Owner's self-hosted analytics: verbatim tag, docs site only.
 				 */}
 				<script
 					src="https://chemin.dbuild.dev/script.js"
@@ -66,7 +66,7 @@ function RootDocument() {
 					data-server="https://chemin.dbuild.dev"
 				></script>
 				{/*
-				 * Adopt the saved site theme BEFORE first paint — no flash of the
+				 * Adopt the saved site theme BEFORE first paint: no flash of the
 				 * wrong identity. Must stay ahead of the stylesheet application.
 				 */}
 				<script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
@@ -75,7 +75,7 @@ function RootDocument() {
 			<body className="min-h-svh bg-background font-sans text-foreground antialiased">
 				<DocsThemeProvider>
 					{/*
-					 * Hoisted into <head> by React 19 — lives here so it can read the
+					 * Hoisted into <head> by React 19: lives here so it can read the
 					 * theme context and track the active identity.
 					 */}
 					<ThemeColorMeta />

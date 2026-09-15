@@ -9,7 +9,6 @@ import {
   SelectValue,
 } from "@workspace-welcome/ui/components/select";
 import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand";
-import { Settings } from "lucide-react";
 import type { SVGProps } from "react";
 
 import { DOCS_THEMES, isDocsThemeId, useDocsTheme } from "../theme";
@@ -17,12 +16,12 @@ import { DOCS_THEMES, isDocsThemeId, useDocsTheme } from "../theme";
 const nav = [
   { to: "/features", label: "features" },
   { to: "/docs/getting-started", label: "install" },
-  { to: "/docs/concepts", label: "docs" },
+  { to: "/docs/concepts", label: "how it works" },
   { to: "/docs/settings", label: "settings" },
 ] as const;
 
 /**
- * The site theme switcher — the app's own picker vocabulary (one Select,
+ * The site theme switcher: the app's own picker vocabulary (one Select,
  * preset labels verbatim, the same trigger size), driving the shared
  * `data-ww-theme` scope the whole site is themed by.
  */
@@ -70,7 +69,9 @@ function GitHubMark(props: SVGProps<SVGSVGElement>) {
 
 /**
  * Same masthead chrome as apps/web: PageRail + MastheadRow + WorkspaceBrand.
- * Docs swaps status/settings for nav + GitHub; the identity row is identical.
+ * Docs swaps the app's status/settings for nav + GitHub; the identity row is
+ * identical. Every control here does something: nav links, the working theme
+ * switcher, the GitHub link: no decorative app-chrome mimicry.
  */
 export function SiteHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -78,7 +79,7 @@ export function SiteHeader() {
 
   return (
     <PageRail className="pt-6" ambience={isHome}>
-      <header className="relative flex flex-col gap-3">
+      <header className="relative flex flex-col gap-3 border-b border-foreground/10 pb-4">
         <MastheadRow
           brand={<WorkspaceBrand render={<Link to="/" />} />}
           trailing={
@@ -104,31 +105,9 @@ export function SiteHeader() {
               >
                 <GitHubMark className="size-3.5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                render={<Link to="/docs/settings" />}
-                aria-label="Settings docs"
-              >
-                <Settings className="size-3.5" />
-              </Button>
             </>
           }
         />
-
-        <div className="flex flex-wrap items-center gap-2 border-b border-foreground/10 pb-4">
-          <p className="mr-auto text-sm text-muted-foreground">
-            {isHome
-              ? "Local dashboard for your projects folder"
-              : "welcome-workspace docs"}
-          </p>
-          <Button size="sm" variant="outline" render={<Link to="/features" />}>
-            Features
-          </Button>
-          <Button size="sm" render={<Link to="/docs/getting-started" />}>
-            Install
-          </Button>
-        </div>
       </header>
     </PageRail>
   );
