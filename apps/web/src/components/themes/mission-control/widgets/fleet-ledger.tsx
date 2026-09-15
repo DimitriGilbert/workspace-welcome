@@ -2,33 +2,36 @@
  * McFleetLedger — the fleet ledger (port of the design's `FleetTable`
  * presentation, `components/designs/mission-control/fleet-table.tsx`, onto
  * the system's table engine: ui `DataTable` — sortable headers, ratio
- * widths, never scrolling internally — the table library import stays in
- * the ui part where it belongs).
+ * widths — the table library import stays in the ui part where it belongs).
  *
  * The cells are the design's, verbatim: state LED, project name + pin
  * glyph, stack icon, branch with the git-fork glyph, ahead/behind numerals
  * with the accent/warn registers, dirty count, the pulse-strip signal,
  * note, AlertIcons, relative update age. Rows open the project through the
- * same-theme project route (the design's whole-row click).
+ * same-theme project route (the design's whole-row click) — interactive at
+ * every width; the row click and the project link are both live at every
+ * shed level (the PROJECT column is core and never sheds).
  *
- * Density contract (owner FINAL image + projects-list verdict): every
- * fixed-content column is sized to its content and the freed span goes to
- * PROJECT and BRANCH — name and branch display fully, never truncated —
- * while SIGNAL lands at a quarter of its former span as the narrow
- * compact-bar column (a 22px tick at the track's end) with UPDATED closing
- * the row. A NOTE column that no visible project can fill is a void column
- * — it is omitted and the freed width goes to name/branch instead. The
- * NOTE column shows the project note or, absent, the last commit subject —
- * a project with neither contributes nothing anywhere, so the census is
- * data-driven.
+ * Degradation is PROGRESSIVE COLUMN SHEDDING, never a second widget (owner
+ * directive: the table is the ledger's only form at every width — the old
+ * KvList register swap is deleted). The measured stage (the widget's
+ * content box, ResizeObserver `contentRect`) is compared against the
+ * visible set's Σ floor — the sum of the columns' pixel content floors —
+ * and while Σ exceeds the stage, columns drop by `SHED_ORDER` priority
+ * until Σ(visible floors) ≤ stage. The sizing law is untouched: authored
+ * size ≡ measured floor, and the engine renders pure shares (rendered =
+ * floor·T/Σfloor ≥ floor for T ≥ Σfloor), so shedding PRESERVES the
+ * theorem by construction — the visible Σ IS the table's `minWidth`, and
+ * every surviving column renders at or above its floor at every width. If
+ * even the irreducible core's Σ exceeds the stage (extreme narrow), the
+ * core keeps rendering and the table scrolls horizontally inside the
+ * band's ScrollArea — the table form is unconditional; no width exists at
+ * which the ledger is not this table.
  *
  * The command bar's filter executes here over the visible set (the design
  * feeds it through the table's filter row model; the working set is already
- * narrowed by the workspace filter). The table's honest floor is the sum of
- * the columns' pixel content floors — below it the ladder swaps to a
- * `KvList` register. The FULL filtered fleet renders — everything that
- * outruns the placement scrolls in the band's ScrollArea (shadcn register),
- * no "+N more" footer.
+ * narrowed by the workspace filter). The FULL filtered fleet renders —
+ * vertical overflow scrolls in the band's ScrollArea, no "+N more" footer.
  */
 import { useEffect, useMemo, useState } from "react";
 import { GitFork, Pin } from "lucide-react";
@@ -40,7 +43,6 @@ import {
   DataTable,
 } from "@workspace-welcome/ui/components/data-table";
 import type { DataTableColumns } from "@workspace-welcome/ui/components/data-table";
-import { KvList } from "@workspace-welcome/ui/components/kv-list";
 import { PulseStrip } from "@workspace-welcome/ui/components/pulse-strip";
 import { ScrollArea } from "@workspace-welcome/ui/components/scroll-area";
 import { Skeleton } from "@workspace-welcome/ui/components/skeleton";
@@ -75,7 +77,7 @@ export function projectHref(path: string): string {
 /**
  * The ledger's timestamp register: the relative age compressed to its
  * unit initial ("12h ago", "1d ago") so the column holds its minimum width
- * at narrow shells — the full stamp rides the title tooltip.
+ * at narrow stages — the full stamp rides the title tooltip.
  */
 function compactStamp(stamp: string): string {
   return stamp
@@ -124,38 +126,30 @@ const helper = createDataTableColumnHelper<Project>();
 
 /**
  * The sizing law: every column's authored `size` EQUALS its measured content
- * floor, and `tableMinWidth` is the sum of the same floors — one number per
- * column, no independent ratio weights. The engine renders pure shares
- * (table-core `column_getSize` clamps size into [minSize, maxSize]; the ui
- * DataTable lays each `<th>` at size/totalSize × tableWidth under
- * `table-layout: fixed`), so a column renders BELOW its floor exactly when
- * its share exceeds its floor-share — authoring any column above its floor
- * (the old ratio hack that gave forge 220 for a 117px pair) necessarily
- * starves the others at the floor width. With size ≡ floor everywhere the
- * shares ARE the floor shares and safety holds at every width by
- * construction: rendered(T) = floor·T/Σfloor ≥ floor for all T ≥ Σfloor,
- * with all surplus split in proportion to content need — PROJECT and BRANCH
- * (the largest floors) take the most, which IS the density contract's
- * "freed span goes to name/branch". Floors are measured off the live DOM,
- * not tuned to breakpoints: state = 8px lamp + 12px first-cell padding;
- * stack = the "ST▲" header at its widest (arrow included) beside the 14px
- * glyph; sync = the three-digit "999 / 999" pair (62px with the mx-1 slash
- * gaps and px-1) with headroom; forge = the chip vocabulary's widest pair
- * (two truncated "50+" chips, 51.7px each) + the 1.5 gap + px-1 = 117.3;
- * alerts = two icons + gap + padding; updated = "11mo ago" 52.8px + 12px
- * last-cell padding; project/branch carry their 24/29-character bases;
- * note/signal are the authored design minimums of their flexible columns.
- *
- * The same Σ rules the ladder: the table form renders only when the
- * MEASURED stage (the widget's content box, ResizeObserver) is ≥
- * `tableMinWidth` — the swap threshold IS the floor, the identical number
- * handed to the DataTable as `minWidth`, so there is no width at which the
- * table exists without room for every column and the UPDATED stamp renders
- * whole at every viewport. A static container query can never express this:
- * the floor moves with the census (+NOTE/+FORGE), and the old `@[800px]`
- * condition measured the SHELL box — chrome included — against a constant
- * below Σfloor, so on 800–973px shells the 881px table rendered inside a
- * 795px stage and scrolled its right-edge UPDATED column out of the band.
+ * floor, and the table's `minWidth` is the sum of the SAME floors over the
+ * VISIBLE set — one number per column, no independent ratio weights. The
+ * engine renders pure shares (table-core `column_getSize` clamps size into
+ * [minSize, maxSize]; the ui DataTable lays each `<th>` at
+ * size/totalSize × tableWidth under `table-layout: fixed`), so a column
+ * renders BELOW its floor exactly when its share exceeds its floor-share —
+ * authoring any column above its floor necessarily starves the others at
+ * the floor width. With size ≡ floor everywhere the shares ARE the floor
+ * shares and safety holds at every width by construction:
+ * rendered(T) = floor·T/Σfloor ≥ floor for all T ≥ Σfloor, with all
+ * surplus split in proportion to content need — PROJECT and BRANCH (the
+ * largest floors) take the most, which IS the density contract's "freed
+ * span goes to name/branch". Shedding a column removes its floor from BOTH
+ * sides of that inequality — the visible Σ stays the table's minWidth — so
+ * the theorem survives every shed level. Floors are measured off the live
+ * DOM, not tuned to breakpoints: state = 8px lamp + 12px first-cell
+ * padding; stack = the "ST▲" header at its widest (arrow included) beside
+ * the 14px glyph; sync = the three-digit "999 / 999" pair (62px with the
+ * mx-1 slash gaps and px-1) with headroom; forge = the chip vocabulary's
+ * widest pair (two truncated "50+" chips, 51.7px each) + the 1.5 gap +
+ * px-1 = 117.3; alerts = two icons + gap + padding; updated = "11mo ago"
+ * 52.8px + 12px last-cell padding; project/branch carry their 24/29-
+ * character bases; note/signal are the authored design minimums of their
+ * flexible columns.
  */
 const COL_PX = {
   state: 20,
@@ -171,169 +165,279 @@ const COL_PX = {
   updated: 66,
 } as const;
 
-function buildColumns(notes: boolean, forge: boolean): DataTableColumns<Project> {
-  return helper.columns([
-    helper.display({
-      id: "state",
-      size: COL_PX.state,
-      minSize: COL_PX.state,
-      header: () => <span className="sr-only">State</span>,
-      cell: (ctx) => <ProjectLed project={ctx.row.original} />,
-    }),
-    helper.accessor((p) => p.name, {
-      id: "project",
-      sortFn: "alphanumeric",
-      size: COL_PX.project,
-      minSize: COL_PX.project,
-      header: "Project",
-      cell: (ctx) => {
-        const p = ctx.row.original;
-        return (
-          <a
-            href={projectHref(p.path)}
-            onClick={(e) => e.stopPropagation()}
-            className="flex max-w-full items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
-            title={p.name}
-          >
-            <span className="truncate">{p.name}</span>
-            {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
-          </a>
-        );
-      },
-    }),
-    helper.accessor((p) => p.stack?.label ?? "", {
-      id: "stack",
-      sortFn: "alphanumeric",
-      size: COL_PX.stack,
-      minSize: COL_PX.stack,
-      header: () => (
-        <abbr title="Detected stack" className="no-underline">
-          ST
-        </abbr>
-      ),
-      cell: (ctx) => <StackCell project={ctx.row.original} />,
-    }),
-    helper.accessor((p) => (p.git.isRepo ? (p.git.branch ?? "detached") : ""), {
-      id: "branch",
-      sortFn: "alphanumeric",
-      size: COL_PX.branch,
-      minSize: COL_PX.branch,
-      header: () => (
-        <abbr title="Branch" className="no-underline">
-          BR
-        </abbr>
-      ),
-      cell: (ctx) => <BranchCell project={ctx.row.original} />,
-    }),
-    helper.accessor((p) => (p.git.ahead ?? 0) + (p.git.behind ?? 0), {
-      id: "sync",
-      sortFn: "alphanumeric",
-      size: COL_PX.sync,
-      minSize: COL_PX.sync,
-      header: () => (
-        <abbr title="Commits ahead / behind upstream" className="no-underline">
-          U/D
-        </abbr>
-      ),
-      cell: (ctx) => (
-        <span className="block text-right font-mono text-[11px]">
-          <SyncCell project={ctx.row.original} />
-        </span>
-      ),
-    }),
-    helper.accessor((p) => p.git.dirtyCount ?? 0, {
-      id: "dirty",
-      sortFn: "alphanumeric",
-      size: COL_PX.dirty,
-      minSize: COL_PX.dirty,
-      header: () => (
-        <abbr title="Uncommitted files" className="no-underline">
-          D
-        </abbr>
-      ),
-      cell: (ctx) => (
-        <span className="block text-right font-mono text-[11px]">
-          <N value={ctx.row.original.git.dirtyCount} tone="warn" />
-        </span>
-      ),
-    }),
-    // Forge counts join the git cluster census-style: the column exists
-    // only while some visible project has a cached snapshot (no data, no
-    // void column — the NOTE ruling above); the cells self-null per row.
-    // The floor is the chip vocabulary's widest pair — two truncated "50+"
-    // chips (51.7px each; exact counts cap at 49, so no glyph run is
-    // wider) plus the 1.5 gap plus the cell's px-1 = 117.3px, rounded to
-    // 120 under the sizing law above; the pair therefore fits on one line
-    // at every width the table form renders, by construction.
-    ...(forge
-      ? [
-          helper.display({
-            id: "forge",
-            size: COL_PX.forge,
-            minSize: COL_PX.forge,
-            header: () => (
-              <abbr title="Open forge issues / pull requests" className="no-underline">
-                I/P
-              </abbr>
-            ),
-            cell: (ctx) => <ForgeChips project={ctx.row.original} />,
-          }),
-        ]
-      : []),
-    ...(notes
-      ? [
-          helper.accessor((p) => noteOf(p), {
-            id: "note",
-            enableSorting: false,
-            size: COL_PX.note,
-            minSize: COL_PX.note,
-            header: "Note",
-            cell: (ctx) => {
-              const text = ctx.getValue();
-              return text ? (
-                <span className="block truncate text-xs text-muted-foreground" title={text}>
-                  {text}
-                </span>
-              ) : null;
-            },
-          }),
-        ]
-      : []),
-    helper.accessor((p) => p.alerts.length, {
-      id: "alerts",
-      sortFn: "alphanumeric",
-      size: COL_PX.alerts,
-      minSize: COL_PX.alerts,
-      header: () => (
-        <abbr title="Open alerts (severity order)" className="no-underline">
-          A
-        </abbr>
-      ),
-      cell: (ctx) => <AlertIcons alerts={ctx.row.original.alerts} />,
-    }),
-    helper.display({
-      id: "signal",
-      size: COL_PX.signal,
-      minSize: COL_PX.signal,
-      header: "Signal",
-      cell: (ctx) => <SignalCell project={ctx.row.original} />,
-    }),
-    helper.accessor((p) => updatedMs(p), {
-      id: "updated",
-      sortFn: "alphanumeric",
-      size: COL_PX.updated,
-      minSize: COL_PX.updated,
-      header: "Updated",
-      cell: (ctx) => (
-        <span
-          className="block whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground"
-          title={dateTooltip(ctx.row.original.updatedAt)}
+/** A ledger column id — the keys of the floor table are the one source of truth. */
+type LedgerColumnId = keyof typeof COL_PX;
+
+/**
+ * Screen order of the columns (left → right), the ledger's visual grammar:
+ * identity (state LED, project) → git cluster (stack, branch, sync, dirty)
+ * → forge counts → note → attention (alerts) → activity texture (signal)
+ * → the closing temporal stamp. Shedding never reorders — survivors keep
+ * their relative positions, so the row reads the same at every width.
+ */
+const DISPLAY_ORDER: readonly LedgerColumnId[] = [
+  "state",
+  "project",
+  "stack",
+  "branch",
+  "sync",
+  "dirty",
+  "forge",
+  "note",
+  "alerts",
+  "signal",
+  "updated",
+];
+
+/**
+ * SHED_ORDER — the degradation priority (owner directive: degradation =
+ * dropping columns by an explicit order, never swapping widgets). Ordered
+ * least → most valuable; the ladder sheds from the front while
+ * Σ(visible floors) exceeds the measured stage. Every id NOT listed here
+ * (state, project, updated, and the census-conditional forge I/P) is
+ * core and never sheds. Ranks are judged against THIS fleet's live census
+ * (the owner's own board), not in the abstract:
+ *
+ *  1. note   — unstructured prose, absent from most rows (the census omits
+ *              the column outright when no visible project carries one);
+ *              the commit subject it falls back to has a full home on the
+ *              project page. Least unique per-row signal on the board.
+ *  2. signal — the 24h pulse strip is activity texture, not a decision
+ *              input: the temporal axis already lives in UPDATED (core),
+ *              and a 72px decorative column is the cheapest wide concession
+ *              that touches no operator judgment.
+ *  3. stack  — uniform across this fleet (one terminal glyph repeated down
+ *              a TS-heavy census), so it separates no row from another;
+ *              static metadata with a home on the project page. Ranked
+ *              BELOW dirty on live data: the D counts vary row-to-row
+ *              (1 → 46 on this board), the stack glyph does not vary at
+ *              all — the inverse of the directive's draft pairing.
+ *  4. dirty  — populated and varying in this fleet, so it outlives the
+ *              stack glyph, but still a secondary count recoverable on the
+ *              project page.
+ *  5. sync   — mostly "·" on this board (the census is homogeneously
+ *              synced) yet a non-zero ahead/behind is the most operationally
+ *              urgent git signal the row can carry (upstream divergence),
+ *              so it outlives the per-row dirty noise.
+ *  6. branch — richly populated and identity-adjacent (named work
+ *              branches), but the single most expensive column (218px
+ *              floor) and fully displayed on the project page; sheds only
+ *              once the whole git micro-cluster before it is gone.
+ *  7. alerts — the attention channel ("what's broken"), highest-signal of
+ *              the optional set; sheds last, leaving only the core.
+ */
+const SHED_ORDER: readonly LedgerColumnId[] = [
+  "note",
+  "signal",
+  "stack",
+  "dirty",
+  "sync",
+  "branch",
+  "alerts",
+];
+
+/**
+ * The column definitions, module-level (column defs are configuration, not
+ * state; hooks live in the cell components — the ProjectLed/SignalCell
+ * pattern). Present at module scope so the shed ladder can pick any subset
+ * without rebuilding definitions.
+ */
+const LEDGER_COLUMN_DEFS: Record<LedgerColumnId, DataTableColumns<Project>[number]> = {
+  state: helper.display({
+    id: "state",
+    size: COL_PX.state,
+    minSize: COL_PX.state,
+    header: () => <span className="sr-only">State</span>,
+    cell: (ctx) => <ProjectLed project={ctx.row.original} />,
+  }),
+  project: helper.accessor((p) => p.name, {
+    id: "project",
+    sortFn: "alphanumeric",
+    size: COL_PX.project,
+    minSize: COL_PX.project,
+    header: "Project",
+    cell: (ctx) => {
+      const p = ctx.row.original;
+      return (
+        <a
+          href={projectHref(p.path)}
+          onClick={(e) => e.stopPropagation()}
+          className="flex max-w-full items-center gap-1.5 truncate text-left text-[13px] font-medium tracking-tight text-foreground outline-none transition-colors hover:text-(--mc-accent) focus-visible:ring-1 focus-visible:ring-ring"
+          title={p.name}
         >
-          {compactStamp(relativeTime(ctx.row.original.updatedAt))}
+          <span className="truncate">{p.name}</span>
+          {p.pinned ? <Pin aria-hidden className="size-3 shrink-0 text-(--pinned-accent)" /> : null}
+        </a>
+      );
+    },
+  }),
+  stack: helper.accessor((p) => p.stack?.label ?? "", {
+    id: "stack",
+    sortFn: "alphanumeric",
+    size: COL_PX.stack,
+    minSize: COL_PX.stack,
+    header: () => (
+      <abbr title="Detected stack" className="no-underline">
+        ST
+      </abbr>
+    ),
+    cell: (ctx) => <StackCell project={ctx.row.original} />,
+  }),
+  branch: helper.accessor((p) => (p.git.isRepo ? (p.git.branch ?? "detached") : ""), {
+    id: "branch",
+    sortFn: "alphanumeric",
+    size: COL_PX.branch,
+    minSize: COL_PX.branch,
+    header: () => (
+      <abbr title="Branch" className="no-underline">
+        BR
+      </abbr>
+    ),
+    cell: (ctx) => <BranchCell project={ctx.row.original} />,
+  }),
+  sync: helper.accessor((p) => (p.git.ahead ?? 0) + (p.git.behind ?? 0), {
+    id: "sync",
+    sortFn: "alphanumeric",
+    size: COL_PX.sync,
+    minSize: COL_PX.sync,
+    header: () => (
+      <abbr title="Commits ahead / behind upstream" className="no-underline">
+        U/D
+      </abbr>
+    ),
+    cell: (ctx) => (
+      <span className="block text-right font-mono text-[11px]">
+        <SyncCell project={ctx.row.original} />
+      </span>
+    ),
+  }),
+  dirty: helper.accessor((p) => p.git.dirtyCount ?? 0, {
+    id: "dirty",
+    sortFn: "alphanumeric",
+    size: COL_PX.dirty,
+    minSize: COL_PX.dirty,
+    header: () => (
+      <abbr title="Uncommitted files" className="no-underline">
+        D
+      </abbr>
+    ),
+    cell: (ctx) => (
+      <span className="block text-right font-mono text-[11px]">
+        <N value={ctx.row.original.git.dirtyCount} tone="warn" />
+      </span>
+    ),
+  }),
+  // Forge counts join the git cluster census-style: the column exists only
+  // while some visible project has a cached snapshot (no data, no void
+  // column — the NOTE ruling); the cells self-null per row. The floor is
+  // the chip vocabulary's widest pair — two truncated "50+" chips (51.7px
+  // each; exact counts cap at 49, so no glyph run is wider) plus the 1.5
+  // gap plus the cell's px-1 = 117.3px, rounded to 120 under the sizing
+  // law above; the pair therefore fits on one line at every width the
+  // table renders, by construction.
+  forge: helper.display({
+    id: "forge",
+    size: COL_PX.forge,
+    minSize: COL_PX.forge,
+    header: () => (
+      <abbr title="Open forge issues / pull requests" className="no-underline">
+        I/P
+      </abbr>
+    ),
+    cell: (ctx) => <ForgeChips project={ctx.row.original} />,
+  }),
+  note: helper.accessor((p) => noteOf(p), {
+    id: "note",
+    enableSorting: false,
+    size: COL_PX.note,
+    minSize: COL_PX.note,
+    header: "Note",
+    cell: (ctx) => {
+      const text = ctx.getValue();
+      return text ? (
+        <span className="block truncate text-xs text-muted-foreground" title={text}>
+          {text}
         </span>
-      ),
-    }),
-  ]);
+      ) : null;
+    },
+  }),
+  alerts: helper.accessor((p) => p.alerts.length, {
+    id: "alerts",
+    sortFn: "alphanumeric",
+    size: COL_PX.alerts,
+    minSize: COL_PX.alerts,
+    header: () => (
+      <abbr title="Open alerts (severity order)" className="no-underline">
+        A
+      </abbr>
+    ),
+    cell: (ctx) => <AlertIcons alerts={ctx.row.original.alerts} />,
+  }),
+  signal: helper.display({
+    id: "signal",
+    size: COL_PX.signal,
+    minSize: COL_PX.signal,
+    header: "Signal",
+    cell: (ctx) => <SignalCell project={ctx.row.original} />,
+  }),
+  updated: helper.accessor((p) => updatedMs(p), {
+    id: "updated",
+    sortFn: "alphanumeric",
+    size: COL_PX.updated,
+    minSize: COL_PX.updated,
+    header: "Updated",
+    cell: (ctx) => (
+      <span
+        className="block whitespace-nowrap text-right font-mono text-[11px] tabular-nums text-muted-foreground"
+        title={dateTooltip(ctx.row.original.updatedAt)}
+      >
+        {compactStamp(relativeTime(ctx.row.original.updatedAt))}
+      </span>
+    ),
+  }),
+};
+
+/** Screen-reader vocabulary of each column, for the width-honest caption. */
+const LEDGER_COLUMN_LABELS: Record<LedgerColumnId, string> = {
+  state: "state",
+  project: "project",
+  stack: "stack",
+  branch: "branch",
+  sync: "sync counts",
+  dirty: "uncommitted files",
+  forge: "forge counts",
+  note: "note",
+  alerts: "alerts",
+  signal: "activity signal",
+  updated: "last update",
+};
+
+/** The sizing-law Σ: the visible set's honest floor — the DataTable's minWidth. */
+function sumFloors(ids: Iterable<LedgerColumnId>): number {
+  let total = 0;
+  for (const id of ids) total += COL_PX[id];
+  return total;
+}
+
+/**
+ * The shed ladder: while the visible set's Σ floor exceeds the measured
+ * stage, drop the front-most SHED_ORDER id still present. Nothing else is
+ * arbitrary: the loop terminates at the core (no SHED_ORDER id left), at
+ * which point Σ(core) may still exceed the stage — that is the horizontal
+ * regime and the table keeps rendering (the ScrollArea scrolls, never the
+ * widget swaps). An unmeasured stage (first render) keeps the full
+ * census-present set; the scan-loading skeleton covers hydration, so the
+ * measurement lands before any of this is visible.
+ */
+function shedColumns(present: LedgerColumnId[], stageWidth: number | null): LedgerColumnId[] {
+  if (stageWidth === null) return present;
+  let visible = present;
+  while (sumFloors(visible) > stageWidth) {
+    const shed = SHED_ORDER.find((id) => visible.includes(id));
+    if (shed === undefined) break;
+    visible = visible.filter((id) => id !== shed);
+  }
+  return visible;
 }
 
 /** Tabular numeral; quiet middot when there is nothing to report (the design's `N`). */
@@ -415,28 +519,15 @@ function openProjectRow(path: string): void {
   window.location.href = projectHref(path);
 }
 
-/** The table's honest floor: the sum of the always-on columns' content
- * floors — under the sizing law this equals Σsize, so the engine's floor
- * and its share denominator are one number. Below it the name or branch
- * would cut mid-word, so the register swaps. */
-const TABLE_MIN_PX =
-  COL_PX.state +
-  COL_PX.project +
-  COL_PX.stack +
-  COL_PX.branch +
-  COL_PX.sync +
-  COL_PX.dirty +
-  COL_PX.alerts +
-  COL_PX.signal +
-  COL_PX.updated;
-
 /**
  * The stage's live content width (the CommitsList `useObservedWidth`
  * pattern, via a callback ref — the stage mounts only once the scan
  * resolves, so the observer must follow the element, not the mount).
  * `contentRect` excludes the observed element's own padding, so for the
- * ledger's `px-4` content box this IS the width the table or the register
- * must fill — the ladder's swap input.
+ * ledger's `px-4` content box this IS the width the table must fill — the
+ * shed ladder's input. A static container query can never express the shed
+ * points: the floors move with the census (+NOTE/+FORGE), and the old
+ * shell-box queries measured chrome against constants that did not hold.
  */
 function useObservedWidth(element: HTMLElement | null): number | null {
   const [width, setWidth] = useState<number | null>(null);
@@ -468,17 +559,24 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
   );
   const notes = useMemo(() => visible.some((p) => noteOf(p).trim().length > 0), [visible]);
   const forge = useForgeCensus(visible);
-  const columns = useMemo(() => buildColumns(notes, forge), [notes, forge]);
-  const tableMinWidth =
-    TABLE_MIN_PX + (notes ? COL_PX.note : 0) + (forge ? COL_PX.forge : 0);
 
-  // The table is the ledger's form from its content floor up: the measured
-  // stage against the SAME Σ that feeds the table's minWidth (the sizing
-  // law's ladder rule — see COL_PX). Below the floor the compact register
-  // takes over — never a clipped or scrolling table. Unmeasured stages
-  // (first render) assume the table; the scan-loading skeleton covers
-  // hydration, so the measurement lands before either form is visible.
-  const table = stageWidth === null || stageWidth >= tableMinWidth;
+  // Census-present ids in screen order, then the shed ladder (SHED_ORDER —
+  // the degradation priority; see its rank justifications). The result is
+  // the widest column set whose Σ floor fits the measured stage; below the
+  // core's Σ the core persists and the ScrollArea scrolls horizontally.
+  const activeIds = useMemo(() => {
+    const present = DISPLAY_ORDER.filter(
+      (id) => (id !== "note" || notes) && (id !== "forge" || forge),
+    );
+    return shedColumns(present, stageWidth);
+  }, [notes, forge, stageWidth]);
+
+  const columns = useMemo(
+    () => activeIds.map((id) => LEDGER_COLUMN_DEFS[id]),
+    [activeIds],
+  );
+  const tableMinWidth = useMemo(() => sumFloors(activeIds), [activeIds]);
+  const scrollsHorizontally = stageWidth !== null && tableMinWidth > stageWidth;
 
   if (workspace.scanState === "loading") {
     return (
@@ -522,7 +620,7 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
   return (
     <WidgetShell className="h-full w-full">
       {/* The stage: its content box (px-4 excluded by contentRect) is the
-          width the ladder swaps on — see useObservedWidth. */}
+          width the shed ladder measures — see useObservedWidth. */}
       <div
         ref={setStage}
         className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden px-4 pb-2"
@@ -533,48 +631,31 @@ export function McFleetLedger(_props: RegisteredWidgetProps) {
             {visible.length} of {workspace.projects.length} projects
           </span>
         </p>
-        {table ? (
-          /* Table form on stages at least its content floor; the compact
-             register takes over below it (measured swap — COL_PX's ladder
-             rule) — never a clipped or scrolling table. The full fleet
-             renders; the band's ScrollArea takes the overflow. */
-          <div className="flex min-h-0 min-w-0 flex-1">
-            <ScrollArea className="min-h-0 min-w-0 flex-1">
-              <DataTable
-                columns={columns}
-                data={sorted}
-                initialSort={[{ id: "updated", desc: true }]}
-                minWidth={tableMinWidth}
-                onRowClick={(p) => openProjectRow(p.path)}
-                ariaLabel="Fleet status, one row per project: state, project, stack, branch, sync counts, uncommitted files, forge counts, note, alerts, activity signal and last update"
-                empty="No projects match the filter"
-              />
-            </ScrollArea>
-          </div>
-        ) : (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <ScrollArea className="min-h-0 min-w-0 flex-1">
-              <KvList
-                density="compact"
-                rows={sorted.map((p) => ({
-                  label: p.name,
-                  value: (
-                    // Chips carry their own styling — the register value
-                    // wraps (never truncates) a pill pair, and the mono
-                    // register rides the stamp alone, not the chips.
-                    <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
-                      <ForgeChips project={p} />
-                      <span className="font-mono tabular-nums">
-                        {compactStamp(relativeTime(p.updatedAt))}
-                      </span>
-                    </span>
-                  ),
-                  wrap: true,
-                }))}
-              />
-            </ScrollArea>
-          </div>
-        )}
+        {/* The table is the ledger's ONLY form. The visible Σ floor is the
+            engine's minWidth (the sizing law), so every surviving column
+            renders at or above its floor; below the core's Σ the band's
+            ScrollArea scrolls horizontally (scrollbars="both" only in that
+            regime) — the ledger never stops being this table. The full
+            fleet renders; vertical overflow scrolls the same band. The
+            caption names the columns actually visible at this width. */}
+        <div className="flex min-h-0 min-w-0 flex-1">
+          <ScrollArea
+            className="min-h-0 min-w-0 flex-1"
+            scrollbars={scrollsHorizontally ? "both" : "vertical"}
+          >
+            <DataTable
+              columns={columns}
+              data={sorted}
+              initialSort={[{ id: "updated", desc: true }]}
+              minWidth={tableMinWidth}
+              onRowClick={(p) => openProjectRow(p.path)}
+              ariaLabel={`Fleet status, one row per project: ${activeIds
+                .map((id) => LEDGER_COLUMN_LABELS[id])
+                .join(", ")}`}
+              empty="No projects match the filter"
+            />
+          </ScrollArea>
+        </div>
       </div>
     </WidgetShell>
   );
