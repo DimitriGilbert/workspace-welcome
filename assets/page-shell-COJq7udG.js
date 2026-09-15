@@ -1,0 +1,1 @@
+import{n as e,p as t}from"./page-rail-BDmuIbsu.js";var n=t();function r({title:t,children:r}){return(0,n.jsxs)(e,{className:`pb-10 pt-8`,children:[(0,n.jsx)(`header`,{className:`mb-10 max-w-3xl`,children:(0,n.jsx)(`h1`,{className:`text-3xl font-semibold tracking-tight sm:text-4xl`,children:t})}),r]})}export{r as t};
