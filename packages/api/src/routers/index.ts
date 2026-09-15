@@ -1,6 +1,7 @@
 import { publicProcedure, router } from "../index";
 
 import { artifactsRouter } from "./artifacts";
+import { cloneRouter } from "./clone";
 import { filesRouter } from "./files";
 import { forgeRouter } from "./forge";
 import { ideRouter } from "./ide";
@@ -25,6 +26,7 @@ export const appRouter = router({
   ide: ideRouter,
   ideation: ideationRouter,
   scaffold: scaffoldRouter,
+  clone: cloneRouter,
   forge: forgeRouter,
 });
 

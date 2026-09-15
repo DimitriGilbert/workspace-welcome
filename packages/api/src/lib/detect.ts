@@ -1,6 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
+import { matchRemoteUrl } from "./remote-grammar";
 import type { GitHost, RemoteInfo, StackInfo } from "./types";
 
 /**
@@ -58,20 +59,6 @@ export async function detectStack(dir: string): Promise<StackInfo | null> {
   }
   return null;
 }
-
-// Remote grammar, in try order (parseRemote matches the first that hits):
-// - HTTPS — scheme'd web remote; an explicit :port is allowed and dropped
-//   (ports never affect host classification or links).
-// - SSH_URL — explicit ssh:// remote; the optional user@ prefix and optional
-//   :port are both matched but dropped. MUST be tried before SCP_LIKE, else
-//   the scheme-less scp-like pattern captures the scheme itself ("ssh") as
-//   the host.
-// - SCP_LIKE — git's scp-like `user@host:path` form. It has NO port
-//   semantics: `git@host:22/owner/repo` is host "host", path "22/owner/repo"
-//   — faithful to git's own interpretation, deliberately not "fixed".
-const HTTPS = /^https?:\/\/([\w.-]+)(?::\d+)?\/(.+)$/;
-const SSH_URL = /^ssh:\/\/(?:[\w.-]+@)?([\w.-]+)(?::\d+)?\/(.+)$/;
-const SCP_LIKE = /^(?:[\w.-]+@)?([\w.-]+):(.+)$/;
 
 /** Classify a git host from its hostname. */
 function classifyHost(hostRaw: string): GitHost {
@@ -167,22 +154,13 @@ export function parseRemote(rawUrl: string): RemoteInfo | null {
   const url = rawUrl.trim();
   if (!url) return null;
 
-  let host = "";
-  let repo = "";
+  // The grammar and its try order live in ./remote-grammar — one source
+  // shared with the clone form's browser-safe schema.
+  const match = matchRemoteUrl(url);
+  if (!match) return null;
 
-  // The try order is load-bearing — see the comment on the regex
-  // declarations above. Stays sync and regex-only: parseRemote runs per
-  // project per scan and on every forge.project query.
-  const match = url.match(HTTPS) ?? url.match(SSH_URL) ?? url.match(SCP_LIKE);
-  if (match) {
-    host = match[1] ?? "";
-    repo = match[2] ?? "";
-  }
-
-  if (!host || !repo) return null;
-
-  const hostType = classifyHost(host);
-  const cleaned = cleanRepoPath(repo);
+  const hostType = classifyHost(match.host);
+  const cleaned = cleanRepoPath(match.repoPath);
   if (!cleaned) return null;
 
   // Drop a leading username for ssh URLs like git@gitlab.com:alice/repo.git —
@@ -193,7 +171,7 @@ export function parseRemote(rawUrl: string): RemoteInfo | null {
     url,
     host: hostType,
     slug,
-    links: buildLinks(hostType, slug, host),
+    links: buildLinks(hostType, slug, match.host),
   };
 }
 

@@ -3,8 +3,6 @@ import { stat } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
-import { z } from "zod";
-
 import { parseRemote } from "./detect";
 import { ideStatus } from "./ide";
 import type {
@@ -13,6 +11,11 @@ import type {
   GitInfo,
   SwitchSafety,
 } from "./types";
+
+// One source of truth for ref-name validation (node-free in ./ref-name so the
+// clone form's browser-safe schema can share it); re-exported here for the
+// existing server consumers.
+export { branchNameSchema } from "./ref-name";
 
 /**
  * Git inspection via the `git` CLI.
@@ -52,35 +55,22 @@ function trim(s: string): string {
 }
 
 /**
- * A branch name safe to hand to `git fetch origin <branch>` / `git switch
- * <branch>` as a single argv element. Mirrors git's own refname rules for the
- * cases that matter here: no option-looking names (leading `-`), no
- * whitespace/control characters, no refspec/glob syntax (`~ ^ : ? * [ \`),
- * no `..` range syntax, and no trailing `.` / `/` / `.lock`. Applied on the
- * fetchBranch and switchBranch inputs so mistakes surface as validation
- * errors, not opaque git failures.
+ * Environment for network-bound git commands (clone, and any future
+ * remote-listing read): ssh runs without interactive prompts — agent-backed
+ * keys keep working, first-connect host keys are accepted
+ * (trust-on-first-use, standard for a local tool), and anything that would
+ * prompt (a key passphrase without an agent, https credentials) fails in
+ * seconds with git's own clear message instead of wedging a headless child
+ * until the job timeout kills it.
  */
-export const branchNameSchema = z
-  .string()
-  .min(1, "Branch name is required")
-  .max(200, "Branch name must be 200 characters or fewer")
-  .refine(
-    (name) => !name.startsWith("-"),
-    "Branch name cannot start with a dash",
-  )
-  .refine(
-    (name) => !/[\s\u0000-\u001f\u007f]/.test(name),
-    "Branch name cannot contain whitespace or control characters",
-  )
-  .refine(
-    (name) => !/[~^:?*\\[\`]/.test(name) && !name.includes(".."),
-    "Branch name cannot contain refspec characters or '..'",
-  )
-  .refine(
-    (name) =>
-      !name.endsWith(".") && !name.endsWith("/") && !name.endsWith(".lock"),
-    "Branch name cannot end with '.', '/' or '.lock'",
-  );
+export function networkGitEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    GIT_SSH_COMMAND:
+      "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new",
+    GIT_TERMINAL_PROMPT: "0",
+  };
+}
 
 /** Tiny non-crypto string hash (djb2) — enough to fold porcelain output. */
 function hashString(s: string): string {

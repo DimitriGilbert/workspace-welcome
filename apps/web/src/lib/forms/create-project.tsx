@@ -812,7 +812,11 @@ export function CreateProjectFlow({
   );
 }
 
-function JobError({
+/**
+ * Terminal-failure card shared by the scaffold and clone job views (via
+ * `@/lib/forms`): title, message, and the back-to-form affordance.
+ */
+export function JobError({
   title,
   message,
   onDismiss,
@@ -834,7 +838,8 @@ function JobError({
   );
 }
 
-function formatElapsed(ms: number): string {
+/** Elapsed-time label for the job progress rows, shared with the clone flow. */
+export function formatElapsed(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;

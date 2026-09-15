@@ -7,20 +7,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace-welcome/ui/components/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/components/tabs";
 
-import { CreateProjectFlow } from "@/lib/forms";
-import type { ScaffoldResult } from "@/lib/forms";
+import { CloneRepositoryFlow, CreateProjectFlow } from "@/lib/forms";
+import type { CloneResult, ScaffoldResult } from "@/lib/forms";
 
 import { FormAddRoot } from "@/components/parts/form/add-root";
 
 /**
- * FormCreateProject — the scaffold wizard in a token-styled ui Dialog
- * (master plan §3.5). All flow logic — roots gating, the formedible wizard
- * with its live equivalent-command preview, job tracking, toasts — lives in
- * `CreateProjectFlow` (`@/lib/forms`); this part is the container plus the
- * zero-roots chain-out: when no root directory is registered yet, the
- * FormAddRoot dialog stacks on top and the wizard appears the moment the
- * new root settles.
+ * FormCreateProject — the tabbed create-project dialog (master plan §3.5):
+ * one "Scaffold" tab (the better-t-stack wizard) and one "Clone from git"
+ * tab (the git URL form), each backed by its own container-independent flow
+ * in `@/lib/forms` with its own job tracking. All flow logic — roots
+ * gating, the formedible forms with their live equivalent-command
+ * previews, job polling, toasts — stays in those flows; this part is the
+ * container plus the zero-roots chain-out shared by both tabs: when no root
+ * directory is registered yet, the FormAddRoot dialog stacks on top and the
+ * active flow reappears the moment the new root settles.
  */
 
 export interface FormCreateProjectProps {
@@ -28,15 +31,18 @@ export interface FormCreateProjectProps {
   onOpenChange: (open: boolean) => void;
   /** Fired when the tracked scaffold job reaches success. */
   onCreated?: (result: ScaffoldResult) => void;
+  /** Fired when the tracked clone job reaches success. */
+  onCloned?: (result: CloneResult) => void;
 }
 
 export function FormCreateProject({
   open,
   onOpenChange,
   onCreated,
+  onCloned,
 }: FormCreateProjectProps) {
   // The zero-roots chain-out: FormAddRoot stacks above this dialog so the
-  // wizard's (hidden, stateful) mount survives the detour.
+  // tabs' (hidden, stateful) mounts survive the detour.
   const [addRootOpen, setAddRootOpen] = useState(false);
 
   return (
@@ -48,22 +54,44 @@ export function FormCreateProject({
           if (!next) setAddRootOpen(false);
         }}
       >
-        {/* Tall + wide: the wizard scrolls its fields and pins the command
-            preview — both need real height to stay usable. */}
-        <DialogContent className="h-[85vh] sm:max-w-xl">
+        {/* Height caps rather than fixes: the clone tab's four fields fit a
+            short dialog whole (submit in view), while the wizard grows to
+            its content and scrolls only past the cap. */}
+        <DialogContent className="max-h-[85vh] sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>Create a project</DialogTitle>
             <DialogDescription>
-              Scaffold a new better-t-stack project into one of your tracked
-              root directories.
+              Scaffold a new better-t-stack project or clone an existing
+              repository into one of your tracked root directories.
             </DialogDescription>
           </DialogHeader>
-          <CreateProjectFlow
-            open={open && !addRootOpen}
-            onSuccess={onCreated}
-            onRequestAddRoot={() => setAddRootOpen(true)}
-            onClose={() => onOpenChange(false)}
-          />
+          {/* Inactive panels stay mounted (keepMounted — Base UI unmounts
+              them by default), so each tab's form values survive a flip
+              mid-thought. */}
+          <Tabs defaultValue="scaffold" className="flex min-h-0 flex-1 flex-col gap-0">
+            <div className="border-b border-border px-4 py-3">
+              <TabsList className="w-full">
+                <TabsTrigger value="scaffold">Scaffold</TabsTrigger>
+                <TabsTrigger value="clone">Clone from git</TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="scaffold" keepMounted className="flex min-h-0 flex-1 flex-col">
+              <CreateProjectFlow
+                open={open && !addRootOpen}
+                onSuccess={onCreated}
+                onRequestAddRoot={() => setAddRootOpen(true)}
+                onClose={() => onOpenChange(false)}
+              />
+            </TabsContent>
+            <TabsContent value="clone" keepMounted className="flex min-h-0 flex-1 flex-col">
+              <CloneRepositoryFlow
+                open={open && !addRootOpen}
+                onSuccess={onCloned}
+                onRequestAddRoot={() => setAddRootOpen(true)}
+                onClose={() => onOpenChange(false)}
+              />
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
       <FormAddRoot

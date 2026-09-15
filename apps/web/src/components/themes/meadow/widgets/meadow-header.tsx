@@ -243,6 +243,10 @@ export function MeadowHeader({ size }: RegisteredWidgetProps) {
           toast.success("Project created");
           workspace.refresh();
         }}
+        onCloned={() => {
+          toast.success("Repository cloned");
+          workspace.refresh();
+        }}
       />
       <FormAddRoot
         open={addRootOpen}

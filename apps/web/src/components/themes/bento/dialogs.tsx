@@ -35,10 +35,11 @@ import {
 } from "@workspace-welcome/ui/components/select";
 import { Separator } from "@workspace-welcome/ui/components/separator";
 import { Switch } from "@workspace-welcome/ui/components/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace-welcome/ui/components/tabs";
 import { cn } from "@workspace-welcome/ui/lib/utils";
 
-import { CreateProjectFlow } from "@/lib/forms";
-import type { ScaffoldResult } from "@/lib/forms";
+import { CloneRepositoryFlow, CreateProjectFlow } from "@/lib/forms";
+import type { CloneResult, ScaffoldResult } from "@/lib/forms";
 import { useAddRoot } from "@/lib/forms";
 import { hostLabel } from "@/lib/icons";
 import { REPORT_PERIOD_PRESETS } from "@/lib/report-periods";
@@ -154,6 +155,8 @@ export interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: (result: ScaffoldResult) => void;
+  /** Fired when the clone tab's job reaches success. */
+  onCloned: (result: CloneResult) => void;
   onError: (message: string) => void;
   /** The wizard's empty-state escape hatch when no roots are registered. */
   onRequestAddRoot: () => void;
@@ -163,6 +166,7 @@ export function CreateProjectDialog({
   open,
   onOpenChange,
   onSuccess,
+  onCloned,
   onError,
   onRequestAddRoot,
 }: CreateProjectDialogProps) {
@@ -171,20 +175,44 @@ export function CreateProjectDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Create a project"
-      description="Scaffold a Better-T-Stack app into a registered root — the job streams here."
+      description="Scaffold a Better-T-Stack app or clone a git URL into a registered root — the job streams here."
       width="sm:max-w-2xl"
-      bodyClassName="h-[min(680px,80vh)]"
+      bodyClassName="max-h-[min(680px,80vh)]"
     >
-      <CreateProjectFlow
-        open={open}
-        onSuccess={onSuccess}
-        onError={onError}
-        onRequestAddRoot={() => {
-          onOpenChange(false);
-          onRequestAddRoot();
-        }}
-        onClose={() => onOpenChange(false)}
-      />
+      {/* Inactive panels stay mounted (keepMounted — Base UI unmounts them
+          by default), so each tab's form values survive a flip. */}
+      <Tabs defaultValue="scaffold" className="flex min-h-0 flex-1 flex-col gap-0">
+        <div className="border-b border-border/70 px-5 py-3">
+          <TabsList className="w-full">
+            <TabsTrigger value="scaffold">Scaffold</TabsTrigger>
+            <TabsTrigger value="clone">Clone from git</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="scaffold" keepMounted className="flex min-h-0 flex-1 flex-col">
+          <CreateProjectFlow
+            open={open}
+            onSuccess={onSuccess}
+            onError={onError}
+            onRequestAddRoot={() => {
+              onOpenChange(false);
+              onRequestAddRoot();
+            }}
+            onClose={() => onOpenChange(false)}
+          />
+        </TabsContent>
+        <TabsContent value="clone" keepMounted className="flex min-h-0 flex-1 flex-col">
+          <CloneRepositoryFlow
+            open={open}
+            onSuccess={onCloned}
+            onError={onError}
+            onRequestAddRoot={() => {
+              onOpenChange(false);
+              onRequestAddRoot();
+            }}
+            onClose={() => onOpenChange(false)}
+          />
+        </TabsContent>
+      </Tabs>
     </BentoDialog>
   );
 }

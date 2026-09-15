@@ -91,6 +91,10 @@ export function McActions(_props: RegisteredWidgetProps) {
           toast.success("Project created");
           workspace.refresh();
         }}
+        onCloned={() => {
+          toast.success("Repository cloned");
+          workspace.refresh();
+        }}
       />
       <FormReportRun open={reportOpen} onOpenChange={setReportOpen} />
       <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />

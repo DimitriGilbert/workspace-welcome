@@ -145,6 +145,7 @@ export function McCommandRegister({ className }: { className?: string }) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onCreated={() => workspace.refresh()}
+        onCloned={() => workspace.refresh()}
       />
       <FormReportRun open={reportOpen} onOpenChange={setReportOpen} />
       <FormCloneScript open={cloneOpen} onOpenChange={setCloneOpen} />

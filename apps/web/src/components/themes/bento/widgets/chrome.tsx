@@ -29,6 +29,7 @@ import { WorkspaceBrand } from "@workspace-welcome/ui/components/workspace-brand
 
 import { formatElapsed } from "@/lib/format";
 import { matchProject } from "@/lib/search";
+import type { CloneResult, ScaffoldResult } from "@/lib/forms";
 
 import { useWorkspace } from "@/lib/contexts/workspace-context";
 import type { RegisteredWidgetProps } from "@/components/widgets/registry";
@@ -69,6 +70,51 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
   const visible = projects.filter((p) => matchProject(p, workspace.filter));
   const hasRoots = (workspace.roots.data?.length ?? 0) > 0;
   const isFetching = workspace.scan.isFetching;
+
+  // The scaffold and clone tabs share one rich success presentation — only
+  // the verb differs. Both job results carry the same shape (project
+  // directory, reproducible command, elapsed time).
+  const presentCreatedToast = (
+    verb: "Created" | "Cloned",
+    result: ScaffoldResult | CloneResult,
+  ): void => {
+    const segments = result.projectDirectory.split("/").filter(Boolean);
+    const toastId = toast.success(
+      `${verb} ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
+      {
+        description: result.reproducibleCommand,
+        action: (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void navigate({
+                  to: "/project/$",
+                  params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
+                });
+                toast.dismiss(toastId);
+              }}
+            >
+              <Folder className="size-3.5" /> Open project
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                void navigate({
+                  to: "/project/$",
+                  params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
+                });
+                toast.dismiss(toastId);
+              }}
+            >
+              <Sparkles className="size-3.5" /> Start ideation
+            </Button>
+          </div>
+        ),
+      },
+    );
+  };
 
   return (
     <>
@@ -178,42 +224,11 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={(result) => {
-          const segments = result.projectDirectory.split("/").filter(Boolean);
-          const toastId = toast.success(
-            `Created ${segments.at(-1) ?? result.projectDirectory} in ${formatElapsed(result.elapsedTimeMs)}`,
-            {
-              description: result.reproducibleCommand,
-              action: (
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      void navigate({
-                        to: "/project/$",
-                        params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
-                      });
-                      toast.dismiss(toastId);
-                    }}
-                  >
-                    <Folder className="size-3.5" /> Open project
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      void navigate({
-                        to: "/project/$",
-                        params: { _splat: result.projectDirectory.replace(/^\/+/, "") },
-                      });
-                      toast.dismiss(toastId);
-                    }}
-                  >
-                    <Sparkles className="size-3.5" /> Start ideation
-                  </Button>
-                </div>
-              ),
-            },
-          );
+          presentCreatedToast("Created", result);
+          workspace.refresh();
+        }}
+        onCloned={(result) => {
+          presentCreatedToast("Cloned", result);
           workspace.refresh();
         }}
         onError={(message) => toast.error(message)}
