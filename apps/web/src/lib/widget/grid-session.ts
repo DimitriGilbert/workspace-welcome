@@ -7,8 +7,13 @@
  * at its preview and widgets it displaced are re-homed by the packer's
  * `settleArrangement` before the commit. The arrangement renders verbatim —
  * pins protect placements from automatic reflow, they never block a user.
- * The store lives in module memory — never `sessionStorage`/`localStorage` —
- * so a reload resets it and the authored preset re-packs (settled #4).
+ * The store lives in module memory — never `sessionStorage`/`localStorage`
+ * (settled #4). Persistence is a purely additive layer AROUND it
+ * (`use-board-persistence` + `board-persist`): after mount it seeds this
+ * store from localStorage (`ww.board.v1`) and mirrors every commit back,
+ * so a reload still renders the authored preset for the first paint and
+ * reads before mount still return null — the engine itself never touches
+ * storage.
  *
  * The store is a tiny observable: the grid canvas subscribes per page via
  * `useSyncExternalStore`, and every write replaces the page snapshot
@@ -113,8 +118,9 @@ export function getBaseline(pageId: string, widgetId: string): SessionPlacement 
   return sessions.get(pageId)?.baselines[widgetId] ?? null;
 }
 
-/** Drop a page's whole session — used by tests; the store also resets
- * naturally on reload. */
+/** Drop a page's whole session. Production callers: the theme-picker's
+ * "Reset layout" (the authored pack re-packs on the emit) and the
+ * persistence layer's `reapplySavedBoard` (clear, then re-seed). */
 export function clearPageSession(pageId: string): void {
   if (!sessions.has(pageId)) return;
   sessions.delete(pageId);

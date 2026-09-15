@@ -23,11 +23,16 @@ import { Report, runEntry, writeJsonOut } from "../lib/report.mjs";
 import * as consoleKeys from "./console-keys.mjs";
 import * as dragResize from "./drag-resize.mjs";
 import * as filter from "./filter.mjs";
+import * as layoutPersist from "./layout-persist.mjs";
 import * as navigation from "./navigation.mjs";
 import * as sort from "./sort.mjs";
 import * as tabs from "./tabs.mjs";
 
-const SCRIPTS = [filter, sort, tabs, navigation, consoleKeys, dragResize];
+// layoutPersist LAST: it forces ?preset=bento on the page and clears
+// ww.board.v1 at both ends, so running it after the theme-bound scripts
+// keeps every other script's assumptions (authored board, live session)
+// untouched.
+const SCRIPTS = [filter, sort, tabs, navigation, consoleKeys, dragResize, layoutPersist];
 
 const DEFAULT_BASE_URL = process.env.WW_CHECK_BASE_URL ?? "http://127.0.0.1:37420";
 const DEFAULT_THEME = "mission-control";

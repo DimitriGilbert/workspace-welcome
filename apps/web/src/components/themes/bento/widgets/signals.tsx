@@ -115,7 +115,7 @@ export function BentoAttention(_props: RegisteredWidgetProps) {
                   <button
                     type="button"
                     onClick={() => openProject(p.path)}
-                    className="group flex w-full min-w-0 items-center gap-3 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-white/[0.05]"
+                    className="group flex w-full min-w-0 items-center gap-3 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-(--bento-row-hover)"
                   >
                     <Icon
                       className="size-4 shrink-0"
@@ -204,7 +204,7 @@ export function BentoSignals(_props: RegisteredWidgetProps) {
 
       {total === 0 ? (
         <div
-          className="flex items-center gap-2 rounded-lg border border-border bg-white/[0.02] px-3 py-2 text-xs text-muted-foreground"
+          className="flex items-center gap-2 rounded-lg border border-border bg-(--bento-well) px-3 py-2 text-xs text-muted-foreground"
           style={{ borderColor: "color-mix(in oklch, var(--state-positive) 30%, transparent)" }}
         >
           <span className="size-2 shrink-0 rounded-full" style={{ background: "var(--state-positive)" }} />
@@ -275,7 +275,7 @@ function SeverityStat({
 }) {
   return (
     <div
-      className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-white/[0.02] px-2.5 py-2"
+      className="flex min-w-0 flex-col gap-1 rounded-lg border border-border bg-(--bento-well) px-2.5 py-2"
       title={`${count} ${label.toLowerCase()}`}
     >
       <dt className="flex items-center gap-1.5 text-[0.62rem] text-muted-foreground">

@@ -11,7 +11,10 @@
  * transport (they receive retargeted captured events too, so one code path
  * serves both). The gesture PREVIEWS via the snapped ghost outline and
  * commits on pointerup: the moved widget is pinned in the session store and
- * the region re-packs around it.
+ * the region re-packs around it. A gesture that never left its origin cell
+ * (a plain click on a handle) commits nothing and announces nothing, and
+ * pointerup refocuses the handle — pointerdown's preventDefault swallowed
+ * the native focus, so the pointer user keeps the keyboard contract.
  *
  * Keyboard path is PRIMARY (and the scripted test surface): handles are
  * focusable buttons with aria-labels; arrow keys move/resize by one cell
@@ -423,9 +426,28 @@ export function useGridDrag(options: UseGridDragOptions): GridDragController {
       const interaction = interactionRef.current;
       if (interaction === null || event.pointerId !== interaction.pointerId) return;
       const preview = interaction.preview;
+      const origin = interaction.origin;
       const mode = interaction.mode;
       const { widgets } = latest.current;
       endInteraction();
+      // pointerdown's preventDefault() keeps text selection and compat mouse
+      // events out of the gesture — and with them the native focus a
+      // mousedown on the button would give. Restore it explicitly: the
+      // gesture started on the handle, so keyboard use (arrows, Escape)
+      // continues seamlessly after ANY pointer interaction, click or drag.
+      // A handle detached mid-gesture (re-pack) makes focus() a no-op.
+      interaction.handle.focus();
+      // A gesture whose preview never left the origin cell (a click, or a
+      // sub-cell wiggle that rounds to zero) is NOT a drop: committing it
+      // would pin the widget, stamp data-pinned, and announce a same-cell
+      // "moved to column N, row M" — dead noise over the live region. Zero
+      // cell delta: no commit, no announcement.
+      const zeroCellDelta =
+        preview.x === origin.x &&
+        preview.y === origin.y &&
+        preview.cols === origin.cols &&
+        preview.rows === origin.rows;
+      if (zeroCellDelta) return;
       const blocker = findFixedBlocker(preview);
       if (blocker !== null) {
         // Refuse: the target would overlap a widget that can't move. Nothing

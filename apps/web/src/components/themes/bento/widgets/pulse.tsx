@@ -544,7 +544,7 @@ function HealthTab({ data, seed }: { data: ReportExport; seed: string }) {
                 {tally.rows.slice(0, 8).map((row) => (
                   <li
                     key={`${row.worst}:${row.label}`}
-                    className="flex min-h-0 min-w-0 max-h-16 flex-1 items-center gap-2.5 rounded-lg border border-border bg-white/[0.02] px-2.5 text-xs"
+                    className="flex min-h-0 min-w-0 max-h-16 flex-1 items-center gap-2.5 rounded-lg border border-border bg-(--bento-well) px-2.5 text-xs"
                     title={row.summary}
                   >
                     <span
@@ -1148,7 +1148,7 @@ function AiTab({ data }: { data: ReportExport }) {
                       className={cn(
                         "rounded-md px-1.5 py-0.5 font-mono text-[0.62rem] transition-colors",
                         ledger === view
-                          ? "bg-white/[0.08] text-foreground"
+                          ? "bg-(--bento-active-fill) text-foreground"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
@@ -1221,7 +1221,7 @@ function MissingState({
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-center">
       <span
         aria-hidden
-        className="flex size-11 items-center justify-center rounded-2xl border border-border bg-white/[0.04] text-muted-foreground"
+        className="flex size-11 items-center justify-center rounded-2xl border border-border bg-(--bento-icon-bg) text-muted-foreground"
       >
         <TrendingUp className="size-5" />
       </span>
@@ -1243,7 +1243,7 @@ function MissingState({
       </div>
       {command ? (
         <pre
-          className="max-w-full overflow-x-auto rounded-lg border border-border bg-white/[0.03] px-3 py-2 text-left font-mono text-[0.66rem] leading-relaxed text-muted-foreground"
+          className="max-w-full overflow-x-auto rounded-lg border border-border bg-(--bento-chip-bg) px-3 py-2 text-left font-mono text-[0.66rem] leading-relaxed text-muted-foreground"
           aria-label="Report CLI command"
         >
           {command}

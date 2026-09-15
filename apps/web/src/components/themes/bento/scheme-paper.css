@@ -90,6 +90,15 @@
   --bento-grid-line: oklch(0 0 0 / 0.07);
   --bento-cursor-line: oklch(0 0 0 / 0.16);
 
+  /* interior surface steps at ink alphas (matches bento.css's white-alpha
+     steps 1:1 — the widget markup reads these vars, never literals) */
+  --bento-well: oklch(0 0 0 / 0.02);
+  --bento-chip-bg: oklch(0 0 0 / 0.03);
+  --bento-icon-bg: oklch(0 0 0 / 0.04);
+  --bento-row-hover: oklch(0 0 0 / 0.05);
+  --bento-hover-wash: oklch(0 0 0 / 0.06);
+  --bento-active-fill: oklch(0 0 0 / 0.08);
+
   /* canvas glow at daylight strength over the paper ground */
   --bento-canvas: radial-gradient(1100px 480px at 18% -8%, oklch(0.48 0.13 235 / 0.07), transparent 70%), radial-gradient(900px 420px at 85% -12%, oklch(0.52 0.09 300 / 0.05), transparent 72%), var(--background);
   --bento-kbd-border: oklch(0 0 0 / 0.15);

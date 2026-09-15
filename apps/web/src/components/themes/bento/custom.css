@@ -77,6 +77,27 @@
   min-height: 0;
 }
 
+/* Generic kinds — the registry's theme-independent layer (forge-feed,
+   project-forge, project-tile) defines NO chrome of its own: chrome is the
+   scope's job. Their frame shell (the canvas mounts one shell per placed
+   node; the presets place forge-feed and project-forge with their registry
+   id as the node id — the project-tile selector is defensive coverage for
+   a kind no current preset places, and flow-generated tiles would carry
+   generated project-<slug> ids) therefore renders the .b-tile manifest
+   verbatim, so any kind under this scope wears the theme's glazed tile
+   without the widget baking a surface in. Kinds that mount their own
+   .b-tile keep the pass-through above — no box-in-box. Values are
+   var-only, so the scheme stylesheets re-skin the register with the
+   scope. */
+[data-ww-theme="bento"] [data-widget="forge-feed"] > [data-slot="widget-shell"],
+[data-ww-theme="bento"] [data-widget="project-forge"] > [data-slot="widget-shell"],
+[data-ww-theme="bento"] [data-widget="project-tile"] > [data-slot="widget-shell"] {
+  border-radius: var(--bento-radius);
+  border: 1px solid var(--border);
+  background: var(--bento-sheen), var(--card);
+  box-shadow: var(--bento-tile-shadow);
+}
+
 /* ---------------------------------------------------------------- tile */
 
 [data-ww-theme="bento"] {

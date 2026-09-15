@@ -95,6 +95,17 @@
   --bento-grid-line: oklch(1 0 0 / 0.06);
   --bento-cursor-line: oklch(1 0 0 / 0.14);
 
+  /* interior surface steps — recessed rows/blocks, chip + icon fills, hover
+     washes, active segment. The ported widget markup addresses these ONLY
+     as vars, so the paper scheme re-declares them at ink alphas below and
+     no component ever carries a literal. */
+  --bento-well: oklch(1 0 0 / 0.02);
+  --bento-chip-bg: oklch(1 0 0 / 0.03);
+  --bento-icon-bg: oklch(1 0 0 / 0.04);
+  --bento-row-hover: oklch(1 0 0 / 0.05);
+  --bento-hover-wash: oklch(1 0 0 / 0.06);
+  --bento-active-fill: oklch(1 0 0 / 0.08);
+
   /* literal-bearing values consumed by custom.css + the ported markup */
   --bento-canvas: radial-gradient(1100px 480px at 18% -8%, oklch(0.72 0.125 235 / 0.07), transparent 70%), radial-gradient(900px 420px at 85% -12%, oklch(0.76 0.09 300 / 0.05), transparent 72%), var(--background);
   --bento-kbd-border: oklch(1 0 0 / 0.14);

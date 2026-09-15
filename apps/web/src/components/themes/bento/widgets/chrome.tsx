@@ -124,7 +124,12 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <WorkspaceBrand render={<Link to="/" />} />
 
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+          {/* z-30 lifts this control row above the canvas resize handles
+              (z-20): the command bar spans all 12 columns, so its centered
+              north-edge strip sits exactly over these controls and left them
+              pointer-dead — same layering trick the canvas's own drag grip
+              uses against the NW corner zone. */}
+          <div className="relative z-30 ml-auto flex flex-wrap items-center gap-1.5">
             {/* The bento chrome hides the runtime's console header (the
                 command bar replaces it), so the system theme picker hosts
                 here — preset + color scheme survive reloads. */}
@@ -199,7 +204,7 @@ export function BentoChrome(_props: RegisteredWidgetProps) {
               }}
               placeholder="Filter projects by name, path, stack, branch, note"
               aria-label="Filter projects"
-              className="b-search h-11 w-full rounded-xl border border-border bg-white/[0.03] pl-10 pr-14 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-ring/25"
+              className="b-search h-11 w-full rounded-xl border border-border bg-(--bento-chip-bg) pl-10 pr-14 text-sm outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/70 focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-ring/25"
             />
             <kbd className="b-kbd absolute right-3.5 top-1/2 -translate-y-1/2" aria-hidden>
               /

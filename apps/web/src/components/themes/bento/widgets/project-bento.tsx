@@ -197,7 +197,7 @@ export function BentoProjectBento({ size }: RegisteredWidgetProps) {
             key={node.id}
             type="button"
             onClick={() => openProject(project.path)}
-            className="flex min-h-0 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-border bg-white/[0.02] px-3 text-left"
+            className="flex min-h-0 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-border bg-(--bento-well) px-3 text-left"
           >
             <RecencyRing
               updatedAtMs={updatedAtMs}

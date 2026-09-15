@@ -141,7 +141,7 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
       <span
         aria-hidden
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-[10px] border border-border bg-white/[0.04] text-muted-foreground",
+          "flex shrink-0 items-center justify-center rounded-[10px] border border-border bg-(--bento-icon-bg) text-muted-foreground",
           iconSize,
         )}
       >
@@ -159,7 +159,7 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
             {project.name}
           </span>
           {project.stack ? (
-            <span className="hidden min-w-0 overflow-hidden rounded-full border border-border bg-white/[0.03] px-2 py-px text-[0.62rem] font-medium text-muted-foreground sm:inline-flex">
+            <span className="hidden min-w-0 overflow-hidden rounded-full border border-border bg-(--bento-chip-bg) px-2 py-px text-[0.62rem] font-medium text-muted-foreground sm:inline-flex">
               {project.stack.label}
             </span>
           ) : null}
@@ -180,7 +180,7 @@ export function BentoProjectTile({ node, size }: RegisteredWidgetProps) {
         <div className="flex items-center justify-between gap-1">
           <span
             aria-hidden
-            className="flex size-6 shrink-0 items-center justify-center rounded-lg border border-border bg-white/[0.04] text-muted-foreground"
+            className="flex size-6 shrink-0 items-center justify-center rounded-lg border border-border bg-(--bento-icon-bg) text-muted-foreground"
           >
             <StackIconById project={project} />
           </span>
@@ -404,7 +404,7 @@ function HeroQuality({ entry }: { entry: ReportExportProject }) {
       {entry.alerts.map((alert) => (
         <li
           key={alert.id}
-          className="flex min-w-0 items-start gap-2 rounded-lg border border-border bg-white/[0.02] px-2.5 py-1.5"
+          className="flex min-w-0 items-start gap-2 rounded-lg border border-border bg-(--bento-well) px-2.5 py-1.5"
           title={alert.summary}
         >
           <span

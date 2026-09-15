@@ -68,7 +68,10 @@ export interface ThemePreset {
    * The theme's page-level command register, rendered at the right edge of
    * the COMMON page header (owner mod 1: the workspace verbs — sync clock,
    * Actions, Rescan, Settings — are header chrome, not canvas content).
-   * Omit when a theme replaces the whole header with its own chrome (bento).
+   * Omit when a theme replaces the whole header with its own chrome (bento,
+   * meadow) — omission IS the renderer's signal for that state: the theme's
+   * chrome hosts the system theme picker itself, so the common header
+   * renders no duplicate (one picker per page).
    * Runs inside the page's provider stack, so workspace hooks resolve; the
    * component owns its layout (the header gives it the right-aligned slot).
    */

@@ -3,8 +3,11 @@
  * order: a small theme picker — preset list + scheme toggle — living in the
  * system header, working on every theme).
  *
- * Rendered by `RenderLayout`'s page header on every preset page (the lab,
- * whose slug is not a registered preset, hides it honestly). Both picks are
+ * Rendered by `RenderLayout`'s page header on presets that ride the common
+ * header (`headerCommand` declared); presets that replace the header with
+ * their own chrome (bento, meadow — no `headerCommand`) host the same
+ * picker in that chrome — ONE picker per page, never both. The lab, whose
+ * slug is not a registered preset, renders none. Both picks are
  * FULLY IN-PLACE: the top-level routes (`/`, `/project/<splat>`) render the
  * SAVED selection from `ww.prefs.v1`, so a pick persists the prefs and
  * strips any `?preset=`/`?scheme=` deep-link params from the URL — the
@@ -15,11 +18,21 @@
  *
  * Scheme picks persist per preset and sync next-themes' light/dark store so
  * the app chrome (html class, sonner, `dark:` variants) matches the board.
+ *
+ * A third control rides along: the "Reset layout" ghost icon button. It
+ * clears THIS theme's saved board arrangements (`ww.board.v1` pages under
+ * `${theme}:`) and drops the live board's session so the authored preset
+ * re-packs immediately — an honest, simple Undo (restore the storage
+ * snapshot + re-seed the board), last-write-wins if the board was edited
+ * in between.
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
+import { RotateCcw } from "lucide-react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 
+import { Button } from "@workspace-welcome/ui/components/button";
 import {
   Select,
   SelectContent,
@@ -31,6 +44,14 @@ import {
 import { getThemePreset, themePresets } from "@/components/themes";
 import type { ThemeScheme } from "@/components/themes";
 import { useWidgetPrefs } from "@/lib/contexts/theme-prefs";
+import {
+  dropPagesWithPrefix,
+  readSavedBoards,
+  writeSavedBoards,
+} from "@/lib/widget/board-persist";
+import { clearPageSession } from "@/lib/widget/grid-session";
+
+import { reapplySavedBoard } from "./use-board-persistence";
 
 export function ThemePicker({
   theme,
@@ -122,6 +143,58 @@ export function ThemePicker({
     setTheme(scheme.appearance);
   };
 
+  /** Clear every saved board arrangement of THIS theme and drop its live
+   * sessions — the authored pack re-packs on the session emits. The mounted
+   * board's page id is read from the DOM (`data-widget-board`), the one
+   * ground truth for which board this picker's page actually mounts. */
+  const onResetLayout = (): void => {
+    const snapshot = readSavedBoards();
+    const { boards, droppedPageIds } = dropPagesWithPrefix(snapshot, theme);
+    if (droppedPageIds.length === 0) {
+      // Nothing saved — no destructive toast for a no-op, just the fact.
+      toast.info("No saved layout", {
+        description: "Nothing to reset — this theme has no saved arrangement yet.",
+      });
+      return;
+    }
+    writeSavedBoards(boards);
+    // Reset is theme-wide but the session store is page-scoped module
+    // memory: clearing only the mounted page would leave the sibling page's
+    // stale session rendering the pre-reset arrangement over SPA navigation
+    // and re-saving it on its next edit ("dashboard" | "project" are the
+    // only page contexts, so both are cleared; absent ones are no-ops).
+    clearPageSession(`${theme}:dashboard`);
+    clearPageSession(`${theme}:project`);
+    const mountedPageId =
+      document
+        .querySelector("[data-widget-board]")
+        ?.getAttribute("data-widget-board") ?? null;
+    // The picker also renders on chrome hosts whose board may be another
+    // theme's (or unmounted) — only the Undo re-seeds THIS theme's board.
+    const pageId =
+      mountedPageId !== null && mountedPageId.startsWith(`${theme}:`)
+        ? mountedPageId
+        : null;
+    toast.success("Layout reset", {
+      description: "Saved arrangements cleared — the authored board is back.",
+      action: {
+        label: "Undo",
+        onClick: () => {
+          writeSavedBoards(snapshot);
+          if (pageId === null) return;
+          // The page id's suffix names the preset page ("dashboard" |
+          // "project") — its layout carries the format generation the re-seed
+          // must reconcile against.
+          const layout =
+            pageId.slice(theme.length + 1) === "project"
+              ? preset.project
+              : preset.dashboard;
+          reapplySavedBoard(pageId, layout.version);
+        },
+      },
+    });
+  };
+
   return (
     <div
       data-theme-picker=""
@@ -157,6 +230,19 @@ export function ThemePicker({
           ))}
         </SelectContent>
       </Select>
+      {/* An action button, deliberately NOT a SelectItem: the selects are
+          controlled value-pickers, sentinel entries would fight their value
+          contract. Ghost icon size matches the h-7 triggers. */}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Reset layout"
+        title="Reset layout"
+        onClick={onResetLayout}
+      >
+        <RotateCcw />
+      </Button>
     </div>
   );
 }

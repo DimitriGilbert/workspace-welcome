@@ -14,11 +14,12 @@
  * fits them instead of stranding dead zones. Rows come out ragged only when
  * the input genuinely can't fill them.
  *
- * This packer is ALSO the mutation re-pack: after a manual move/resize the
- * canvas re-runs it with the committed placement as a FIXED item, so free
- * widgets skyline-fill AROUND the user's pin — the board stays tight (no
- * islands, no mid-board voids), the pin is honored verbatim, and a void
- * survives only where no free footprint fits the space a pin left.
+ * This module is ALSO the mutation re-pack: after a manual move/resize the
+ * canvas runs `settleArrangement` — the drop lands verbatim and the widgets
+ * it displaced re-home by this same skyline rule (lowest, leftmost clear
+ * cell), so the board stays tight (no islands, no mid-board voids, no
+ * bottom-of-board exile after a one-cell move), and a void survives only
+ * where no free footprint fits the space a pin or drop left.
  *
  * Fixed placements. An item with an `at` anchor is FIXED: it is placed at
  * exactly that cell (its x clamped so the footprint stays inside the grid,
@@ -100,6 +101,46 @@ function normalizedFootprint(
   };
 }
 
+/* ------------------------------------------------------------------------- */
+/* Shared rectangle skyline math (the fresh pack AND the settle both run it)  */
+/* ------------------------------------------------------------------------- */
+
+/** One occupied rectangle of a layout, in grid cells. */
+interface Rect {
+  x: number;
+  y: number;
+  cols: number;
+  rows: number;
+}
+
+/** Axis-aligned rectangle overlap in grid cells. */
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.cols && b.x < a.x + a.cols && a.y < b.y + b.rows && b.y < a.y + a.rows;
+}
+
+/**
+ * Lowest y where a `cols`×`rows` rectangle at column `x` intersects nothing
+ * in `rects`. Candidates are 0 and the bottom edges of every x-overlapping
+ * rect (the minimal working y is always one of those — a blocking rect's own
+ * bottom), so the scan is bounded by the placed count and stays correct with
+ * rects floating mid-board. THE shared skyline primitive: the fresh pack's
+ * free-item fill and the settle's displaced re-home both rank positions by
+ * it, so a mutation re-homes at fresh-pack quality.
+ */
+function lowestFitY(rects: readonly Rect[], x: number, cols: number, rows: number): number {
+  const bottoms = rects
+    .filter((r) => r.x < x + cols && x < r.x + r.cols)
+    .map((r) => r.y + r.rows)
+    .sort((a, b) => a - b);
+  let y = 0;
+  for (;;) {
+    if (!rects.some((r) => rectsOverlap(r, { x, y, cols, rows }))) return y;
+    const next = bottoms.find((b) => b > y);
+    if (next === undefined) return y;
+    y = next;
+  }
+}
+
 /**
  * Pack items onto a `columns`-wide grid with the line-filling skyline walk.
  * Fixed items (an `at` anchor) are honored first; free items then pack into
@@ -149,29 +190,6 @@ export function packGrid(
 
   const rects: Rect[] = [];
   const placed = new Array<PackPlacement | null>(sequence.length).fill(null);
-
-  const overlapsRect = (r: Rect, cand: Rect): boolean =>
-    r.x < cand.x + cand.cols && cand.x < r.x + r.cols && r.y < cand.y + cand.rows && cand.y < r.y + r.rows;
-
-  /** Lowest y where a `cols`×`rows` rectangle at column `x` intersects
-   * nothing placed. Candidates are 0 and the bottom edges of every
-   * x-overlapping rect (the minimal working y is always one of those — a
-   * blocking rect's own bottom), so the scan is bounded by the placed count
-   * and stays correct with rects floating mid-board. */
-  const lowestFitY = (x: number, cols: number, rows: number): number => {
-    const bottoms = rects
-      .filter((r) => r.x < x + cols && x < r.x + r.cols)
-      .map((r) => r.y + r.rows)
-      .sort((a, b) => a - b);
-    let y = 0;
-    for (;;) {
-      const cand: Rect = { x, y, cols, rows };
-      if (!rects.some((r) => overlapsRect(r, cand))) return y;
-      const next = bottoms.find((b) => b > y);
-      if (next === undefined) return y;
-      y = next;
-    }
-  };
 
   const placeRect = (position: number, x: number, y: number): void => {
     const entry = sequence[position];
@@ -223,7 +241,7 @@ export function packGrid(
       const entry = sequence[head];
       const { cols, rows } = entry?.footprint ?? { cols: width, rows: 1 };
       for (let x = 0; x + cols <= columns; x++) {
-        const y = lowestFitY(x, cols, rows);
+        const y = lowestFitY(rects, x, cols, rows);
         if (
           winner === null ||
           y < winner.y ||
@@ -250,13 +268,6 @@ export function packGrid(
 /* ------------------------------------------------------------------------- */
 /* Incremental mutation (manual move/resize) — position-preserving            */
 /* ------------------------------------------------------------------------- */
-
-interface Rect {
-  x: number;
-  y: number;
-  cols: number;
-  rows: number;
-}
 
 const xOverlapItem = (a: ArrangementItem, x: number, cols: number): boolean =>
   a.x < x + cols && x < a.x + a.cols;
@@ -287,17 +298,25 @@ const rectHit = (a: ArrangementItem, b: ArrangementItem): boolean =>
  * 1. SWAP: when the moved widget's old rectangle is free of everything else
  *    and exactly one occupant of the new rectangle has the same footprint,
  *    they swap — the classic same-size tile exchange, zero other movement.
- * 2. PUSH: every widget the new rectangle overlaps (ascending y) re-homes
- *    BELOW it — x kept, lowest y where it intersects nothing, chains downward
- *    through anything its new span then hits. Never upward: re-homing is
- *    strictly a consequence of the drop.
- * 3. GRAVITY into the vacated cells: widgets directly below the moved
- *    widget's OLD rectangle (same column band) rise into it while the space
- *    stays clear — band-local only, so no unrelated widget ever teleports
- *    across the board and no wave of reordering fans out.
+ * 2. RE-HOME: the drop's occupants re-place at the LOWEST, leftmost clear
+ *    positions — the same skyline rule the fresh pack serves free items —
+ *    so they fill the cells the operation freed (the vacated old rect, the
+ *    notch the drop punched, the next band's remainder) instead of being
+ *    pushed below the moved widget to the bottom of the board. Displacement
+ *    goes below the fold only when no clear position exists above it (the
+ *    jam case: push-below survives as the degenerate re-home).
+ * 3. GRAVITY into the vacated cells: widgets directly below an emptied band
+ *    (same column band) rise into it while the space stays clear —
+ *    band-local only, so no unrelated widget ever teleports across the
+ *    board and no wave of reordering fans out.
  *
- * Pure; deterministic; terminates (pushes only move items down, gravity only
- * up, both bounded by the grid).
+ * Only the drop's occupants (and, on swap, the single same-size occupant)
+ * ever move; every other widget is an obstacle to every step — pinned
+ * placements included, which the user's explicit drop can still displace
+ * (owner round 5: pins protect placements from automatic reflow, never from
+ * the user). Pure; deterministic; terminates (each displaced widget is
+ * placed exactly once at a clear position, gravity only moves up/left, both
+ * bounded by the grid).
  */
 export function settleArrangement(
   items: readonly ArrangementItem[],
@@ -323,30 +342,65 @@ export function settleArrangement(
     }
   }
 
-  // --- 2. Push displaced occupants below the new rectangle ------------------
-  const movedBottom = moved.y + moved.rows;
+  // --- 2. Re-home the drop's occupants at skyline quality ------------------
+  //
+  // The widgets the drop displaced no longer march below the moved widget
+  // and chain to the bottom of the board: they re-home by the SAME
+  // fill-the-line rule the fresh pack serves free items, run against real
+  // rectangles — the moved widget at its EXACT drop, every widget the drop
+  // did not touch at its exact cell (pinned or free — untouched means
+  // immovable here), and each earlier re-home. Each step plants the pending
+  // widget whose lowest clear position sits highest (earliest input order,
+  // then leftmost x, on ties), so the displaced claim the drop's leftovers —
+  // the vacated old rect, the notch the drop punched, the next band's
+  // remainder — and only fall below the fold when the board genuinely has
+  // no room. lowestFitY returns only clear positions, so a re-home can
+  // never overlap the drop, a pin, or an untouched widget; and it may pull
+  // a displaced widget UP into cells this operation vacated — that pull is
+  // the point: bottom exile after a one-cell move was the bug, not a law.
   const vacated: Rect[] = [];
   if (oldRect !== null) vacated.push({ ...oldRect });
-  const displaced = others()
-    .filter((i) => rectHit(i, moved))
-    .sort((a, b) => a.y - b.y);
-  for (const item of displaced) {
-    // Lowest y where the item clears everything placed so far, starting at
-    // the moved widget's bottom (it yields downward, never upward).
-    let y = movedBottom;
-    for (;;) {
-      const cand: ArrangementItem = { ...item, y };
-      const hit = out.some((i) => rectHit(i, cand));
-      if (!hit) break;
-      const next = Math.max(
-        movedBottom,
-        ...out.filter((i) => i.id !== item.id && rectHit(i, cand)).map((i) => i.y + i.rows),
-      );
-      if (next <= y) break;
-      y = next;
+  const displaced = others().filter((i) => rectHit(i, moved));
+  if (displaced.length > 0) {
+    // Re-home candidates stay inside the columns the arrangement already
+    // spans: the controller clamps every placement (the drop included) to
+    // the region's grid, so the widest x + cols across the input is this
+    // settle's board width — it never invents columns the board doesn't
+    // have, and the pre-fix push (x kept) never left this envelope either.
+    const columns = Math.max(1, ...out.map((i) => i.x + i.cols));
+    // Original cells of the displaced — vacated for step 3 once they move.
+    const from = new Map(
+      displaced.map((i) => [i.id, { x: i.x, y: i.y, cols: i.cols, rows: i.rows }]),
+    );
+    // Occupancy the re-homes must clear: everything except the displaced.
+    const rects: Rect[] = out
+      .filter((i) => i.id === movedId || !rectHit(i, moved))
+      .map((i) => ({ x: i.x, y: i.y, cols: i.cols, rows: i.rows }));
+    const pending = [...displaced];
+    while (pending.length > 0) {
+      let winner: { x: number; y: number; index: number } | null = null;
+      for (let index = 0; index < pending.length; index++) {
+        const item = pending[index];
+        if (item === undefined) continue;
+        for (let x = 0; x + item.cols <= columns; x++) {
+          const y = lowestFitY(rects, x, item.cols, item.rows);
+          if (winner === null || y < winner.y) winner = { x, y, index };
+          if (y === 0) break; // cannot beat the top row
+        }
+      }
+      const item = winner === null ? undefined : pending[winner.index];
+      if (winner === null || item === undefined) break;
+      pending.splice(winner.index, 1);
+      item.x = winner.x;
+      item.y = winner.y;
+      rects.push({ x: winner.x, y: winner.y, cols: item.cols, rows: item.rows });
     }
-    if (y !== item.y) vacated.push({ x: item.x, y: item.y, cols: item.cols, rows: item.rows });
-    item.y = y;
+    for (const item of displaced) {
+      const origin = from.get(item.id);
+      if (origin !== undefined && (origin.x !== item.x || origin.y !== item.y)) {
+        vacated.push(origin);
+      }
+    }
   }
 
   // --- 3. Compact the vacated cells (taste law: no voids) -------------------

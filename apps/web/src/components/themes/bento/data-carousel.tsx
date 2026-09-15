@@ -132,7 +132,7 @@ export function DataCarousel({
               className={cn(
                 "rounded-md px-2 py-1 font-mono text-[0.64rem] transition-colors",
                 selected === i
-                  ? "bg-white/[0.08] text-foreground"
+                  ? "bg-(--bento-active-fill) text-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >

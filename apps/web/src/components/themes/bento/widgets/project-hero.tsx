@@ -104,7 +104,7 @@ export function BentoProjectNav(_props: RegisteredWidgetProps) {
             key={section.label}
             type="button"
             onClick={() => scrollTo(section.widget, section.pane)}
-            className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[0.66rem] text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+            className="flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[0.66rem] text-muted-foreground transition-colors hover:bg-(--bento-hover-wash) hover:text-foreground"
           >
             <section.icon className="size-3" /> {section.label}
           </button>
@@ -154,7 +154,7 @@ export function BentoProjectIdentity(_props: RegisteredWidgetProps) {
       <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-white/[0.04] text-muted-foreground"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border bg-(--bento-icon-bg) text-muted-foreground"
         >
           <StackIcon className="size-5" />
         </span>
@@ -162,7 +162,7 @@ export function BentoProjectIdentity(_props: RegisteredWidgetProps) {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-lg font-semibold tracking-tight">{project.name}</h1>
             {project.stack ? (
-              <span className="shrink-0 rounded-full border border-border bg-white/[0.03] px-2 py-px text-[0.62rem] font-medium text-muted-foreground">
+              <span className="shrink-0 rounded-full border border-border bg-(--bento-chip-bg) px-2 py-px text-[0.62rem] font-medium text-muted-foreground">
                 {project.stack.label}
               </span>
             ) : null}

@@ -78,12 +78,13 @@ export type RegionNode =
  * A page preset (v1 | v2).
  *
  * - `version` — format generation. v1 is the original shape; v2 adds the
- *   per-breakpoint `WidgetNode.tablet`/`phone` overrides. There is NO saved-layout
- *   store today (the session placement store is module memory by settled #4), so
- *   every load re-packs from preset code and a version bump can never go stale —
- *   the field is the contract a future persistence layer must store alongside
- *   saved layouts and drop entries whose stored version ≠ the preset's current
- *   version. validate-layout accepts exactly 1 and 2.
+ *   per-breakpoint `WidgetNode.tablet`/`phone` overrides. A saved-layout
+ *   store EXISTS now — localStorage `ww.board.v1`, written by the additive
+ *   persistence layer (`board-persist`) around the module-memory session
+ *   store (settled #4) — and every saved page carries the version it was
+ *   made at: `board-persist.reconcileVersion` ENFORCES this contract and
+ *   drops entries whose stored version ≠ the preset's current version, so a
+ *   version bump can never go stale. validate-layout accepts exactly 1 and 2.
  * - `context` — drives the provider stack (§3.4): `"workspace"` mounts
  *   Settings > Workspace > Report(scan); `"project"` mounts
  *   Settings > Project (nests Workspace) > Report(repo).

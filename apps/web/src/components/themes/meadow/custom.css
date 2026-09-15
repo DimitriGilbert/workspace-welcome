@@ -61,6 +61,28 @@
     0 14px 36px -22px color-mix(in oklch, var(--foreground) 24%, transparent);
 }
 
+/* Generic kinds — the registry's theme-independent layer (forge-feed,
+   project-forge, project-tile) defines NO chrome of its own: chrome is the
+   scope's job. Their frame shell (the canvas mounts one shell per placed
+   node; the presets place forge-feed and project-forge with their registry
+   id as the node id — the project-tile selector is defensive coverage for
+   a kind no current preset places, and flow-generated tiles would carry
+   generated project-<slug> ids) therefore renders the .meadow-panel
+   manifest verbatim, so any kind under this scope wears the theme's soft
+   panel without the widget baking a surface in. Panel-carrying kinds keep
+   their own .meadow-panel — no box-in-box; the values are var-only, so
+   scheme stylesheets re-skin the register with the scope. */
+[data-ww-theme="meadow"] [data-widget="forge-feed"] > [data-slot="widget-shell"],
+[data-ww-theme="meadow"] [data-widget="project-forge"] > [data-slot="widget-shell"],
+[data-ww-theme="meadow"] [data-widget="project-tile"] > [data-slot="widget-shell"] {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 8px);
+  background: var(--card);
+  box-shadow:
+    0 1px 2px color-mix(in oklch, var(--foreground) 4%, transparent),
+    0 14px 36px -22px color-mix(in oklch, var(--foreground) 24%, transparent);
+}
+
 [data-ww-theme="meadow"] .meadow-lift {
   transition:
     transform 180ms ease,

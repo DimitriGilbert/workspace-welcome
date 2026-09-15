@@ -360,11 +360,6 @@ function PageBody({
     return regions.filter((region) => allowed.has(region.id));
   }, [regions, view]);
 
-  // The system-header theme picker: preset list + scheme toggle, rendered on
-  // every registered preset (the lab's synthetic scope hides it honestly).
-  // Themes that hide the console header (meadow, bento) host the same picker
-  // in their own chrome widgets.
-
   useRequiresAssertion(theme, useMemo(() => regions.flatMap((r) => r.nodes), [regions]));
 
   return (
@@ -385,7 +380,17 @@ function PageBody({
           </Link>
         )}
         {headerMeta}
-        <ThemePicker theme={theme} activeScheme={scheme} />
+        {/* The system picker rides the common header ONLY while the preset
+            declares one (headerCommand) — omitting it is the documented
+            "this theme replaces the whole header with its own chrome"
+            contract, and that chrome hosts the picker itself. Rendering it
+            here anyway mounted a display:none duplicate: the selects, the
+            destructive Reset-layout button, and a forever-running
+            MutationObserver. The lab's unregistered slug renders no picker
+            on either path (the picker no-ops on unknown presets). */}
+        {HeaderCommand !== undefined && (
+          <ThemePicker theme={theme} activeScheme={scheme} />
+        )}
         {consoleViews !== undefined && consoleViews.length > 0 && (
           <WidgetTabs
             tabs={consoleViews}
@@ -427,6 +432,7 @@ function PageBody({
       <div className="px-5 pb-10 pt-4">
         <GridCanvas
           pageId={`${theme}:${page}`}
+          layoutVersion={preset.version}
           columns={preset.columns}
           cell={preset.cell}
           regions={visibleRegions}

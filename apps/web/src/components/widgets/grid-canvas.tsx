@@ -60,6 +60,7 @@ import { parseSize, resolveSizeClass, SIZE_LADDER } from "@/lib/widget/size-clas
 import type { SizeClass } from "@/lib/widget/size-class";
 
 import { GridItemContext } from "./widget-shell";
+import { useBoardPersistence } from "./use-board-persistence";
 import { useGridDrag } from "./use-grid-drag";
 import type { DragWidgetMeta, ResizeEdge } from "./use-grid-drag";
 
@@ -132,6 +133,11 @@ export interface PlacedRegion {
 export interface GridCanvasProps {
   /** Session-store key — stable per page (e.g. `${theme}:${dashboard}`). */
   pageId: string;
+  /** The page preset's format generation (`PageLayout.version`). Present →
+   * the board persists its session arrangements per page in localStorage
+   * (`ww.board.v1`, seeded on mount + mirrored per gesture — see
+   * `use-board-persistence`); omitted → the board stays session-only. */
+  layoutVersion?: 1 | 2;
   /** Breakpoint column counts from the preset. */
   columns: ViewportColumns;
   /** Row-unit density in px from the preset (`cell.h`). */
@@ -284,6 +290,7 @@ function GhostMark({
 
 export function GridCanvas({
   pageId,
+  layoutVersion,
   columns,
   cell,
   gap = DEFAULT_GRID_GAP_PX,
@@ -295,6 +302,9 @@ export function GridCanvas({
   className,
 }: GridCanvasProps) {
   const board = useViewportBoard(columns);
+  // Persistence seeds AFTER the viewport sync (declaration order → same
+  // post-mount flush as the data-ready stamp below), never gating it.
+  useBoardPersistence({ pageId, layoutVersion });
   const regionRefs = useRef(new Map<string, HTMLElement | null>());
 
   // Placement commit is synchronous (pure data → pack below); readiness is
